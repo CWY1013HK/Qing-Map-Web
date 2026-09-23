@@ -35,6 +35,7 @@ body {
   /* Silver metal 令牌 + coloured ribbons */
   --lingpai-handi: url('/ui/silver/handi-lingpai.png');
   --lingpai-zhongguo: url('/ui/silver/zhongguo-lingpai.png');
+  --lingpai-hailu: url('/ui/silver/hailu-lingpai.png');
   --minimap-border: #6a6e74;
   --minimap-rim: #c5c8ce;
   --minimap-inset: rgba(255, 255, 255, 0.45);
@@ -62,6 +63,7 @@ body {
   /* Ebony wood 令牌 + coloured ribbons (original tablets) */
   --lingpai-handi: url('/ui/bronze/handi-lingpai.png');
   --lingpai-zhongguo: url('/ui/bronze/zhongguo-lingpai.png');
+  --lingpai-hailu: url('/ui/bronze/hailu-lingpai.png');
   --minimap-border: #8a6a32;
   --minimap-rim: #c9a14a;
   --minimap-inset: rgba(255, 230, 170, 0.35);
@@ -573,6 +575,101 @@ body {
 }
 
 /* —— Focus mode (淨) —— */
+/*
+ * OSD overlay stacking (all inside .viewer z-index:2 — below chrome GUIs):
+ *   sea underlay → ink overlays → décor stamps → location labels → mist clouds
+ * Mist must overtake map content / décor; toolbar, seals, popups stay above.
+ */
+
+.sea-underlay-wrap {
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+.sea-underlay {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none !important;
+  transition: opacity 0.65s ease;
+  overflow: hidden;
+}
+
+.sea-underlay.is-visible {
+  opacity: 1;
+}
+
+.sea-underlay-waves-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  /* Patterns are map userSpace — no CSS background-size to drift on spring. */
+}
+
+.sea-underlay-land {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sea-bloc-debug {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+  display: none;
+}
+
+.sea-bloc-debug rect {
+  fill: none;
+  stroke: #ffb000;
+}
+
+.sea-bloc-debug text {
+  fill: #ffb000;
+  stroke: #1a1204;
+  stroke-width: 0.008;
+  font-family: "Songti SC", "STSong", serif;
+  font-weight: 700;
+  paint-order: stroke fill;
+}
+
+@keyframes sea-wave-drift {
+  /* Kept for reduced-motion / legacy; live drift is SVG SMIL. */
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: var(--wave-shift-x, 8.7%) 0;
+  }
+}
+
+.focus-decor-overlay {
+  z-index: 2 !important;
+  pointer-events: none !important;
+}
+
+.focus-cloud-overlay {
+  z-index: 6 !important;
+  pointer-events: none !important;
+}
+
 /* Outer box sized by OSD Rect (image coords → scales with zoom) */
 .focus-cloud {
   margin: 0;
@@ -587,6 +684,11 @@ body {
 
 .focus-cloud.is-visible {
   opacity: 0.78;
+}
+
+/* Figurative stamps (junks / riders / caravans) — a touch more opaque than mist */
+.focus-cloud.focus-decor.is-visible {
+  opacity: 0.88;
 }
 
 .focus-cloud-inner {

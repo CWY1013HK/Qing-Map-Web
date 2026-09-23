@@ -107,8 +107,17 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
 
   mountChrome(viewer)
   mountFocusMode(viewer)
+  // Warm the land plate so 淨 mode does not wait on an 8MB fetch.
+  const landWarm = new Image()
+  landWarm.decoding = 'async'
+  landWarm.src = '/land/map-land.webp?v=20'
   mountOverlaysOnViewer(viewer)
   mountOverlaySealControls()
+  if (import.meta.env.DEV) {
+    void import('../overlays/vertexEditor').then(({ mountOverlayVertexEditor }) => {
+      mountOverlayVertexEditor(viewer)
+    })
+  }
   mountLocationLabels(viewer)
   mountLabelToggle()
   mountMusicToggle()

@@ -11,7 +11,8 @@
     "copy-source": "node scripts/copy-source.mjs",
     "copy-previews": "node scripts/copy-previews.mjs",
     "extract-overlays": "node scripts/extract-crimson-outline.mjs",
-    "extract-zhongguo": "node scripts/extract-zhongguo-outline.mjs"
+    "extract-zhongguo": "node scripts/extract-zhongguo-outline.mjs",
+    "build-land-plate": "python3 scripts/build-land-plate.py"
   },
   "devDependencies": {
     "@types/openseadragon": "^5.0.2",

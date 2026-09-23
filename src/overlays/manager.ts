@@ -1,18 +1,32 @@
 import type { Viewer } from 'openseadragon'
-import type { OverlayCollection, OverlayFeature } from '../lib/types'
+import type { OverlayCollection, OverlayFeature, MapRing } from '../lib/types'
 import handiCollection from '../../data/overlays/handi-shibasheng.json'
 import zhongguoCollection from '../../data/overlays/zhongguo.json'
+import hailuCollection from '../../data/overlays/hailu.json'
 import { overlayStore } from './store'
 import { attachSvgOverlayLayer, type SvgOverlayLayer } from './svgLayer'
 
 export const HANDI_GROUP_ID = 'handi-shibasheng'
 export const ZHONGGUO_GROUP_ID = 'zhongguo'
+export const HAILU_GROUP_ID = 'hailu'
+
+export type OverlaySourcePart = {
+  fileKey: string
+  collection: OverlayCollection
+}
 
 export type OverlayManager = {
   collection: OverlayCollection
   /** All feature ids across loaded overlay JSON files */
   featureIds: string[]
   idsForGroup: (groupId: string) => string[]
+  getSourceParts: () => OverlaySourcePart[]
+  /** Push live ring edits to every attached SVG layer */
+  updateFeatureRings: (
+    featureId: string,
+    rings: MapRing[],
+    pathMode?: 'closed' | 'open',
+  ) => void
   attach: (viewer: Viewer) => () => void
   destroyAll: () => void
 }
@@ -42,7 +56,12 @@ function mergeCollections(parts: OverlayCollection[]): OverlayCollection {
 export function getOverlayManager(): OverlayManager {
   if (singleton) return singleton
 
-  const parts = [asCollection(handiCollection), asCollection(zhongguoCollection)]
+  const sourceParts: OverlaySourcePart[] = [
+    { fileKey: 'handi-shibasheng', collection: asCollection(handiCollection) },
+    { fileKey: 'zhongguo', collection: asCollection(zhongguoCollection) },
+    { fileKey: 'hailu', collection: asCollection(hailuCollection) },
+  ]
+  const parts = sourceParts.map((p) => p.collection)
   const collection = mergeCollections(parts)
   const featureIds = collection.overlays.map((o) => o.id)
 
@@ -70,6 +89,25 @@ export function getOverlayManager(): OverlayManager {
     featureIds,
     idsForGroup(groupId: string) {
       return groupMap.get(groupId) ?? [groupId]
+    },
+    getSourceParts() {
+      return sourceParts
+    },
+    updateFeatureRings(featureId, rings, pathMode = 'closed') {
+      // Mutate merged collection + matching source part
+      const feat = collection.overlays.find((o) => o.id === featureId)
+      if (feat) {
+        feat.rings = rings
+        if (pathMode) feat.pathMode = pathMode
+      }
+      for (const part of sourceParts) {
+        const f = part.collection.overlays.find((o) => o.id === featureId)
+        if (f) {
+          f.rings = rings
+          if (pathMode) f.pathMode = pathMode
+        }
+      }
+      for (const layer of layers) layer.updateFeatureRings(featureId, rings, pathMode)
     },
     attach(viewer: Viewer) {
       const layer = attachSvgOverlayLayer(viewer, collection)

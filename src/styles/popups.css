@@ -1,8 +1,9 @@
 /* —— Location label hotspots (誌) + annotation popup —— */
 
+/* Above décor / ink, below mist clouds (focus-cloud-overlay: 6) and chrome GUIs */
 .map-label-overlay {
   pointer-events: auto !important;
-  z-index: 5;
+  z-index: 5 !important;
 }
 
 .map-label-btn {
@@ -378,6 +379,47 @@
 
 .credits-popup-music-list a:hover {
   color: #3a4a66;
+}
+
+.credits-popup-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(60, 68, 78, 0.18);
+}
+
+.credits-popup-tools[hidden] {
+  display: none !important;
+}
+
+.credits-popup-tool-btn {
+  font: inherit;
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(60, 68, 78, 0.35);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.45);
+  color: #1e2b46;
+  cursor: pointer;
+}
+
+.credits-popup-tool-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.credits-popup-tool-btn[aria-pressed='true'] {
+  border-color: rgba(170, 40, 40, 0.65);
+  background: rgba(190, 45, 45, 0.14);
+  color: #7a1a1a;
+}
+
+.credits-popup-tool-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 #app.intro-active .annotation-popup,

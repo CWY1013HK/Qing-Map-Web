@@ -1,8 +1,18 @@
+import { CREDITS_SHOW_DEV_TOOLS } from '../config'
+import {
+  isVertexEditorAvailable,
+  isVertexEditorPanelVisible,
+  onVertexEditorAvailable,
+  onVertexEditorPanelVisible,
+  toggleVertexEditorPanel,
+} from '../overlays/vertexEditorChrome'
+
 const UNFOLD_MS = 600
 const FOLD_MS = 450
 
 let panelEl: HTMLElement | null = null
 let closeBtn: HTMLButtonElement | null = null
+let edgeEditBtn: HTMLButtonElement | null = null
 let open = false
 let animating = false
 
@@ -23,6 +33,40 @@ function waitForAnimation(panel: HTMLElement, className: string, fallbackMs: num
     window.setTimeout(done, fallbackMs)
     panel.classList.add(className)
   })
+}
+
+function syncEdgeEditButton(): void {
+  const tools = panelEl?.querySelector<HTMLElement>('#credits-popup-tools')
+  if (!edgeEditBtn || !tools) return
+
+  const available = isVertexEditorAvailable()
+  tools.hidden = !available
+  edgeEditBtn.disabled = !available
+  if (!available) {
+    edgeEditBtn.setAttribute('aria-pressed', 'false')
+    edgeEditBtn.title = '邊線 — Edge editor unavailable'
+    return
+  }
+
+  const shown = isVertexEditorPanelVisible()
+  edgeEditBtn.setAttribute('aria-pressed', shown ? 'true' : 'false')
+  edgeEditBtn.title = shown ? '邊線 — Hide edge editor' : '邊線 — Show edge editor'
+  edgeEditBtn.textContent = shown ? '邊線編輯 · 開' : '邊線編輯 · 關'
+}
+
+function toolsRowHtml(): string {
+  if (!CREDITS_SHOW_DEV_TOOLS) return ''
+  return `
+      <div class="credits-popup-tools" id="credits-popup-tools">
+        <button
+          type="button"
+          class="credits-popup-tool-btn"
+          id="credits-toggle-edge-edit"
+          aria-pressed="false"
+          title="邊線 — Show edge editor"
+        >邊線編輯 · 關</button>
+      </div>
+  `
 }
 
 function ensurePanel(): HTMLElement {
@@ -50,6 +94,10 @@ function ensurePanel(): HTMLElement {
             <td>王譽</td>
           </tr>
           <tr>
+            <th scope="row">督導</th>
+            <td>王迪安教授、李紀教授</td>
+          </tr>
+          <tr>
             <th scope="row">支持</th>
             <td>HKU Arts Tech Lab</td>
           </tr>
@@ -72,16 +120,29 @@ function ensurePanel(): HTMLElement {
           </li>
         </ul>
       </div>
+      ${toolsRowHtml()}
     </div>
   `
 
   app.appendChild(panel)
   panelEl = panel
   closeBtn = panel.querySelector('#credits-popup-close')
+  edgeEditBtn = panel.querySelector('#credits-toggle-edge-edit')
 
   closeBtn?.addEventListener('click', () => {
     void closeCreditsPopup()
   })
+
+  edgeEditBtn?.addEventListener('click', () => {
+    toggleVertexEditorPanel()
+    syncEdgeEditButton()
+  })
+
+  if (CREDITS_SHOW_DEV_TOOLS) {
+    onVertexEditorPanelVisible(() => syncEdgeEditButton())
+    onVertexEditorAvailable(() => syncEdgeEditButton())
+    syncEdgeEditButton()
+  }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && open) void closeCreditsPopup()
@@ -105,6 +166,7 @@ export async function openCreditsPopup(): Promise<void> {
   animating = false
   closeBtn?.focus()
   syncToggle(true)
+  syncEdgeEditButton()
 }
 
 export async function closeCreditsPopup(): Promise<void> {
@@ -155,4 +217,7 @@ export function mountCreditsToggle(): void {
   btn.addEventListener('click', () => {
     void toggleCreditsPopup()
   })
+
+  // Prefetch panel wiring so edge-edit availability syncs once the DEV editor mounts.
+  if (CREDITS_SHOW_DEV_TOOLS) ensurePanel()
 }

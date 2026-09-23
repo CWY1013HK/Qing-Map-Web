@@ -3,6 +3,7 @@ import {
   getOverlayManager,
   HANDI_GROUP_ID,
   ZHONGGUO_GROUP_ID,
+  HAILU_GROUP_ID,
 } from './manager'
 
 function mountSealToggle(
@@ -38,7 +39,7 @@ function mountSealToggle(
 }
 
 /**
- * Bottom-left overlay 令牌 row (漢地十八省 + 中國).
+ * Bottom-left overlay 令牌 row (漢地十八省 + 中國疆域 + 海路一覽).
  * Hidden while #app.intro-active; revealed after qing-map-intro-done.
  */
 export function mountOverlaySealControls(): void {
@@ -46,6 +47,7 @@ export function mountOverlaySealControls(): void {
   getOverlayManager()
   mountSealToggle('overlay-seal-handi', HANDI_GROUP_ID)
   mountSealToggle('overlay-seal-zhongguo', ZHONGGUO_GROUP_ID)
+  mountSealToggle('overlay-seal-hailu', HAILU_GROUP_ID)
 }
 
 /** @deprecated use mountOverlaySealControls */

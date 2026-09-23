@@ -1,6 +1,8 @@
 import OpenSeadragon from 'openseadragon'
+import { FLOOR_DECOR_COUNTS } from '../lib/mapDecor'
 import { mountOverlaysOnViewer } from '../overlays/manager'
 import { startFocusClouds, type FocusCloudsHandle } from '../viewer/focusMode'
+import { startSeaUnderlay, type SeaUnderlayHandle } from '../viewer/seaUnderlay'
 
 const PREVIEW_URL = '/map-preview.jpg'
 const TILE_SOURCE = '/tiles/map.dzi'
@@ -17,6 +19,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
   if (!el) throw new Error('Missing #floor-viewer')
 
   let mist: FocusCloudsHandle | null = null
+  let sea: SeaUnderlayHandle | null = null
 
   const viewer = OpenSeadragon({
     element: el,
@@ -25,7 +28,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
       type: 'image',
       url: PREVIEW_URL,
     },
-    placeholderFillStyle: '#c5d6e4',
+    placeholderFillStyle: 'transparent',
     showNavigationControl: false,
     showNavigator: false,
     animationTime: 0,
@@ -63,12 +66,16 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
   }
 
   const ensureMist = () => {
-    if (mist || !viewer.world.getItemAt(0)) return
-    mist = startFocusClouds(viewer, {
-      canvas: el,
-      count: FLOOR_CLOUD_COUNT,
-      lockedHome: true,
-    })
+    if (!viewer.world.getItemAt(0)) return
+    if (!sea) sea = startSeaUnderlay(viewer)
+    if (!mist) {
+      mist = startFocusClouds(viewer, {
+        canvas: el,
+        count: FLOOR_CLOUD_COUNT,
+        lockedHome: true,
+        decor: FLOOR_DECOR_COUNTS,
+      })
+    }
   }
 
   mountOverlaysOnViewer(viewer)

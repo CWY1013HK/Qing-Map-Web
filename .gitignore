@@ -25,6 +25,12 @@ public/tiles/
 public/map-preview.jpg
 public/map-preview-low.jpg
 
+# Land-plate QA dumps (keep map-land.webp)
+assets/land/debug-*
+assets/land/sea-mask.png
+assets/land/sea-binary.png
+assets/land/land-alpha.png
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json

@@ -43,3 +43,9 @@ export const AUDIO = {
   chaoTianZiStartAt: 1,
   fadeMs: 800,
 } as const
+
+/**
+ * Credits panel bottom “tools” row (edge-edit toggle, etc.).
+ * Set to `false` for public launch so the row is not rendered at all.
+ */
+export const CREDITS_SHOW_DEV_TOOLS = true

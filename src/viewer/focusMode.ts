@@ -7,8 +7,24 @@ import {
   type CloudDriftDir,
   type CloudHeadSide,
 } from '../lib/clouds'
+import {
+  DEFAULT_DECOR_COUNTS,
+  buildLaneTracker,
+  decorCruiseSpeed,
+  pickDecorAsset,
+  pickSeaLane,
+  randomDecorWidthPx,
+  randomInRegion,
+  regionForKind,
+  sampleLane,
+  type DecorCounts,
+  type DecorKind,
+  type DecorRegion,
+  type LaneTracker,
+} from '../lib/mapDecor'
 import { closeCreditsPopup } from '../popups/credits'
 import { closeAnnotationPopup } from '../popups/panel'
+import { startSeaUnderlay, type SeaUnderlayHandle } from './seaUnderlay'
 
 type Viewer = OpenSeadragon.Viewer
 type TiledImage = OpenSeadragon.TiledImage
@@ -24,7 +40,7 @@ const CURSOR_VY_LERP = 6
 /** Native puff art aspect (width / height) — keeps OSD box from letterboxing. */
 const CLOUD_ASPECT = 1354 / 665
 
-type Cloud = {
+type DriftSprite = {
   el: HTMLElement
   inner: HTMLElement
   widthImg: number
@@ -41,6 +57,11 @@ type Cloud = {
   vy: number
   /** Sticky evade sign: -1 up, +1 down, 0 unset. */
   evadeSign: -1 | 0 | 1
+  /** When set, spawn/wrap/clamp stay inside this normalized band. */
+  region: DecorRegion | null
+  /** Fuchuans: follow a white sea-lane polyline (bounce at ends). */
+  lane: LaneTracker | null
+  kind: 'cloud' | DecorKind
 }
 
 export type FocusCloudsHandle = {
@@ -56,10 +77,13 @@ export type StartFocusCloudsOptions = {
    * Cursor nudge still works if the canvas receives pointers.
    */
   lockedHome?: boolean
+  /** Scatter fuchuans / mongols / merchants with the mist. Default true. */
+  decor?: boolean | DecorCounts
 }
 
 /**
- * Spawn drifting focus mist on a viewer. Caller owns enter/exit lifecycle.
+ * Spawn drifting focus mist (and optional map décor) on a viewer.
+ * Caller owns enter/exit lifecycle.
  */
 export function startFocusClouds(
   viewer: Viewer,
@@ -68,8 +92,14 @@ export function startFocusClouds(
   const canvas = opts.canvas
   const count = opts.count ?? FOCUS_CLOUD_COUNT
   const lockedHome = opts.lockedHome === true
+  const decorCounts =
+    opts.decor === false
+      ? null
+      : opts.decor === true || opts.decor == null
+        ? DEFAULT_DECOR_COUNTS
+        : opts.decor
 
-  let clouds: Cloud[] = []
+  let sprites: DriftSprite[] = []
   let raf = 0
   let lastTs = 0
   let cursorImg: { x: number; y: number } | null = null
@@ -92,7 +122,7 @@ export function startFocusClouds(
     inner.style.setProperty('--fc-flip-y', '1')
   }
 
-  const onDrawCloud = (
+  const onDrawSprite = (
     position: OpenSeadragon.Point,
     size: OpenSeadragon.Point,
     element: Element,
@@ -102,11 +132,15 @@ export function startFocusClouds(
     const w = Math.max(1, Math.round(size.x))
     const h = Math.max(1, Math.round(size.y))
     if (wrapper) {
+      const isDecor = el.classList.contains('focus-decor')
+      wrapper.classList.toggle('focus-cloud-overlay', !isDecor)
+      wrapper.classList.toggle('focus-decor-overlay', isDecor)
       wrapper.style.left = '0'
       wrapper.style.top = '0'
       wrapper.style.transform = `translate3d(${position.x}px, ${position.y}px, 0)`
       wrapper.style.transformOrigin = '0 0'
       wrapper.style.display = 'block'
+      wrapper.style.pointerEvents = 'none'
     }
     el.style.display = 'block'
     el.style.width = `${w}px`
@@ -114,24 +148,74 @@ export function startFocusClouds(
     el.style.transform = ''
   }
 
-  const syncOverlay = (cloud: Cloud, item: TiledImage) => {
+  const syncOverlay = (sprite: DriftSprite, item: TiledImage) => {
     const topLeft = item.imageToViewportCoordinates(
-      cloud.x - cloud.widthImg / 2,
-      cloud.y - cloud.heightImg / 2,
+      sprite.x - sprite.widthImg / 2,
+      sprite.y - sprite.heightImg / 2,
     )
     viewer.updateOverlay(
-      cloud.el,
-      new OpenSeadragon.Rect(topLeft.x, topLeft.y, cloud.vpW, cloud.vpH),
+      sprite.el,
+      new OpenSeadragon.Rect(topLeft.x, topLeft.y, sprite.vpW, sprite.vpH),
     )
   }
 
-  const wrapAlongFacing = (cloud: Cloud, size: OpenSeadragon.Point) => {
-    if (cloud.dir === 1 && cloud.x > size.x + cloud.widthImg * 0.45) {
-      cloud.x = -cloud.widthImg * 0.35
-      cloud.y = rand(size.y * 0.08, size.y * 0.9)
-    } else if (cloud.dir === -1 && cloud.x < -cloud.widthImg * 0.45) {
-      cloud.x = size.x + cloud.widthImg * 0.35
-      cloud.y = rand(size.y * 0.08, size.y * 0.9)
+  const yBounds = (sprite: DriftSprite, size: OpenSeadragon.Point) => {
+    if (sprite.region) {
+      return {
+        lo: sprite.region.y0 * size.y,
+        hi: sprite.region.y1 * size.y,
+      }
+    }
+    return { lo: size.y * 0.04, hi: size.y * 0.96 }
+  }
+
+  const wrapAlongFacing = (sprite: DriftSprite, size: OpenSeadragon.Point) => {
+    // Figurative décor: bounce inside their sea/desert band (flip facing).
+    if (sprite.region && sprite.kind !== 'cloud') {
+      const padX = sprite.widthImg * 0.38
+      const padY = sprite.heightImg * 0.38
+      const x0 = sprite.region.x0 * size.x + padX
+      const x1 = sprite.region.x1 * size.x - padX
+      const y0 = sprite.region.y0 * size.y + padY
+      const y1 = sprite.region.y1 * size.y - padY
+      const minX = Math.min(x0, x1)
+      const maxX = Math.max(x0, x1)
+      const minY = Math.min(y0, y1)
+      const maxY = Math.max(y0, y1)
+
+      if (sprite.x <= minX) {
+        sprite.x = minX
+        if (sprite.dir !== 1) {
+          sprite.dir = 1
+          applyFacing(sprite.inner, sprite.headSide, sprite.dir)
+        }
+      } else if (sprite.x >= maxX) {
+        sprite.x = maxX
+        if (sprite.dir !== -1) {
+          sprite.dir = -1
+          applyFacing(sprite.inner, sprite.headSide, sprite.dir)
+        }
+      }
+
+      if (sprite.y <= minY) {
+        sprite.y = minY
+        sprite.vy = Math.abs(sprite.vy)
+        sprite.evadeSign = 1
+      } else if (sprite.y >= maxY) {
+        sprite.y = maxY
+        sprite.vy = -Math.abs(sprite.vy)
+        sprite.evadeSign = -1
+      }
+      return
+    }
+
+    // Clouds still wrap across the full map.
+    if (sprite.dir === 1 && sprite.x > size.x + sprite.widthImg * 0.45) {
+      sprite.x = -sprite.widthImg * 0.35
+      sprite.y = rand(size.y * 0.08, size.y * 0.9)
+    } else if (sprite.dir === -1 && sprite.x < -sprite.widthImg * 0.45) {
+      sprite.x = size.x + sprite.widthImg * 0.35
+      sprite.y = rand(size.y * 0.08, size.y * 0.9)
     }
   }
 
@@ -161,46 +245,72 @@ export function startFocusClouds(
     const viewH = Math.abs(vbr.y - vtl.y)
     const cursorR = Math.min(viewW, viewH) * CURSOR_AVOID_FRAC
 
-    for (const cloud of clouds) {
-      let spd = cloud.speed * speedScale
+    for (const sprite of sprites) {
+      let spd = sprite.speed * speedScale
       if (deepZoom) {
         const inside =
-          cloud.x > vtl.x - cloud.widthImg * 0.1 &&
-          cloud.x < vbr.x + cloud.widthImg * 0.1 &&
-          cloud.y > vtl.y - cloud.heightImg * 0.1 &&
-          cloud.y < vbr.y + cloud.heightImg * 0.1
+          sprite.x > vtl.x - sprite.widthImg * 0.1 &&
+          sprite.x < vbr.x + sprite.widthImg * 0.1 &&
+          sprite.y > vtl.y - sprite.heightImg * 0.1 &&
+          sprite.y < vbr.y + sprite.heightImg * 0.1
         if (inside) spd *= 2.2
       }
 
-      let vx = cloud.dir * spd
+      // Fuchuans trace white sea lanes; bounce (flip) at lane ends.
+      if (sprite.lane && sprite.kind === 'fuchuan') {
+        const lane = sprite.lane
+        lane.s += lane.pathDir * spd * dt
+        if (lane.s <= 0) {
+          lane.s = 0
+          lane.pathDir = 1
+        } else if (lane.s >= lane.total) {
+          lane.s = lane.total
+          lane.pathDir = -1
+        }
+        const sample = sampleLane(lane, lane.s)
+        sprite.x = sample.x
+        sprite.y = sample.y
+        const faceDir: CloudDriftDir =
+          sample.tx * lane.pathDir >= 0 ? 1 : -1
+        if (faceDir !== sprite.dir) {
+          sprite.dir = faceDir
+          applyFacing(sprite.inner, sprite.headSide, sprite.dir)
+        }
+        sprite.vy = 0
+        syncOverlay(sprite, item)
+        continue
+      }
+
+      let vx = sprite.dir * spd
       let vyTarget = 0
 
       if (cursorImg) {
-        const dx = cloud.x - cursorImg.x
-        const dy = cloud.y - cursorImg.y
+        const dx = sprite.x - cursorImg.x
+        const dy = sprite.y - cursorImg.y
         const dCursor = Math.hypot(dx, dy)
         if (dCursor < cursorR && dCursor > 1) {
           const falloff = 1 - dCursor / cursorR
           const strength = falloff * falloff
-          if (cloud.evadeSign === 0) {
-            cloud.evadeSign = dy >= 0 ? 1 : -1
+          if (sprite.evadeSign === 0) {
+            sprite.evadeSign = dy >= 0 ? 1 : -1
           }
-          vyTarget = cloud.evadeSign * spd * CURSOR_NUDGE * (0.55 + 0.45 * strength)
+          vyTarget = sprite.evadeSign * spd * CURSOR_NUDGE * (0.55 + 0.45 * strength)
           vx *= 1 - 0.35 * strength
         } else {
-          cloud.evadeSign = 0
+          sprite.evadeSign = 0
         }
       } else {
-        cloud.evadeSign = 0
+        sprite.evadeSign = 0
       }
 
       const blend = 1 - Math.exp(-CURSOR_VY_LERP * dt)
-      cloud.vy += (vyTarget - cloud.vy) * blend
+      sprite.vy += (vyTarget - sprite.vy) * blend
 
-      cloud.x += vx * dt
-      cloud.y = clamp(cloud.y + cloud.vy * dt, size.y * 0.04, size.y * 0.96)
-      wrapAlongFacing(cloud, size)
-      syncOverlay(cloud, item)
+      const { lo, hi } = yBounds(sprite, size)
+      sprite.x += vx * dt
+      sprite.y = clamp(sprite.y + sprite.vy * dt, lo, hi)
+      wrapAlongFacing(sprite, size)
+      syncOverlay(sprite, item)
     }
 
     raf = requestAnimationFrame(tick)
@@ -245,7 +355,21 @@ export function startFocusClouds(
   }
 
   const size = item.getContentSize()
-  clouds = []
+  sprites = []
+
+  const addOverlaySprite = (sprite: DriftSprite) => {
+    const topLeft = item.imageToViewportCoordinates(
+      sprite.x - sprite.widthImg / 2,
+      sprite.y - sprite.heightImg / 2,
+    )
+    viewer.addOverlay({
+      element: sprite.el,
+      location: new OpenSeadragon.Rect(topLeft.x, topLeft.y, sprite.vpW, sprite.vpH),
+      checkResize: false,
+      onDraw: onDrawSprite,
+    })
+    sprites.push(sprite)
+  }
 
   for (let i = 0; i < count; i++) {
     const el = document.createElement('div')
@@ -273,7 +397,7 @@ export function startFocusClouds(
         : rand(size.y * 0.08, size.y * 0.9)
     const speed = (size.x * rand(0.14, 0.24)) / rand(75, 110)
 
-    const cloud: Cloud = {
+    addOverlaySprite({
       el,
       inner,
       widthImg,
@@ -288,24 +412,83 @@ export function startFocusClouds(
       src: asset.src,
       vy: 0,
       evadeSign: 0,
-    }
-
-    const topLeft = item.imageToViewportCoordinates(
-      x - widthImg / 2,
-      y - heightImg / 2,
-    )
-    viewer.addOverlay({
-      element: el,
-      location: new OpenSeadragon.Rect(topLeft.x, topLeft.y, vpW, vpH),
-      checkResize: false,
-      onDraw: onDrawCloud,
+      region: null,
+      lane: null,
+      kind: 'cloud',
     })
+  }
 
-    clouds.push(cloud)
+  if (decorCounts) {
+    const kinds = Object.entries(decorCounts) as [DecorKind, number][]
+    for (const [kind, n] of kinds) {
+      for (let i = 0; i < n; i++) {
+        const el = document.createElement('div')
+        el.className = 'focus-cloud focus-decor'
+        el.dataset.decor = kind
+        const inner = document.createElement('div')
+        inner.className = 'focus-cloud-inner'
+        el.append(inner)
+
+        const asset = pickDecorAsset(kind)
+        const region = regionForKind(kind)
+        let dir: CloudDriftDir = Math.random() < 0.5 ? 1 : -1
+        inner.style.backgroundImage = `url('${asset.src}')`
+
+        const widthImg = randomDecorWidthPx(kind)
+        const heightImg = widthImg / asset.aspect
+        const vpW = widthImg / size.x
+        const vpH = heightImg / size.x
+        const speed = decorCruiseSpeed(kind, size.x, dir)
+
+        let x: number
+        let y: number
+        let lane: LaneTracker | null = null
+
+        if (kind === 'fuchuan') {
+          try {
+            lane = buildLaneTracker(pickSeaLane(), size)
+            const sample = sampleLane(lane, lane.s)
+            x = sample.x
+            y = sample.y
+            dir = sample.tx * lane.pathDir >= 0 ? 1 : -1
+          } catch {
+            const pt = randomInRegion(region, size)
+            x = pt.x
+            y = pt.y
+          }
+        } else {
+          const pt = randomInRegion(region, size)
+          x = pt.x
+          y = pt.y
+        }
+
+        applyFacing(inner, asset.headSide, dir)
+
+        addOverlaySprite({
+          el,
+          inner,
+          widthImg,
+          heightImg,
+          vpW,
+          vpH,
+          x,
+          y,
+          speed,
+          dir,
+          headSide: asset.headSide,
+          src: asset.src,
+          vy: 0,
+          evadeSign: 0,
+          region: kind === 'fuchuan' ? null : region,
+          lane,
+          kind,
+        })
+      }
+    }
   }
 
   requestAnimationFrame(() => {
-    for (const c of clouds) c.el.classList.add('is-visible')
+    for (const s of sprites) s.el.classList.add('is-visible')
   })
 
   lastTs = 0
@@ -324,17 +507,17 @@ export function startFocusClouds(
       canvas.removeEventListener('pointerleave', onPointerLeave)
       motionMq.removeEventListener('change', onMotionPref)
 
-      for (const c of clouds) c.el.classList.remove('is-visible')
+      for (const s of sprites) s.el.classList.remove('is-visible')
 
       window.setTimeout(() => {
-        for (const c of clouds) {
+        for (const s of sprites) {
           try {
-            viewer.removeOverlay(c.el)
+            viewer.removeOverlay(s.el)
           } catch {
             /* already removed */
           }
         }
-        clouds = []
+        sprites = []
       }, 650)
     },
   }
@@ -350,6 +533,7 @@ export function mountFocusMode(viewer: Viewer): void {
   }
 
   let handle: FocusCloudsHandle | null = null
+  let sea: SeaUnderlayHandle | null = null
 
   const enter = () => {
     if (handle) return
@@ -357,10 +541,13 @@ export function mountFocusMode(viewer: Viewer): void {
     void closeCreditsPopup()
     app.classList.add('focus-mode')
     btn.setAttribute('aria-pressed', 'true')
+    sea = startSeaUnderlay(viewer)
     handle = startFocusClouds(viewer, { canvas })
     if (!viewer.world.getItemAt(0)) {
       handle.stop()
       handle = null
+      sea.stop()
+      sea = null
       app.classList.remove('focus-mode')
       btn.setAttribute('aria-pressed', 'false')
     }
@@ -371,6 +558,8 @@ export function mountFocusMode(viewer: Viewer): void {
     btn.setAttribute('aria-pressed', 'false')
     handle.stop()
     handle = null
+    sea?.stop()
+    sea = null
     window.setTimeout(() => {
       app.classList.remove('focus-mode')
     }, 650)

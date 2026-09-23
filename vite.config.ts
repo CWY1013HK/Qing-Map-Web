@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
+import { overlayWriteApi } from './scripts/vite-overlay-write.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
@@ -33,7 +34,7 @@ function atlabRewrite(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [atlabRewrite()],
+  plugins: [atlabRewrite(), overlayWriteApi(root)],
   server: {
     host: true,
     port: 5173,

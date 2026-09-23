@@ -1,19 +1,19 @@
 import OpenSeadragon, { type Viewer, type TiledImage } from 'openseadragon'
-import type { OverlayCollection, OverlayFeature, MapRing } from '../lib/types'
+import type { OverlayCollection, OverlayFeature, MapRing, MapPoint } from '../lib/types'
 import { overlayStore } from './store'
 
 /** Variable-width jagged ink stroke tiles (pre-colored). */
 const INK_CRIMSON = '/overlays/ink-stroke-crimson.png'
 const INK_GOLD = '/overlays/ink-stroke-gold.png'
 
-function ringToPathD(ring: MapRing): string {
+export function ringToPathD(ring: MapRing, pathMode: 'closed' | 'open' = 'closed'): string {
   if (ring.length === 0) return ''
   const [first, ...rest] = ring
   let d = `M ${first.x} ${first.y}`
   for (const p of rest) {
     d += ` L ${p.x} ${p.y}`
   }
-  d += ' Z'
+  if (pathMode !== 'open') d += ' Z'
   return d
 }
 
@@ -43,24 +43,28 @@ function appendInkDefs(svg: SVGSVGElement): void {
   svg.appendChild(defs)
 }
 
+function styleClassFor(style: OverlayFeature['style']): string {
+  if (style === 'yellow-glow') return 'style-yellow-glow'
+  if (style === 'cyan-glow') return 'style-cyan-glow'
+  return 'style-crimson-glow'
+}
+
 function buildFeatureGroup(feature: OverlayFeature): SVGGElement {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   g.setAttribute('data-overlay-id', feature.id)
   g.classList.add('map-overlay-feature')
-  if (feature.style === 'yellow-glow') {
-    g.classList.add('style-yellow-glow')
-  } else {
-    g.classList.add('style-crimson-glow')
-  }
+  g.classList.add(styleClassFor(feature.style))
+  const pathMode = feature.pathMode ?? 'closed'
 
-  for (const ring of feature.rings) {
-    const d = ringToPathD(ring)
+  for (let ringIndex = 0; ringIndex < feature.rings.length; ringIndex++) {
+    const ring = feature.rings[ringIndex]!
+    const d = ringToPathD(ring, pathMode)
     if (!d) continue
 
-    // Three cheap layers: soft outer → textured body → bright core
     for (const kind of ['bleed', 'body', 'core'] as const) {
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       path.setAttribute('d', d)
+      path.setAttribute('data-ring-index', String(ringIndex))
       path.classList.add('overlay-stroke', `overlay-stroke-${kind}`)
       g.appendChild(path)
     }
@@ -73,6 +77,8 @@ export type SvgOverlayLayer = {
   root: HTMLDivElement
   svg: SVGSVGElement
   setActiveIds: (ids: ReadonlySet<string>) => void
+  /** Live-update path `d` for a feature after vertex edits. */
+  updateFeatureRings: (featureId: string, rings: MapRing[], pathMode?: 'closed' | 'open') => void
   destroy: () => void
 }
 
@@ -119,6 +125,11 @@ export function attachSvgOverlayLayer(
     } else {
       viewer.updateOverlay(root, loc)
     }
+    const wrap = root.parentElement
+    if (wrap && wrap !== viewer.element) {
+      wrap.classList.add('map-overlay-layer-wrap')
+      wrap.style.pointerEvents = 'none'
+    }
   }
 
   const onOpen = () => place()
@@ -140,6 +151,20 @@ export function attachSvgOverlayLayer(
 
   setActiveIds(overlayStore.getVisible())
 
+  const updateFeatureRings = (
+    featureId: string,
+    rings: MapRing[],
+    pathMode: 'closed' | 'open' = 'closed',
+  ) => {
+    const g = groups.get(featureId)
+    if (!g) return
+    for (let ringIndex = 0; ringIndex < rings.length; ringIndex++) {
+      const d = ringToPathD(rings[ringIndex]!, pathMode)
+      const paths = g.querySelectorAll(`path[data-ring-index="${ringIndex}"]`)
+      paths.forEach((p) => p.setAttribute('d', d))
+    }
+  }
+
   const destroy = () => {
     viewer.removeHandler('open', onOpen)
     if (attached) {
@@ -153,5 +178,7 @@ export function attachSvgOverlayLayer(
     root.remove()
   }
 
-  return { root, svg, setActiveIds, destroy }
+  return { root, svg, setActiveIds, updateFeatureRings, destroy }
 }
+
+export type { MapPoint }

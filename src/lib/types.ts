@@ -37,7 +37,7 @@ export type AnnotationCollection = {
 /** Closed ring of normalized points (first ≈ last optional). */
 export type MapRing = MapPoint[]
 
-export type OverlayStyle = 'crimson-glow' | 'yellow-glow'
+export type OverlayStyle = 'crimson-glow' | 'yellow-glow' | 'cyan-glow'
 
 export type OverlayFeature = {
   id: string
@@ -45,6 +45,11 @@ export type OverlayFeature = {
   /** Outer ring first; subsequent rings are holes if needed */
   rings: MapRing[]
   style?: OverlayStyle
+  /**
+   * `closed` (default): rings are filled outlines closed with Z.
+   * `open`: polylines (sea routes) — no Z close.
+   */
+  pathMode?: 'closed' | 'open'
 }
 
 export type OverlayCollection = {

@@ -9,6 +9,12 @@
   overflow: visible;
 }
 
+/* Keep ink rims under drifting mist / décor (OSD wrapper). */
+.map-overlay-layer-wrap {
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
 .map-overlay-svg {
   width: 100%;
   height: 100%;
@@ -62,7 +68,7 @@
   opacity: 1;
 }
 
-/* Gold — 中國 */
+/* Gold — 中國疆域 */
 .style-yellow-glow.is-active {
   filter: drop-shadow(0 0 3px rgba(255, 220, 70, 0.95))
     drop-shadow(0 0 9px rgba(230, 190, 40, 0.65));
@@ -83,6 +89,30 @@
 .style-yellow-glow .overlay-stroke-core {
   stroke: #f0d040;
   stroke-width: 3px;
+  opacity: 1;
+}
+
+/* Cyan — 海路一覽 (open sea-route polylines) */
+.style-cyan-glow.is-active {
+  filter: drop-shadow(0 0 3px rgba(40, 230, 255, 0.95))
+    drop-shadow(0 0 10px rgba(0, 200, 230, 0.7));
+}
+
+.style-cyan-glow .overlay-stroke-bleed {
+  stroke: #1490a8;
+  stroke-width: 12px;
+  opacity: 0.34;
+}
+
+.style-cyan-glow .overlay-stroke-body {
+  stroke: #2ad4ef;
+  stroke-width: 7.5px;
+  opacity: 0.88;
+}
+
+.style-cyan-glow .overlay-stroke-core {
+  stroke: #9ef8ff;
+  stroke-width: 2.8px;
   opacity: 1;
 }
 
@@ -152,11 +182,18 @@
     drop-shadow(0 4px 10px rgba(60, 0, 0, 0.35)) brightness(1.06);
 }
 
-/* Yellow ribbon — 中國 */
+/* Yellow ribbon — 中國疆域 */
 #overlay-seal-zhongguo.is-pressed,
 #overlay-seal-zhongguo[aria-pressed='true'] {
   filter: drop-shadow(0 0 12px rgba(230, 190, 40, 0.85))
     drop-shadow(0 4px 10px rgba(80, 50, 0, 0.35)) brightness(1.06);
+}
+
+/* Cyan ribbon — 海路一覽 */
+#overlay-seal-hailu.is-pressed,
+#overlay-seal-hailu[aria-pressed='true'] {
+  filter: drop-shadow(0 0 12px rgba(40, 220, 245, 0.9))
+    drop-shadow(0 4px 10px rgba(0, 60, 80, 0.4)) brightness(1.06);
 }
 
 #app.intro-active .overlay-seals {
@@ -171,3 +208,200 @@
   visibility: hidden;
   transition: opacity 0.4s ease;
 }
+
+/* —— Dev: overlay vertex editor —— */
+
+.vertex-editor-panel {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  max-width: min(360px, 92vw);
+  font: 12px/1.35 ui-sans-serif, system-ui, sans-serif;
+  color: #1a1a1a;
+  background: rgba(255, 252, 245, 0.94);
+  border: 1px solid rgba(60, 50, 30, 0.25);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(20, 15, 5, 0.18);
+  pointer-events: auto;
+}
+
+/* `display: flex` above would otherwise override the [hidden] attribute */
+.vertex-editor-panel[hidden] {
+  display: none !important;
+}
+
+.vertex-editor-panel.is-editing {
+  border-color: rgba(0, 160, 190, 0.55);
+  box-shadow: 0 0 0 1px rgba(0, 180, 210, 0.25), 0 4px 16px rgba(20, 15, 5, 0.18);
+}
+
+.vertex-editor-panel.is-dirty {
+  border-color: rgba(180, 110, 20, 0.65);
+}
+
+.vertex-editor-save {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid rgba(60, 50, 30, 0.3);
+  border-radius: 4px;
+  background: #1a6b7a;
+  color: #fff;
+  cursor: pointer;
+}
+
+.vertex-editor-save:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.vertex-editor-save:not(:disabled):hover {
+  background: #155a66;
+}
+
+.vertex-editor-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+}
+
+.vertex-editor-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.vertex-editor-row select {
+  max-width: 11rem;
+  font: inherit;
+}
+
+.vertex-editor-toggle {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vertex-editor-hint {
+  opacity: 0.55;
+  font-size: 11px;
+}
+
+.vertex-editor-status {
+  opacity: 0.75;
+  font-size: 11px;
+}
+
+.vertex-editor-status[data-kind='ok'] {
+  color: #0a6b4a;
+  opacity: 1;
+}
+
+.vertex-editor-status[data-kind='err'] {
+  color: #a01a1a;
+  opacity: 1;
+}
+
+.vertex-editor-status[data-kind='busy'] {
+  color: #176a8a;
+  opacity: 1;
+}
+
+.vertex-editor-layer {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.vertex-editor-layer-wrap {
+  z-index: 6 !important;
+  pointer-events: none !important;
+}
+
+/* While holding D, the wrap must capture drags so OSD pan doesn't win */
+.vertex-editor-layer-wrap.is-erase-capture {
+  pointer-events: all !important;
+  cursor: crosshair;
+}
+
+.vertex-editor-layer.is-enabled {
+  pointer-events: none;
+}
+
+.vertex-editor-layer.is-erase {
+  pointer-events: all;
+}
+
+.vertex-editor-layer.is-erase .vertex-editor-svg {
+  pointer-events: all;
+  cursor: crosshair;
+}
+
+.vertex-editor-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.vertex-editor-erase-rect {
+  fill: rgba(200, 40, 40, 0.18);
+  stroke: rgba(200, 30, 30, 0.9);
+  stroke-width: 1.25px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.vertex-editor-hint kbd {
+  font: inherit;
+  font-weight: 700;
+  padding: 0 0.2em;
+  border: 1px solid rgba(60, 50, 30, 0.25);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.vertex-editor-hitpath {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  vector-effect: non-scaling-stroke;
+  cursor: copy;
+}
+
+.vertex-editor-handle {
+  fill: #fff;
+  stroke: #0aa8c4;
+  /* viewBox is 0–1; keep stroke in screen px so handles stay tiny */
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+  pointer-events: all;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.45));
+}
+
+.vertex-editor-handle:hover,
+.vertex-editor-handle.is-dragging {
+  fill: #9ef8ff;
+  stroke: #067a90;
+  stroke-width: 2px;
+  cursor: grabbing;
+}
+
+#app.intro-active .vertex-editor-panel {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+

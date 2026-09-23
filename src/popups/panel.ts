@@ -68,7 +68,7 @@ function renderAkaTable(annotation: Annotation): void {
   const row = document.createElement('tr')
   const th = document.createElement('th')
   th.scope = 'row'
-  th.textContent = '別名'
+  th.textContent = '省會'
   const td = document.createElement('td')
   td.textContent = aka.join('、')
   row.append(th, td)
