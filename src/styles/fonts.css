@@ -21,8 +21,9 @@
 }
 
 :root {
-  /* Map labels — LiShu (glyph shapes are the font’s own design, not CSS italic). */
-  --font-lishu: Georgia, 'TW-MOE-Li', 'Libian SC', 'Baoli SC', serif;
+  /* Map labels — LiShu first; Kai buffer for missing glyphs (e.g. 撾) before SongTi. */
+  --font-lishu: Georgia, 'TW-MOE-Li', 'Libian SC', 'Baoli SC', 'LXGW WenKai Lite',
+    'Kaiti TC', 'Kaiti SC', KaiTi, 'STKaiti', serif;
   /* Popups / UI — Georgia for Latin, Kai for Han (per-glyph fallback). */
   --font-kaiti: Georgia, 'LXGW WenKai Lite', 'Kaiti TC', 'Kaiti SC', KaiTi, 'STKaiti', serif;
 }

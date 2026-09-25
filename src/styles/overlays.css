@@ -187,6 +187,11 @@
   pointer-events: none;
 }
 
+/* Simplified Chinese plates — LiShu is Traditional-only; use Kai for SC glyphs. */
+html:lang(zh-Hans) .province-label {
+  font-family: var(--font-kaiti);
+}
+
 /* Grab pads = exact cyan box; no filter. */
 .province-label-hit {
   fill: transparent;
@@ -221,6 +226,13 @@
   fill: #ffe878;
   stroke: rgba(70, 50, 5, 0.8);
   filter: drop-shadow(0 0 2px rgba(255, 210, 60, 0.7));
+}
+
+/* Sea routes — cyan */
+.province-label--hailu {
+  fill: #7ef0ff;
+  stroke: rgba(5, 50, 60, 0.85);
+  filter: drop-shadow(0 0 2px rgba(0, 200, 230, 0.75));
 }
 
 .province-label.is-selected {

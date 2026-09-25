@@ -97,10 +97,10 @@
       "id": "hubei",
       "title": "湖北",
       "point": {
-        "x": 0.564815,
-        "y": 0.487253
+        "x": 0.543651,
+        "y": 0.481238
       },
-      "scale": 1.622,
+      "scale": 3,
       "attachments": [
         "handi-shibasheng",
         "zhongguo"
@@ -110,10 +110,10 @@
       "id": "hunan",
       "title": "湖南",
       "point": {
-        "x": 0.550265,
-        "y": 0.548713
+        "x": 0.533069,
+        "y": 0.545016
       },
-      "scale": 1.192,
+      "scale": 2.381,
       "attachments": [
         "handi-shibasheng",
         "zhongguo"
@@ -227,8 +227,8 @@
       "id": "yunnan",
       "title": "雲南",
       "point": {
-        "x": 0.301587,
-        "y": 0.664674
+        "x": 0.289021,
+        "y": 0.663297
       },
       "scale": 3,
       "attachments": [
@@ -253,10 +253,10 @@
       "id": "xinjiang",
       "title": "新疆",
       "point": {
-        "x": 0.190476,
+        "x": 0.204365,
         "y": 0.166259
       },
-      "scale": 2.381,
+      "scale": 2.571,
       "attachments": [
         "zhongguo"
       ]
@@ -331,6 +331,270 @@
       "scale": 3,
       "attachments": [
         "zhongguo"
+      ]
+    },
+    {
+      "id": "england",
+      "title": "英國",
+      "point": {
+        "x": 0.066138,
+        "y": 0.024352
+      },
+      "scale": 1.197,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "france",
+      "title": "法國",
+      "point": {
+        "x": 0.067129,
+        "y": 0.143221
+      },
+      "scale": 0.88,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "holland",
+      "title": "荷蘭",
+      "point": {
+        "x": 0.058368,
+        "y": 0.087239
+      },
+      "scale": 1.6,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "spain",
+      "title": "西班牙",
+      "point": {
+        "x": 0.062154,
+        "y": 0.178117
+      },
+      "scale": 1.007,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "russia",
+      "title": "俄羅斯",
+      "point": {
+        "x": 0.160714,
+        "y": 0.038702
+      },
+      "scale": 3,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "india",
+      "title": "印度",
+      "point": {
+        "x": 0.07209,
+        "y": 0.636626
+      },
+      "scale": 3,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "burma",
+      "title": "緬甸",
+      "point": {
+        "x": 0.190476,
+        "y": 0.824482
+      },
+      "scale": 1.5,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "laos",
+      "title": "寮國",
+      "point": {
+        "x": 0.277116,
+        "y": 0.816365
+      },
+      "scale": 1.198,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "thailand",
+      "title": "泰國",
+      "point": {
+        "x": 0.126212,
+        "y": 0.831696
+      },
+      "scale": 1.5,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "cambodia",
+      "title": "柬埔寨",
+      "point": {
+        "x": 0.310847,
+        "y": 0.852748
+      },
+      "scale": 1.4,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "vietnam",
+      "title": "越南",
+      "point": {
+        "x": 0.370506,
+        "y": 0.79729
+      },
+      "scale": 2.205,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "philippines",
+      "title": "菲律賓",
+      "point": {
+        "x": 0.752429,
+        "y": 0.892942
+      },
+      "scale": 2.205,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "korea",
+      "title": "朝鮮",
+      "point": {
+        "x": 0.885582,
+        "y": 0.294541
+      },
+      "scale": 3,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "japan",
+      "title": "日本",
+      "point": {
+        "x": 0.859241,
+        "y": 0.515219
+      },
+      "scale": 2.206,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "ryukyu",
+      "title": "琉球",
+      "point": {
+        "x": 0.807341,
+        "y": 0.659012
+      },
+      "scale": 1.4,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "atlantic",
+      "title": "大西洋",
+      "point": {
+        "x": 0.041103,
+        "y": 0.125102
+      },
+      "scale": 1.629,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "uzbekistan",
+      "title": "烏茲別克",
+      "point": {
+        "x": 0.107143,
+        "y": 0.22866
+      },
+      "scale": 0.816,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "afghanistan",
+      "title": "阿富汗",
+      "point": {
+        "x": 0.093915,
+        "y": 0.286641
+      },
+      "scale": 0.875,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "malacca",
+      "title": "馬六甲海峽",
+      "point": {
+        "x": 0.556217,
+        "y": 0.966389
+      },
+      "scale": 0.95,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "indonesia-west",
+      "title": "印尼",
+      "point": {
+        "x": 0.246032,
+        "y": 0.946241
+      },
+      "scale": 3,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "indonesia-east",
+      "title": "印尼",
+      "point": {
+        "x": 0.646908,
+        "y": 0.948068
+      },
+      "scale": 1.502,
+      "attachments": [
+        "hailu"
+      ]
+    },
+    {
+      "id": "singapore",
+      "title": "新加坡",
+      "point": {
+        "x": 0.133521,
+        "y": 0.947913
+      },
+      "scale": 1.293,
+      "attachments": [
+        "hailu"
       ]
     }
   ]

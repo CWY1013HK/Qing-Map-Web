@@ -109,7 +109,7 @@ export function mountOverlayVertexEditor(
       </label>
     </div>
     <div class="vertex-editor-row" id="vertex-edit-province-row" hidden>
-      <span class="vertex-editor-hint">Drag label to move · scroll to scale · linked 漢地/中國 share one position</span>
+      <span class="vertex-editor-hint">Drag label to move · scroll to scale · linked 漢地/中國 share one position · 海路 labels are cyan</span>
     </div>
     <div class="vertex-editor-row">
       <span class="vertex-editor-hint">Hold <kbd>D</kbd> + drag to box-erase (vertices mode)</span>
@@ -627,6 +627,7 @@ export function mountOverlayVertexEditor(
     } else if (prov) {
       overlayStore.setGroupVisible(manager.idsForGroup(HANDI_GROUP_ID), true)
       overlayStore.setGroupVisible(manager.idsForGroup(ZHONGGUO_GROUP_ID), true)
+      overlayStore.setGroupVisible(manager.idsForGroup(HAILU_GROUP_ID), true)
       handleGroup.replaceChildren()
       // Pan off so the province hit layer can receive pointer events reliably.
       viewer.setMouseNavEnabled(false)

@@ -77,7 +77,7 @@ export type OverlayCollection = {
 }
 
 /** Overlay seal ids a province label can attach to. */
-export type ProvinceLabelAttachment = 'handi-shibasheng' | 'zhongguo'
+export type ProvinceLabelAttachment = 'handi-shibasheng' | 'zhongguo' | 'hailu'
 
 /**
  * Shared province name plate — one position/scale, rendered once per attached overlay.

@@ -57,11 +57,11 @@ const zhHant = {
   'credits.langHant': '繁',
   'credits.langHans': '简',
   'credits.langEn': 'EN',
-  'credits.edgeUnavailable': '邊線 — Edge editor unavailable',
-  'credits.edgeShow': '邊線 — Show edge editor',
-  'credits.edgeHide': '邊線 — Hide edge editor',
-  'credits.edgeOff': '邊線編輯 · 關',
-  'credits.edgeOn': '邊線編輯 · 開',
+  'credits.edgeUnavailable': '編輯器不可用',
+  'credits.edgeShow': '顯示編輯器',
+  'credits.edgeHide': '隱藏編輯器',
+  'credits.edgeOff': '編輯 · 關',
+  'credits.edgeOn': '編輯 · 開',
 } as const
 
 const zhHans: Record<MessageKey, string> = {
@@ -119,11 +119,11 @@ const zhHans: Record<MessageKey, string> = {
   'credits.langHant': '繁',
   'credits.langHans': '简',
   'credits.langEn': 'EN',
-  'credits.edgeUnavailable': '边线 — 边线编辑器不可用',
-  'credits.edgeShow': '边线 — 显示边线编辑器',
-  'credits.edgeHide': '边线 — 隐藏边线编辑器',
-  'credits.edgeOff': '边线编辑 · 关',
-  'credits.edgeOn': '边线编辑 · 开',
+  'credits.edgeUnavailable': '编辑器不可用',
+  'credits.edgeShow': '显示编辑器',
+  'credits.edgeHide': '隐藏编辑器',
+  'credits.edgeOff': '编辑 · 关',
+  'credits.edgeOn': '编辑 · 开',
 }
 
 const en: Record<MessageKey, string> = {
@@ -164,9 +164,9 @@ const en: Record<MessageKey, string> = {
   'popup.aka': 'Provincial capital',
   'credits.title': 'Credits',
   'credits.design': 'Design',
-  'credits.designName': 'Wang Yu',
+  'credits.designName': 'Wong Yu, Cole',
   'credits.supervision': 'Supervision',
-  'credits.supervisionNames': 'Prof. Duncan Wong, Prof. Lee Ki',
+  'credits.supervisionNames': 'Prof. John Wong, Prof. Li Ji',
   'credits.support': 'Support',
   'credits.supportName': 'HKU Arts Tech Lab',
   'credits.fonts': 'Typefaces',
@@ -181,11 +181,11 @@ const en: Record<MessageKey, string> = {
   'credits.langHant': '繁',
   'credits.langHans': '简',
   'credits.langEn': 'EN',
-  'credits.edgeUnavailable': '邊線 — Edge editor unavailable',
-  'credits.edgeShow': '邊線 — Show edge editor',
-  'credits.edgeHide': '邊線 — Hide edge editor',
-  'credits.edgeOff': 'Edge edit · Off',
-  'credits.edgeOn': 'Edge edit · On',
+  'credits.edgeUnavailable': 'Editor unavailable',
+  'credits.edgeShow': 'Show editor',
+  'credits.edgeHide': 'Hide editor',
+  'credits.edgeOff': 'Edit · Off',
+  'credits.edgeOn': 'Edit · On',
 }
 
 export const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
