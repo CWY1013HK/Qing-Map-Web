@@ -1,0 +1,337 @@
+{
+  "version": 1,
+  "mapId": "qing-object-painting",
+  "labels": [
+    {
+      "id": "zhili",
+      "title": "直隸",
+      "point": {
+        "x": 0.62037,
+        "y": 0.22308
+      },
+      "scale": 1.751,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "shandong",
+      "title": "山東",
+      "point": {
+        "x": 0.66336,
+        "y": 0.323748
+      },
+      "scale": 2.381,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "shanxi",
+      "title": "山西",
+      "point": {
+        "x": 0.54828,
+        "y": 0.270624
+      },
+      "scale": 1.891,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "henan",
+      "title": "河南",
+      "point": {
+        "x": 0.565476,
+        "y": 0.373612
+      },
+      "scale": 1.852,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "shaanxi",
+      "title": "陝西",
+      "point": {
+        "x": 0.46164,
+        "y": 0.401442
+      },
+      "scale": 1.714,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "gansu",
+      "title": "甘肅",
+      "point": {
+        "x": 0.375,
+        "y": 0.316791
+      },
+      "scale": 1.891,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "sichuan",
+      "title": "四川",
+      "point": {
+        "x": 0.37963,
+        "y": 0.494211
+      },
+      "scale": 2.205,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "hubei",
+      "title": "湖北",
+      "point": {
+        "x": 0.564815,
+        "y": 0.487253
+      },
+      "scale": 1.622,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "hunan",
+      "title": "湖南",
+      "point": {
+        "x": 0.550265,
+        "y": 0.548713
+      },
+      "scale": 1.192,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "jiangxi",
+      "title": "江西",
+      "point": {
+        "x": 0.626984,
+        "y": 0.564947
+      },
+      "scale": 1.751,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "anhui",
+      "title": "安徽",
+      "point": {
+        "x": 0.625661,
+        "y": 0.457104
+      },
+      "scale": 1.751,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "jiangnan",
+      "title": "江南",
+      "point": {
+        "x": 0.679894,
+        "y": 0.423475
+      },
+      "scale": 1.287,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "suzhou",
+      "title": "蘇州",
+      "point": {
+        "x": 0.717593,
+        "y": 0.46754
+      },
+      "scale": 1,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "zhejiang",
+      "title": "浙江",
+      "point": {
+        "x": 0.697751,
+        "y": 0.516244
+      },
+      "scale": 1.197,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "fujian",
+      "title": "福建",
+      "point": {
+        "x": 0.70172,
+        "y": 0.629668
+      },
+      "scale": 1.891,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "guangdong",
+      "title": "廣東",
+      "point": {
+        "x": 0.574724,
+        "y": 0.708871
+      },
+      "scale": 1.751,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "guangxi",
+      "title": "廣西",
+      "point": {
+        "x": 0.498677,
+        "y": 0.618289
+      },
+      "scale": 1.751,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "yunnan",
+      "title": "雲南",
+      "point": {
+        "x": 0.301587,
+        "y": 0.664674
+      },
+      "scale": 3,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "guizhou",
+      "title": "貴州",
+      "point": {
+        "x": 0.40873,
+        "y": 0.649599
+      },
+      "scale": 2.042,
+      "attachments": [
+        "handi-shibasheng",
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "xinjiang",
+      "title": "新疆",
+      "point": {
+        "x": 0.190476,
+        "y": 0.166259
+      },
+      "scale": 2.381,
+      "attachments": [
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "xizang",
+      "title": "西藏",
+      "point": {
+        "x": 0.183201,
+        "y": 0.58582
+      },
+      "scale": 1.105,
+      "attachments": [
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "menggu",
+      "title": "蒙古",
+      "point": {
+        "x": 0.467472,
+        "y": 0.124115
+      },
+      "scale": 3,
+      "attachments": [
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "shengjing",
+      "title": "盛京",
+      "point": {
+        "x": 0.744048,
+        "y": 0.150024
+      },
+      "scale": 2.381,
+      "attachments": [
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "jilin",
+      "title": "吉林",
+      "point": {
+        "x": 0.828713,
+        "y": 0.146184
+      },
+      "scale": 1.288,
+      "attachments": [
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "heilongjiang",
+      "title": "黑龍江",
+      "point": {
+        "x": 0.819527,
+        "y": 0.072903
+      },
+      "scale": 1.166,
+      "attachments": [
+        "zhongguo"
+      ]
+    },
+    {
+      "id": "qinghai",
+      "title": "青海",
+      "point": {
+        "x": 0.198413,
+        "y": 0.418619
+      },
+      "scale": 3,
+      "attachments": [
+        "zhongguo"
+      ]
+    }
+  ]
+}

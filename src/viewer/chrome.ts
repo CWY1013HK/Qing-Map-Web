@@ -1,5 +1,6 @@
 import type OpenSeadragon from 'openseadragon'
 import { UI_THEME } from '../config'
+import { t } from '../i18n'
 
 type Viewer = OpenSeadragon.Viewer
 
@@ -67,7 +68,7 @@ export function mountChrome(viewer: Viewer): void {
 
   const setToggleState = (visible: boolean) => {
     toggle.setAttribute('aria-pressed', visible ? 'true' : 'false')
-    toggle.title = visible ? '圖 — Hide minimap' : '圖 — Show minimap'
+    toggle.title = visible ? t('toolbar.minimapHide') : t('toolbar.minimapShow')
   }
 
   const waitForAnimation = (className: string) =>

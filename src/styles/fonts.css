@@ -1,0 +1,28 @@
+/**
+ * Bundled Chinese webfonts for Chromium-consistent rendering.
+ *
+ * - TW-MOE-Li (教育部隸書): map province labels — CC BY-ND 3.0 TW
+ * - LXGW WenKai Lite (霞鹜文楷): popups / body copy — OFL 1.1
+ */
+@font-face {
+  font-family: 'TW-MOE-Li';
+  src: url('/fonts/TW-MOE-Li.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'LXGW WenKai Lite';
+  src: url('/fonts/LXGWWenKaiLite-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Map labels — LiShu (glyph shapes are the font’s own design, not CSS italic). */
+  --font-lishu: Georgia, 'TW-MOE-Li', 'Libian SC', 'Baoli SC', serif;
+  /* Popups / UI — Georgia for Latin, Kai for Han (per-glyph fallback). */
+  --font-kaiti: Georgia, 'LXGW WenKai Lite', 'Kaiti TC', 'Kaiti SC', KaiTi, 'STKaiti', serif;
+}

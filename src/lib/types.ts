@@ -7,12 +7,27 @@ export type MapPoint = {
   y: number
 }
 
+/** Optional locale overlays; flat `title`/`body`/`aka` remain Traditional (zh-Hant). */
+export type AnnotationI18nOverlay = {
+  title?: string
+  body?: string
+  aka?: string[]
+}
+
 export type Annotation = {
   id: string
   title: string
   body?: string
   /** Alternate place names shown as （又名：…） in the popup */
   aka?: string[]
+  /**
+   * Localized title/body/aka for Simplified Chinese and English.
+   * Canonical Traditional fields above are the zh-Hant source of truth.
+   */
+  i18n?: {
+    'zh-Hans'?: AnnotationI18nOverlay
+    en?: AnnotationI18nOverlay
+  }
   /** Anchor on the map (normalized image coordinates) */
   point: MapPoint
   tags?: string[]
@@ -59,4 +74,27 @@ export type OverlayCollection = {
   groupId?: string
   title?: string
   overlays: OverlayFeature[]
+}
+
+/** Overlay seal ids a province label can attach to. */
+export type ProvinceLabelAttachment = 'handi-shibasheng' | 'zhongguo'
+
+/**
+ * Shared province name plate — one position/scale, rendered once per attached overlay.
+ * Linked attachments share this record so handi + zhongguo stay in sync when edited.
+ */
+export type ProvinceLabel = {
+  id: string
+  title: string
+  point: MapPoint
+  /** Relative font scale (1 = default) */
+  scale?: number
+  /** Which outline seals show this label (same coords, separate styled copies). */
+  attachments: ProvinceLabelAttachment[]
+}
+
+export type ProvinceLabelCollection = {
+  version: 1
+  mapId: string
+  labels: ProvinceLabel[]
 }

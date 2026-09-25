@@ -1,6 +1,7 @@
 import OpenSeadragon, { type Viewer, type TiledImage } from 'openseadragon'
 import type { Annotation, AnnotationCollection } from '../lib/types'
 import locationsJson from '../../data/annotations/locations.json'
+import { registerLocaleRefresh, resolveAnnotation, t } from '../i18n'
 import { labelStore } from './labelStore'
 import {
   closeAnnotationPopup,
@@ -43,8 +44,9 @@ function buildHotspotButton(annotation: Annotation): HTMLButtonElement {
   btn.type = 'button'
   btn.className = 'map-label-btn'
   btn.dataset.annotationId = annotation.id
-  btn.title = annotation.title
-  btn.setAttribute('aria-label', annotation.title)
+  const localized = resolveAnnotation(annotation)
+  btn.title = localized.title
+  btn.setAttribute('aria-label', localized.title)
 
   if (isAreaHotspot(annotation)) {
     btn.classList.add('map-label-btn--area')
@@ -59,7 +61,7 @@ function buildHotspotButton(annotation: Annotation): HTMLButtonElement {
     btn.appendChild(img)
   } else {
     btn.classList.add('map-label-btn--text')
-    btn.textContent = annotation.title
+    btn.textContent = localized.title
   }
 
   // Native click (works when the overlay sits above the OSD canvas)
@@ -103,13 +105,14 @@ function placeHotspot(
   } else {
     const fracW = annotation.labelWidth ?? DEFAULT_LABEL_WIDTH
     const img = el.querySelector<HTMLImageElement>('img')
+    const localizedTitle = resolveAnnotation(annotation).title
     const aspect =
       img && img.naturalWidth > 0 && img.naturalHeight > 0
         ? img.naturalWidth / img.naturalHeight
         : annotation.labelImage
           ? 921 / 980
-          : annotation.title.length >= 2
-            ? annotation.title.length * 0.55
+          : localizedTitle.length >= 2
+            ? localizedTitle.length * 0.55
             : 1.2
     widthImg = imgW * fracW
     heightImg = widthImg / aspect
@@ -159,6 +162,19 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     annotation,
     el: buildHotspotButton(annotation),
   }))
+
+  const syncHotspotLocale = () => {
+    for (const { annotation, el } of hotspots) {
+      const localized = resolveAnnotation(annotation)
+      el.title = localized.title
+      el.setAttribute('aria-label', localized.title)
+      if (el.classList.contains('map-label-btn--text')) {
+        el.textContent = localized.title
+      }
+    }
+  }
+
+  registerLocaleRefresh(syncHotspotLocale)
 
   const syncVisibility = () => {
     const on = labelStore.isVisible()
@@ -291,7 +307,7 @@ export function mountLabelToggle(): void {
   const sync = () => {
     const on = labelStore.isVisible()
     btn.setAttribute('aria-pressed', on ? 'true' : 'false')
-    btn.title = on ? '誌 — Hide location labels' : '誌 — Show location labels'
+    btn.title = on ? t('toolbar.labelsHide') : t('toolbar.labelsShow')
     btn.classList.toggle('is-pressed', on)
   }
 

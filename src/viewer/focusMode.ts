@@ -16,6 +16,8 @@ import {
   randomDecorWidthPx,
   randomInRegion,
   regionForKind,
+  resolveLaneEndpoint,
+  resolveLaneMidJunction,
   sampleLane,
   type DecorCounts,
   type DecorKind,
@@ -59,7 +61,7 @@ type DriftSprite = {
   evadeSign: -1 | 0 | 1
   /** When set, spawn/wrap/clamp stay inside this normalized band. */
   region: DecorRegion | null
-  /** Fuchuans: follow a white sea-lane polyline (bounce at ends). */
+  /** Fuchuans: follow a white sea-lane polyline (reverse or transfer at ends). */
   lane: LaneTracker | null
   kind: 'cloud' | DecorKind
 }
@@ -256,16 +258,15 @@ export function startFocusClouds(
         if (inside) spd *= 2.2
       }
 
-      // Fuchuans trace white sea lanes; bounce (flip) at lane ends.
+      // Fuchuans trace sea lanes; reverse/jump at ends, or hop at mid hubs.
       if (sprite.lane && sprite.kind === 'fuchuan') {
         const lane = sprite.lane
+        const sBefore = lane.s
         lane.s += lane.pathDir * spd * dt
-        if (lane.s <= 0) {
-          lane.s = 0
-          lane.pathDir = 1
-        } else if (lane.s >= lane.total) {
-          lane.s = lane.total
-          lane.pathDir = -1
+        if (lane.s <= 0 || lane.s >= lane.total) {
+          resolveLaneEndpoint(lane, size)
+        } else {
+          resolveLaneMidJunction(lane, sBefore, size)
         }
         const sample = sampleLane(lane, lane.s)
         sprite.x = sample.x

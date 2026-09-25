@@ -2,9 +2,19 @@ import OpenSeadragon, { type Viewer, type TiledImage } from 'openseadragon'
 import type { OverlayCollection, OverlayFeature, MapRing, MapPoint } from '../lib/types'
 import { overlayStore } from './store'
 
-/** Variable-width jagged ink stroke tiles (pre-colored). */
-const INK_CRIMSON = '/overlays/ink-stroke-crimson.png'
-const INK_GOLD = '/overlays/ink-stroke-gold.png'
+/**
+ * SVG paint order (bottom → top): Sea Routes < China Proper < China.
+ * Later siblings draw above earlier ones.
+ */
+const PAINT_ORDER: Record<string, number> = {
+  hailu: 0,
+  'handi-shibasheng': 1,
+  zhongguo: 2,
+}
+
+/** Stroke scale vs home zoom: thinner when zoomed out, thicker when zoomed in. */
+const STROKE_SCALE_MIN = 0.25
+const STROKE_SCALE_MAX = 2.2
 
 export function ringToPathD(ring: MapRing, pathMode: 'closed' | 'open' = 'closed'): string {
   if (ring.length === 0) return ''
@@ -17,38 +27,29 @@ export function ringToPathD(ring: MapRing, pathMode: 'closed' | 'open' = 'closed
   return d
 }
 
-/** Patterns only — no SVG feTurbulence / displacement (those stall the GPU on long rings). */
-function appendInkDefs(svg: SVGSVGElement): void {
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
-
-  const mkPattern = (id: string, href: string, w: number, h: number) => {
-    const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern')
-    pattern.setAttribute('id', id)
-    pattern.setAttribute('patternUnits', 'userSpaceOnUse')
-    pattern.setAttribute('width', String(w))
-    pattern.setAttribute('height', String(h))
-    const image = document.createElementNS('http://www.w3.org/2000/svg', 'image')
-    image.setAttribute('href', href)
-    image.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href)
-    image.setAttribute('width', String(w))
-    image.setAttribute('height', String(h))
-    image.setAttribute('preserveAspectRatio', 'none')
-    pattern.appendChild(image)
-    defs.appendChild(pattern)
-  }
-
-  mkPattern('ink-stroke-crimson', INK_CRIMSON, 0.048, 0.012)
-  mkPattern('ink-stroke-gold', INK_GOLD, 0.048, 0.012)
-
-  svg.appendChild(defs)
-}
-
 function styleClassFor(style: OverlayFeature['style']): string {
   if (style === 'yellow-glow') return 'style-yellow-glow'
   if (style === 'cyan-glow') return 'style-cyan-glow'
   return 'style-crimson-glow'
 }
 
+function appendStrokePath(
+  parent: SVGGElement,
+  d: string,
+  ringIndex: number,
+  kind: 'bleed' | 'body' | 'core',
+): void {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  path.setAttribute('d', d)
+  path.setAttribute('data-ring-index', String(ringIndex))
+  path.classList.add('overlay-stroke', `overlay-stroke-${kind}`)
+  parent.appendChild(path)
+}
+
+/**
+ * Uniform layered stack (all bleeds → bodies → cores) matching sea-route rendering.
+ * Avoids per-ring interleaved opacity bloom at overlaps.
+ */
 function buildFeatureGroup(feature: OverlayFeature): SVGGElement {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   g.setAttribute('data-overlay-id', feature.id)
@@ -56,21 +57,39 @@ function buildFeatureGroup(feature: OverlayFeature): SVGGElement {
   g.classList.add(styleClassFor(feature.style))
   const pathMode = feature.pathMode ?? 'closed'
 
+  const bleedG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  const bodyG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  const coreG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  bleedG.classList.add('overlay-layer-bleed')
+  bodyG.classList.add('overlay-layer-body')
+  coreG.classList.add('overlay-layer-core')
+
   for (let ringIndex = 0; ringIndex < feature.rings.length; ringIndex++) {
     const ring = feature.rings[ringIndex]!
     const d = ringToPathD(ring, pathMode)
     if (!d) continue
-
-    for (const kind of ['bleed', 'body', 'core'] as const) {
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-      path.setAttribute('d', d)
-      path.setAttribute('data-ring-index', String(ringIndex))
-      path.classList.add('overlay-stroke', `overlay-stroke-${kind}`)
-      g.appendChild(path)
-    }
+    appendStrokePath(bleedG, d, ringIndex, 'bleed')
+    appendStrokePath(bodyG, d, ringIndex, 'body')
+    appendStrokePath(coreG, d, ringIndex, 'core')
   }
 
+  g.appendChild(bleedG)
+  g.appendChild(bodyG)
+  g.appendChild(coreG)
   return g
+}
+
+function paintRank(featureId: string): number {
+  return PAINT_ORDER[featureId] ?? 50
+}
+
+function strokeScaleForZoom(viewer: Viewer): number {
+  const home = viewer.viewport.getHomeZoom()
+  if (!(home > 0)) return 1
+  const t = viewer.viewport.getZoom(true) / home
+  // At home (t=1) → 1; zoomed out → toward STROKE_SCALE_MIN; zoomed in → toward MAX.
+  const scale = 0.25 + 0.75 * t
+  return Math.min(STROKE_SCALE_MAX, Math.max(STROKE_SCALE_MIN, scale))
 }
 
 export type SvgOverlayLayer = {
@@ -98,16 +117,25 @@ export function attachSvgOverlayLayer(
   svg.setAttribute('viewBox', '0 0 1 1')
   svg.setAttribute('preserveAspectRatio', 'none')
   svg.classList.add('map-overlay-svg')
-  appendInkDefs(svg)
 
   const groups = new Map<string, SVGGElement>()
-  for (const feature of collection.overlays) {
+  const sorted = [...collection.overlays].sort(
+    (a, b) => paintRank(a.id) - paintRank(b.id),
+  )
+  for (const feature of sorted) {
     const g = buildFeatureGroup(feature)
     groups.set(feature.id, g)
     svg.appendChild(g)
   }
 
   root.appendChild(svg)
+
+  const syncStrokeScale = () => {
+    svg.style.setProperty(
+      '--overlay-stroke-scale',
+      String(strokeScaleForZoom(viewer)),
+    )
+  }
 
   let attached = false
   const place = () => {
@@ -130,14 +158,20 @@ export function attachSvgOverlayLayer(
       wrap.classList.add('map-overlay-layer-wrap')
       wrap.style.pointerEvents = 'none'
     }
+    syncStrokeScale()
   }
 
   const onOpen = () => place()
+  const onZoomish = () => syncStrokeScale()
+
   if (viewer.world.getItemAt(0)) {
     place()
   } else {
     viewer.addHandler('open', onOpen)
   }
+  viewer.addHandler('animation', onZoomish)
+  viewer.addHandler('animation-finish', onZoomish)
+  viewer.addHandler('resize', onZoomish)
 
   const setActiveIds = (ids: ReadonlySet<string>) => {
     let any = false
@@ -150,6 +184,7 @@ export function attachSvgOverlayLayer(
   }
 
   setActiveIds(overlayStore.getVisible())
+  syncStrokeScale()
 
   const updateFeatureRings = (
     featureId: string,
@@ -167,6 +202,9 @@ export function attachSvgOverlayLayer(
 
   const destroy = () => {
     viewer.removeHandler('open', onOpen)
+    viewer.removeHandler('animation', onZoomish)
+    viewer.removeHandler('animation-finish', onZoomish)
+    viewer.removeHandler('resize', onZoomish)
     if (attached) {
       try {
         viewer.removeOverlay(root)

@@ -1,6 +1,8 @@
 import OpenSeadragon from 'openseadragon'
+import { mountI18n, setStatusMessage } from '../i18n'
 import { getPlaylist } from '../lib/playlist'
 import { mountOverlaysOnViewer } from '../overlays/manager'
+import { mountProvinceLabels } from '../overlays/provinceLabels'
 import { mountOverlaySealControls } from '../overlays/sealControl'
 import { mountCreditsToggle } from '../popups/credits'
 import { mountLabelToggle, mountLocationLabels } from '../popups/labels'
@@ -24,6 +26,8 @@ export type BootInteractiveOptions = {
 export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSeadragon.Viewer {
   const withIntro = opts.intro !== false
 
+  mountI18n()
+
   const previewEl = document.querySelector<HTMLImageElement>('#preview')
   const viewerRoot = document.querySelector<HTMLElement>('#viewer')
   const statusEl = document.querySelector<HTMLElement>('#status')
@@ -38,11 +42,13 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   const status = statusEl
   const tileStatus = tileStatusEl
 
+  setStatusMessage(status, 'status.loadingPreview')
+
   function showHtmlPreview(): void {
     status.hidden = true
     preview.hidden = false
     tileStatus.hidden = false
-    tileStatus.textContent = 'Loading high-res tiles…'
+    setStatusMessage(tileStatus, 'status.loadingTiles')
   }
 
   function showViewer(): void {
@@ -53,9 +59,11 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     window.dispatchEvent(new Event('resize'))
   }
 
-  function failToHtmlPreview(message: string): void {
+  function failToHtmlPreview(
+    messageKey: 'status.previewLayerMissing' | 'status.tilesFailed' | 'status.openFailed',
+  ): void {
     tileStatus.hidden = false
-    tileStatus.textContent = message
+    setStatusMessage(tileStatus, messageKey)
     preview.hidden = false
     viewerEl.hidden = true
     viewerEl.classList.remove('is-ready')
@@ -68,7 +76,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     preview.addEventListener(
       'error',
       () => {
-        status.textContent = 'Could not load /map-preview.jpg'
+        setStatusMessage(status, 'status.previewLoadError')
       },
       { once: true },
     )
@@ -113,9 +121,10 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   landWarm.src = '/land/map-land.webp?v=20'
   mountOverlaysOnViewer(viewer)
   mountOverlaySealControls()
+  const provinceLabels = mountProvinceLabels(viewer)
   if (import.meta.env.DEV) {
     void import('../overlays/vertexEditor').then(({ mountOverlayVertexEditor }) => {
-      mountOverlayVertexEditor(viewer)
+      mountOverlayVertexEditor(viewer, { provinceLabels })
     })
   }
   mountLocationLabels(viewer)
@@ -134,7 +143,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   function stackHighResDirectlyOnPreview(): void {
     const base = viewer.world.getItemAt(0)
     if (!base) {
-      failToHtmlPreview('Preview layer missing — cannot stack tiles.')
+      failToHtmlPreview('status.previewLayerMissing')
       return
     }
 
@@ -147,10 +156,10 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
       width: bounds.width,
       success: () => {
         tileStatus.hidden = true
-        tileStatus.textContent = ''
+        setStatusMessage(tileStatus, null)
       },
       error: () => {
-        failToHtmlPreview('High-res tiles failed — preview only. Check /tiles/map.dzi')
+        failToHtmlPreview('status.tilesFailed')
       },
     })
   }
@@ -178,7 +187,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   })
 
   viewer.addHandler('open-failed', () => {
-    failToHtmlPreview('Could not open map viewer — showing HTML preview only.')
+    failToHtmlPreview('status.openFailed')
   })
 
   return viewer

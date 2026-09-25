@@ -1,3 +1,4 @@
+import './styles/fonts.css'
 import './styles/viewer.css'
 import './styles/overlays.css'
 import './styles/popups.css'

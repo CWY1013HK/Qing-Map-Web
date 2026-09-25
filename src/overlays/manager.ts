@@ -57,9 +57,10 @@ export function getOverlayManager(): OverlayManager {
   if (singleton) return singleton
 
   const sourceParts: OverlaySourcePart[] = [
+    // Load order for data; SVG paint order is enforced in svgLayer (hailu < handi < zhongguo).
+    { fileKey: 'hailu', collection: asCollection(hailuCollection) },
     { fileKey: 'handi-shibasheng', collection: asCollection(handiCollection) },
     { fileKey: 'zhongguo', collection: asCollection(zhongguoCollection) },
-    { fileKey: 'hailu', collection: asCollection(hailuCollection) },
   ]
   const parts = sourceParts.map((p) => p.collection)
   const collection = mergeCollections(parts)

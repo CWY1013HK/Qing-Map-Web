@@ -6,19 +6,21 @@
       "id": "shaanxi",
       "title": "陝西",
       "body": "陝西布政使司。關中形勝，東接晉豫，西連甘隴。圖上標於長安、西安、咸寧一帶。",
-      "aka": [
-        "長安",
-        "西安",
-        "咸寧"
-      ],
-      "point": {
-        "x": 0.4795,
-        "y": 0.37258
+      "aka": ["長安", "西安", "咸寧"],
+      "i18n": {
+        "zh-Hans": {
+          "title": "陕西",
+          "body": "陕西布政使司。关中形胜，东接晋豫，西连甘陇。图上标于长安、西安、咸宁一带。",
+          "aka": ["长安", "西安", "咸宁"]
+        },
+        "en": {
+          "title": "Shaanxi",
+          "body": "Shaanxi Provincial Administration. The Guanzhong plain was a strategic heartland, adjoining Shanxi and Henan to the east and Gansu to the west. Marked near Chang'an, Xi'an, and Xianning.",
+          "aka": ["Chang'an", "Xi'an", "Xianning"]
+        }
       },
-      "tags": [
-        "province",
-        "guanzhong"
-      ],
+      "point": { "x": 0.4795, "y": 0.37258 },
+      "tags": ["province", "guanzhong"],
       "labelImage": "/ui/labels/label-shaanxi.png",
       "labelWidth": 0.00814
     },
@@ -26,19 +28,21 @@
       "id": "jingshi",
       "title": "京師",
       "body": "京師一帶。圖上標於順天、大興、宛平附近。",
-      "aka": [
-        "順天",
-        "大興",
-        "宛平"
-      ],
-      "point": {
-        "x": 0.64253,
-        "y": 0.20436
+      "aka": ["順天", "大興", "宛平"],
+      "i18n": {
+        "zh-Hans": {
+          "title": "京师",
+          "body": "京师一带。图上标于顺天、大兴、宛平附近。",
+          "aka": ["顺天", "大兴", "宛平"]
+        },
+        "en": {
+          "title": "Capital (Jingshi)",
+          "body": "The capital region. Marked near Shuntian, Daxing, and Wanping.",
+          "aka": ["Shuntian", "Daxing", "Wanping"]
+        }
       },
-      "tags": [
-        "capital",
-        "beijing"
-      ],
+      "point": { "x": 0.64253, "y": 0.20436 },
+      "tags": ["capital", "beijing"],
       "labelImage": "/ui/labels/label-jingshi.png?v=fullseal",
       "labelWidth": 0.0078
     },
@@ -46,18 +50,21 @@
       "id": "jiangnan",
       "title": "江南",
       "body": "江南一帶。圖上標於江寧附近。",
-      "aka": [
-        "江寧",
-        "上元"
-      ],
-      "point": {
-        "x": 0.67564,
-        "y": 0.45542
+      "aka": ["江寧", "上元"],
+      "i18n": {
+        "zh-Hans": {
+          "title": "江南",
+          "body": "江南一带。图上标于江宁附近。",
+          "aka": ["江宁", "上元"]
+        },
+        "en": {
+          "title": "Jiangnan",
+          "body": "The Jiangnan region. Marked near Jiangning (Nanjing).",
+          "aka": ["Jiangning", "Shangyuan"]
+        }
       },
-      "tags": [
-        "province",
-        "nanjing"
-      ],
+      "point": { "x": 0.67564, "y": 0.45542 },
+      "tags": ["province", "nanjing"],
       "labelImage": "/ui/labels/label-jiangnan.png",
       "labelWidth": 0.00694
     },
@@ -65,18 +72,21 @@
       "id": "hunan",
       "title": "湖南",
       "body": "湖南布政使司。圖上標於長沙、善化一帶。",
-      "aka": [
-        "長沙",
-        "善化"
-      ],
-      "point": {
-        "x": 0.55087,
-        "y": 0.56782
+      "aka": ["長沙", "善化"],
+      "i18n": {
+        "zh-Hans": {
+          "title": "湖南",
+          "body": "湖南布政使司。图上标于长沙、善化一带。",
+          "aka": ["长沙", "善化"]
+        },
+        "en": {
+          "title": "Hunan",
+          "body": "Hunan Provincial Administration. Marked near Changsha and Shanhua.",
+          "aka": ["Changsha", "Shanhua"]
+        }
       },
-      "tags": [
-        "province",
-        "changsha"
-      ],
+      "point": { "x": 0.55087, "y": 0.56782 },
+      "tags": ["province", "changsha"],
       "labelImage": "/ui/labels/label-hunan.png",
       "labelWidth": 0.00727
     },
@@ -84,18 +94,21 @@
       "id": "guangdong",
       "title": "廣東",
       "body": "廣東布政使司。圖上標於廣州、番禺一帶。",
-      "aka": [
-        "廣州",
-        "番禺"
-      ],
-      "point": {
-        "x": 0.56454,
-        "y": 0.73659
+      "aka": ["廣州", "番禺"],
+      "i18n": {
+        "zh-Hans": {
+          "title": "广东",
+          "body": "广东布政使司。图上标于广州、番禺一带。",
+          "aka": ["广州", "番禺"]
+        },
+        "en": {
+          "title": "Guangdong",
+          "body": "Guangdong Provincial Administration. Marked near Guangzhou and Panyu.",
+          "aka": ["Guangzhou", "Panyu"]
+        }
       },
-      "tags": [
-        "province",
-        "canton"
-      ],
+      "point": { "x": 0.56454, "y": 0.73659 },
+      "tags": ["province", "canton"],
       "labelImage": "/ui/labels/label-guangdong.png?v=canton3",
       "labelWidth": 0.0082
     },
@@ -103,15 +116,18 @@
       "id": "dihua",
       "title": "迪化",
       "body": "迪化，即今烏魯木齊，為清代新疆重鎮。乾隆朝兩度用兵準噶爾，平定天山南北，展拓西北疆域，並在此設治屯戍。乾隆帝屢言「中外一家」，以天下一家之說統攝內地與藩部，將新疆納入大一統版圖。",
-      "point": {
-        "x": 0.194,
-        "y": 0.18534
+      "i18n": {
+        "zh-Hans": {
+          "title": "迪化",
+          "body": "迪化，即今乌鲁木齐，为清代新疆重镇。乾隆朝两度用兵准噶尔，平定天山南北，展拓西北疆域，并在此设治屯戍。乾隆帝屡言「中外一家」，以天下一家之说统摄内地与藩部，将新疆纳入大一统版图。"
+        },
+        "en": {
+          "title": "Dihua",
+          "body": "Dihua (today's Ürümqi) was a key Qing stronghold in Xinjiang. Under the Qianlong emperor, two campaigns against the Dzungars pacified both sides of the Tianshan, expanded the northwest frontier, and established administration and military colonies here. Qianlong often spoke of \"one family within and beyond,\" folding Xinjiang into a unified imperial map of the inner lands and outer dependencies."
+        }
       },
-      "tags": [
-        "xinjiang",
-        "qianlong",
-        "frontier"
-      ],
+      "point": { "x": 0.194, "y": 0.18534 },
+      "tags": ["xinjiang", "qianlong", "frontier"],
       "labelImage": "/ui/labels/label-dihua.png?v=house8",
       "labelWidth": 0.0038
     },
@@ -119,17 +135,20 @@
       "id": "tishi-jiaqing",
       "title": "題識",
       "body": "本朝幅員之廣亘古未有東西南朔莫不紀極而萬國之梯航重譯職貢稱臣者更僕不勝屈乾隆\n丁亥年間餘姚黃千人曾為天下輿圖其中山川疆界都邑封圻靡不星羅棋布如指諸掌洵足壯觀\n盛世之版章為遠近之觀度矣然其時金川西藏新疆州郡未經開闢而河道海口等尚不無挂漏之說\n兹刻遵御纂諸書悉為增補較舊圖似加詳晰全圖內每方百里凡省■府□廳▮直隸州⌂州■縣●關□營鎮◎土司▲其塞徼縣亘無際海峙風設不時雜以里數計\n者其方向俱仍舊式未敢稍易已見舊圖勒石不便攜帶屏幅途寓中玩鑒已加整正愧雅君子\n使歸全圖之題覽幸焉\n嘉慶十有七年歲在壬申桂月上浣吉旦",
-      "point": {
-        "x": 0.9365,
-        "y": 0.651
+      "i18n": {
+        "zh-Hans": {
+          "title": "题识",
+          "body": "本朝幅员之广亘古未有，东西南朔莫不纪极，而万国之梯航重译、职贡称臣者更仆不胜屈。乾隆丁亥年间，余姚黄千人曾为天下舆图，其中山川疆界、都邑封圻靡不星罗棋布、如指诸掌，洵足壮观盛世之版章，为远近之观度矣。然其时金川、西藏、新疆州郡未经开辟，而河道海口等尚不无挂漏之说。兹刻遵御纂诸书悉为增补，较旧图似加详晰。全图内每方百里；凡省、府、厅、直隶州、州、县、关、营镇、土司各以符号标示。其塞徼绵亘无际、海峙风设不时、杂以里数计者，其方向俱仍旧式，未敢稍易。旧图勒石不便携带，屏幅途寓中玩鉴已加整正，愧雅君子使归全图之题览幸焉。\n嘉庆十有七年岁在壬申桂月上浣吉旦\n（以上为题识原文的现代标点整理；地图上仍可见原刻。）"
+        },
+        "en": {
+          "title": "Colophon",
+          "body": "A Jiaqing-era colophon (1812) praises the empire’s unprecedented breadth and the tribute of distant realms. It recalls Huang Qianren’s earlier world map of 1767, then notes that Jinchuan, Tibet, and Xinjiang had since been opened and that rivers and coasts needed filling in. This engraving follows imperial compilations, marks provinces and seats with symbols at a scale of one hundred li per square, and keeps older bearings where the frontier stretches beyond sure measure. The stone original was hard to carry; this screen version was corrected for travelers and scholars.\nDated the first decade of the eighth lunar month, Jiaqing 17 (rénshēn)."
+        }
       },
+      "point": { "x": 0.9365, "y": 0.651 },
       "hitWidth": 0.103,
       "hitHeight": 0.498,
-      "tags": [
-        "colophon",
-        "legend",
-        "jiaqing"
-      ]
+      "tags": ["colophon", "legend", "jiaqing"]
     }
   ]
 }

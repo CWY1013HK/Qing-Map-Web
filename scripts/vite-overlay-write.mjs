@@ -7,7 +7,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const ALLOWED = new Set(['handi-shibasheng', 'zhongguo', 'hailu'])
+const ALLOWED = new Set(['handi-shibasheng', 'zhongguo', 'hailu', 'province-labels'])
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -77,6 +77,32 @@ export function overlayWriteApi(projectRoot) {
             res.end(JSON.stringify({ ok: false, error: `Unknown fileKey: ${fileKey}` }))
             return
           }
+
+          const outPath = path.join(overlaysDir, `${fileKey}.json`)
+
+          if (fileKey === 'province-labels') {
+            const collection = body.collection
+            if (!collection || !Array.isArray(collection.labels)) {
+              res.statusCode = 400
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ ok: false, error: 'Missing collection.labels' }))
+              return
+            }
+            writeJson(outPath, collection)
+            invalidateFile(server, outPath)
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+              JSON.stringify({
+                ok: true,
+                written: outPath,
+                seaLanes: null,
+                at: new Date().toISOString(),
+              }),
+            )
+            return
+          }
+
           const collection = body.collection
           if (!collection || !Array.isArray(collection.overlays)) {
             res.statusCode = 400
@@ -85,7 +111,6 @@ export function overlayWriteApi(projectRoot) {
             return
           }
 
-          const outPath = path.join(overlaysDir, `${fileKey}.json`)
           writeJson(outPath, collection)
           invalidateFile(server, outPath)
 

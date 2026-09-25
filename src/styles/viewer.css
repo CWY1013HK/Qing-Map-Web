@@ -12,7 +12,10 @@ body {
   overflow: hidden;
   background: #c5d6e4;
   color: #f2e8d5;
-  font-family: Georgia, 'Times New Roman', serif;
+  /* Default UI chrome — Kai. Map labels override to LiShu. */
+  font-family: var(--font-kaiti);
+  font-weight: 400;
+  font-synthesis: none;
 }
 
 #app {
@@ -577,7 +580,9 @@ body {
 /* —— Focus mode (淨) —— */
 /*
  * OSD overlay stacking (all inside .viewer z-index:2 — below chrome GUIs):
- *   sea underlay → ink overlays → décor stamps → location labels → mist clouds
+ *   sea underlay → ink overlays → décor stamps → location labels (誌) →
+ *   province name plates → mist clouds
+ * Province labels sit above 誌 so outline names stay readable / editable.
  * Mist must overtake map content / décor; toolbar, seals, popups stay above.
  */
 
@@ -645,8 +650,8 @@ body {
   fill: #ffb000;
   stroke: #1a1204;
   stroke-width: 0.008;
-  font-family: "Songti SC", "STSong", serif;
-  font-weight: 700;
+  font-family: var(--font-lishu);
+  font-weight: 400;
   paint-order: stroke fill;
 }
 

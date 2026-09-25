@@ -1,6 +1,8 @@
+import { registerLocaleRefresh, resolveAnnotation, t } from '../i18n'
 import type { Annotation } from '../lib/types'
 
 let openId: string | null = null
+let openAnnotation: Annotation | null = null
 let panelEl: HTMLElement | null = null
 let titleEl: HTMLElement | null = null
 let bodyEl: HTMLElement | null = null
@@ -25,7 +27,7 @@ function ensurePanel(): HTMLElement {
   panel.hidden = true
 
   panel.innerHTML = `
-    <button type="button" class="annotation-popup-close badge-btn" id="annotation-popup-close" title="收 — Close" aria-label="Close"></button>
+    <button type="button" class="annotation-popup-close badge-btn" id="annotation-popup-close" title="" aria-label=""></button>
     <div class="annotation-popup-paper">
       <h2 class="annotation-popup-title" id="annotation-popup-title"></h2>
       <table class="annotation-popup-table" id="annotation-popup-table" hidden>
@@ -50,17 +52,28 @@ function ensurePanel(): HTMLElement {
     if (e.key === 'Escape' && openId) void closeAnnotationPopup()
   })
 
+  applyPopupChrome()
+  registerLocaleRefresh(() => {
+    applyPopupChrome()
+    if (openAnnotation) fillAnnotationContent(openAnnotation)
+  })
+
   return panel
 }
 
-function renderAkaTable(annotation: Annotation): void {
+function applyPopupChrome(): void {
+  closeBtn?.setAttribute('title', t('popup.close'))
+  closeBtn?.setAttribute('aria-label', t('popup.closeAria'))
+}
+
+function renderAkaTable(aka: string[] | undefined): void {
   if (!tableEl) return
   const tbody = tableEl.querySelector('tbody')
   if (!tbody) return
   tbody.replaceChildren()
 
-  const aka = annotation.aka?.filter((n) => n.trim()) ?? []
-  if (aka.length === 0) {
+  const names = aka?.filter((n) => n.trim()) ?? []
+  if (names.length === 0) {
     tableEl.hidden = true
     return
   }
@@ -68,12 +81,26 @@ function renderAkaTable(annotation: Annotation): void {
   const row = document.createElement('tr')
   const th = document.createElement('th')
   th.scope = 'row'
-  th.textContent = '省會'
+  th.textContent = t('popup.aka')
   const td = document.createElement('td')
-  td.textContent = aka.join('、')
+  td.textContent = names.join('、')
   row.append(th, td)
   tbody.appendChild(row)
   tableEl.hidden = false
+}
+
+function fillAnnotationContent(annotation: Annotation): void {
+  const localized = resolveAnnotation(annotation)
+  if (titleEl) titleEl.textContent = localized.title
+  renderAkaTable(localized.aka)
+  if (bodyEl) {
+    bodyEl.textContent = localized.body?.trim() || ''
+    bodyEl.hidden = !localized.body?.trim()
+  }
+  panelEl?.classList.toggle(
+    'annotation-popup--long',
+    (localized.body?.trim().length ?? 0) > 180,
+  )
 }
 
 function waitForAnimation(panel: HTMLElement, className: string, fallbackMs: number): Promise<void> {
@@ -100,17 +127,9 @@ export async function openAnnotationPopup(annotation: Annotation): Promise<void>
   if (animating) return
 
   openId = annotation.id
+  openAnnotation = annotation
   panel.setAttribute('aria-labelledby', 'annotation-popup-title')
-  if (titleEl) titleEl.textContent = annotation.title
-  renderAkaTable(annotation)
-  if (bodyEl) {
-    bodyEl.textContent = annotation.body?.trim() || ''
-    bodyEl.hidden = !annotation.body?.trim()
-  }
-  panel.classList.toggle(
-    'annotation-popup--long',
-    (annotation.body?.trim().length ?? 0) > 180,
-  )
+  fillAnnotationContent(annotation)
 
   animating = true
   panel.classList.remove('is-folding', 'is-folded', 'is-open')
@@ -128,6 +147,7 @@ export async function closeAnnotationPopup(): Promise<void> {
   const panel = panelEl
   const closingId = openId
   openId = null
+  openAnnotation = null
 
   animating = true
   panel.classList.remove('is-open', 'is-unfolding')

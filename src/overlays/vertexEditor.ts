@@ -1,6 +1,7 @@
 /**
  * Dev-only overlay vertex editor.
- * Drag handles to reshape outlines; saves JSON to disk via /__dev/overlays/save.
+ * Drag handles to reshape outlines; province-label mode for drag/scale name plates.
+ * Saves JSON to disk via /__dev/overlays/save.
  */
 import OpenSeadragon, { type Viewer, type TiledImage } from 'openseadragon'
 import type { MapPoint, MapRing, OverlayCollection, OverlayFeature } from '../lib/types'
@@ -11,6 +12,11 @@ import {
   ZHONGGUO_GROUP_ID,
   HAILU_GROUP_ID,
 } from './manager'
+import {
+  getProvinceLabelCollection,
+  updateProvinceLabel,
+  type ProvinceLabelsHandle,
+} from './provinceLabels'
 import {
   isVertexEditorPanelVisible,
   markVertexEditorAvailable,
@@ -24,17 +30,23 @@ type DragState = {
   pointIndex: number
 }
 
+type ProvinceDragState = {
+  labelId: string
+}
+
 const FILE_KEYS: { key: string; groupId: string; label: string }[] = [
   { key: 'handi-shibasheng', groupId: HANDI_GROUP_ID, label: '漢地十八省' },
   { key: 'zhongguo', groupId: ZHONGGUO_GROUP_ID, label: '中國疆域' },
   { key: 'hailu', groupId: HAILU_GROUP_ID, label: '海路一覽' },
 ]
 
+const PROVINCE_FILE_KEY = 'province-labels'
+
 function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v))
 }
 
-async function saveCollection(fileKey: string, collection: OverlayCollection): Promise<void> {
+async function saveCollection(fileKey: string, collection: unknown): Promise<void> {
   const res = await fetch('/__dev/overlays/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -46,14 +58,22 @@ async function saveCollection(fileKey: string, collection: OverlayCollection): P
   }
 }
 
+export type MountVertexEditorOptions = {
+  provinceLabels?: ProvinceLabelsHandle | null
+}
+
 /**
  * Mount vertex editor chrome + handles. No-op outside Vite DEV.
  * Mutates the live OverlayManager collections in place (single source of truth),
  * then writes them to disk only when you hit Save.
  */
-export function mountOverlayVertexEditor(viewer: Viewer): () => void {
+export function mountOverlayVertexEditor(
+  viewer: Viewer,
+  opts: MountVertexEditorOptions = {},
+): () => void {
   if (!import.meta.env.DEV) return () => {}
 
+  const provinceLabels = opts.provinceLabels ?? null
   const manager = getOverlayManager()
   const parts = manager.getSourceParts()
 
@@ -68,11 +88,17 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     <div class="vertex-editor-row">
       <label class="vertex-editor-toggle">
         <input type="checkbox" id="vertex-edit-enabled" />
-        Edit vertices
+        Edit
       </label>
-      <span class="vertex-editor-hint">E edit · hold D erase · Alt-click delete · dblclick insert</span>
+      <label>Mode
+        <select id="vertex-edit-mode">
+          <option value="vertices">Vertices</option>
+          <option value="provinces">Province labels</option>
+        </select>
+      </label>
+      <span class="vertex-editor-hint" id="vertex-edit-hint">E edit · hold D erase · Alt-click delete · dblclick insert</span>
     </div>
-    <div class="vertex-editor-row">
+    <div class="vertex-editor-row" id="vertex-edit-outline-row">
       <label>Overlay
         <select id="vertex-edit-target">
           ${FILE_KEYS.map((f) => `<option value="${f.key}">${f.label}</option>`).join('')}
@@ -82,8 +108,11 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
         <select id="vertex-edit-ring"></select>
       </label>
     </div>
+    <div class="vertex-editor-row" id="vertex-edit-province-row" hidden>
+      <span class="vertex-editor-hint">Drag label to move · scroll to scale · linked 漢地/中國 share one position</span>
+    </div>
     <div class="vertex-editor-row">
-      <span class="vertex-editor-hint">Hold <kbd>D</kbd> + drag to box-erase (releases back to pan)</span>
+      <span class="vertex-editor-hint">Hold <kbd>D</kbd> + drag to box-erase (vertices mode)</span>
       <button type="button" class="vertex-editor-save" id="vertex-edit-save" disabled>Save</button>
       <span class="vertex-editor-hint">⌘/Ctrl+S</span>
     </div>
@@ -94,14 +123,20 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
   document.querySelector('#app')?.appendChild(panel)
 
   const enabledEl = panel.querySelector<HTMLInputElement>('#vertex-edit-enabled')!
+  const modeEl = panel.querySelector<HTMLSelectElement>('#vertex-edit-mode')!
+  const hintEl = panel.querySelector<HTMLElement>('#vertex-edit-hint')!
+  const outlineRow = panel.querySelector<HTMLElement>('#vertex-edit-outline-row')!
+  const provinceRow = panel.querySelector<HTMLElement>('#vertex-edit-province-row')!
   const targetEl = panel.querySelector<HTMLSelectElement>('#vertex-edit-target')!
   const ringEl = panel.querySelector<HTMLSelectElement>('#vertex-edit-ring')!
   const saveBtn = panel.querySelector<HTMLButtonElement>('#vertex-edit-save')!
   const statusEl = panel.querySelector<HTMLElement>('#vertex-edit-status')!
 
+  const isProvinceMode = () => modeEl.value === 'provinces'
+
   /** Hold D to box-erase; release to pan the map again */
   let dHeld = false
-  const eraseActive = () => enabledEl.checked && dHeld
+  const eraseActive = () => enabledEl.checked && !isProvinceMode() && dHeld
 
   // —— Handles overlay (same map bounds as ink SVG) ——
   const handleRoot = document.createElement('div')
@@ -126,6 +161,7 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
 
   let handlesAttached = false
   let drag: DragState | null = null
+  let provinceDrag: ProvinceDragState | null = null
   let eraseDrag: { x0: number; y0: number; x1: number; y1: number } | null = null
 
   const syncEraseCapture = () => {
@@ -136,8 +172,9 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
       wrap.classList.add('vertex-editor-layer-wrap')
       wrap.classList.toggle('is-erase-capture', on)
     }
-    // While erasing, pan must not steal the drag
-    if (enabledEl.checked) viewer.setMouseNavEnabled(!on && !drag && !eraseDrag)
+    if (enabledEl.checked) {
+      viewer.setMouseNavEnabled(!on && !drag && !eraseDrag && !provinceDrag)
+    }
   }
 
   const placeHandles = () => {
@@ -191,9 +228,13 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     const keys = [...dirtyKeys]
     try {
       for (const fileKey of keys) {
-        const collection = collectionFor(fileKey)
-        if (!collection) throw new Error(`No collection for ${fileKey}`)
-        await saveCollection(fileKey, collection)
+        if (fileKey === PROVINCE_FILE_KEY) {
+          await saveCollection(fileKey, getProvinceLabelCollection())
+        } else {
+          const collection = collectionFor(fileKey)
+          if (!collection) throw new Error(`No collection for ${fileKey}`)
+          await saveCollection(fileKey, collection)
+        }
         dirtyKeys.delete(fileKey)
       }
       const hailu = keys.includes('hailu')
@@ -226,7 +267,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
   }
 
   const handleRadii = (): { rx: number; ry: number } => {
-    // ~4px on screen, corrected for stretched viewBox so handles stay round
     const box = handleSvg.getBoundingClientRect()
     const w = box.width
     const h = box.height
@@ -239,7 +279,7 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
 
   const rebuildHandles = () => {
     handleGroup.replaceChildren()
-    if (!enabledEl.checked) return
+    if (!enabledEl.checked || isProvinceMode()) return
 
     const feature = currentFeature()
     if (!feature) return
@@ -250,7 +290,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     const { rx, ry } = handleRadii()
     const pathMode = feature.pathMode ?? 'closed'
 
-    // Hit path for double-click insert (invisible fat stroke)
     const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path')
     hit.setAttribute('d', ringToPathDLocal(ring, pathMode))
     hit.classList.add('vertex-editor-hitpath')
@@ -278,6 +317,17 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     const item = viewer.world.getItemAt(0) as TiledImage | null
     if (!item) return null
     const rect = handleSvg.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) return null
+    return {
+      x: clamp01((clientX - rect.left) / rect.width),
+      y: clamp01((clientY - rect.top) / rect.height),
+    }
+  }
+
+  const clientToNormOnProvinceSvg = (clientX: number, clientY: number): MapPoint | null => {
+    const svg = provinceLabels?.root.querySelector('svg')
+    if (!svg) return null
+    const rect = svg.getBoundingClientRect()
     if (rect.width < 1 || rect.height < 1) return null
     return {
       x: clamp01((clientX - rect.left) / rect.width),
@@ -334,8 +384,18 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     setStatus(`Erased ${removed} · path bridged (${kept.length} left)`, 'ok')
   }
 
+  const syncModeUi = () => {
+    const prov = isProvinceMode()
+    outlineRow.hidden = prov
+    provinceRow.hidden = !prov
+    hintEl.textContent = prov
+      ? 'E edit · drag move · scroll scale · linked 漢地/中國 stay together'
+      : 'E edit · hold D erase · Alt-click delete · dblclick insert'
+    handleRoot.hidden = !enabledEl.checked || prov
+  }
+
   const onPointerDown = (e: PointerEvent) => {
-    if (!enabledEl.checked) return
+    if (!enabledEl.checked || isProvinceMode()) return
     e.preventDefault()
     e.stopPropagation()
 
@@ -356,7 +416,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     const feature = currentFeature()
     if (!feature) return
 
-    // Alt-click: delete vertex
     if (e.altKey) {
       const ringIndex = Number(ringEl.value) || 0
       const ring = feature.rings[ringIndex]
@@ -380,7 +439,34 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     t.classList.add('is-dragging')
   }
 
+  const onProvincePointerDown = (e: PointerEvent) => {
+    if (!enabledEl.checked || !isProvinceMode() || !provinceLabels) return
+    const t = e.target as Element | null
+    if (!t?.classList.contains('province-label-hit')) return
+    const labelId = (t as SVGRectElement).dataset.labelId
+    if (!labelId) return
+    e.preventDefault()
+    e.stopPropagation()
+    provinceDrag = { labelId }
+    provinceLabels.setSelectedId(labelId)
+    viewer.setMouseNavEnabled(false)
+    ;(t as Element).setPointerCapture?.(e.pointerId)
+    setStatus(`Moving ${labelId}`, 'idle')
+  }
+
   const onPointerMove = (e: PointerEvent) => {
+    if (provinceDrag) {
+      e.preventDefault()
+      const pt = clientToNormOnProvinceSvg(e.clientX, e.clientY)
+      if (!pt) return
+      updateProvinceLabel(provinceDrag.labelId, {
+        point: {
+          x: Math.round(pt.x * 1e6) / 1e6,
+          y: Math.round(pt.y * 1e6) / 1e6,
+        },
+      })
+      return
+    }
     if (eraseDrag) {
       e.preventDefault()
       const pt = clientToNorm(e.clientX, e.clientY)
@@ -404,7 +490,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
       y: Math.round(pt.y * 1e6) / 1e6,
     }
 
-    // Move handle
     const handle = handleGroup.querySelector(
       `ellipse[data-point-index="${drag.pointIndex}"]`,
     ) as SVGEllipseElement | null
@@ -412,7 +497,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
       handle.setAttribute('cx', String(ring[drag.pointIndex].x))
       handle.setAttribute('cy', String(ring[drag.pointIndex].y))
     }
-    // Update hit path
     const hit = handleGroup.querySelector('.vertex-editor-hitpath')
     if (hit && feature) {
       hit.setAttribute('d', ringToPathDLocal(ring, feature.pathMode ?? 'closed'))
@@ -422,6 +506,12 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
   }
 
   const onPointerUp = (e: PointerEvent) => {
+    if (provinceDrag) {
+      markDirty(PROVINCE_FILE_KEY)
+      provinceDrag = null
+      syncEraseCapture()
+      return
+    }
     if (eraseDrag) {
       erasePointsInBox()
       eraseDrag = null
@@ -437,9 +527,8 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     syncEraseCapture()
   }
 
-  // Double-click edge to insert vertex
   const onDblClick = (e: MouseEvent) => {
-    if (!enabledEl.checked || eraseActive()) return
+    if (!enabledEl.checked || eraseActive() || isProvinceMode()) return
     const t = e.target as Element | null
     if (!t?.classList.contains('vertex-editor-hitpath')) return
     e.preventDefault()
@@ -452,7 +541,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     const ring = feature.rings[ringIndex]
     if (!ring || ring.length < 2) return
 
-    // Insert after nearest segment
     let bestI = 0
     let bestD = Infinity
     for (let i = 0; i < ring.length - 1; i++) {
@@ -464,7 +552,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
         bestI = i
       }
     }
-    // Also consider close segment for closed rings
     if ((feature.pathMode ?? 'closed') === 'closed' && ring.length > 2) {
       const a = ring[ring.length - 1]!
       const b = ring[0]!
@@ -486,23 +573,65 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     markDirty(targetEl.value)
   }
 
+  const onProvinceWheel = (e: WheelEvent) => {
+    if (!enabledEl.checked || !isProvinceMode()) return
+    const t = e.target as Element | null
+    if (!t?.classList.contains('province-label-hit')) return
+    const labelId = (t as SVGRectElement).dataset.labelId
+    if (!labelId) return
+    e.preventDefault()
+    e.stopPropagation()
+    const label = getProvinceLabelCollection().labels.find((l) => l.id === labelId)
+    if (!label) return
+    const cur = label.scale ?? 1
+    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08
+    const next = Math.round(Math.min(3, Math.max(0.35, cur * factor)) * 1000) / 1000
+    updateProvinceLabel(labelId, { scale: next })
+    provinceLabels?.setSelectedId(labelId)
+    markDirty(PROVINCE_FILE_KEY)
+    setStatus(`${label.title} scale ${next.toFixed(2)}`, 'idle')
+  }
+
   handleSvg.addEventListener('pointerdown', onPointerDown)
   window.addEventListener('pointermove', onPointerMove)
   window.addEventListener('pointerup', onPointerUp)
   handleSvg.addEventListener('dblclick', onDblClick)
 
+  const provinceRoot = provinceLabels?.root
+  const provinceHitLayer = provinceRoot?.querySelector(
+    '.province-labels-hits',
+  ) as SVGGElement | null
+  // Listen on the hit layer so we don't depend on bubbling through
+  // pointer-events:none ancestors.
+  provinceHitLayer?.addEventListener('pointerdown', onProvincePointerDown)
+  provinceHitLayer?.addEventListener('wheel', onProvinceWheel, { passive: false })
+
   const syncEnabled = () => {
     const on = enabledEl.checked
-    handleRoot.hidden = !on
-    handleRoot.classList.toggle('is-enabled', on)
+    const prov = isProvinceMode()
+    syncModeUi()
+    handleRoot.hidden = !on || prov
+    handleRoot.classList.toggle('is-enabled', on && !prov)
     panel.classList.toggle('is-editing', on)
+    provinceLabels?.setEditing(on && prov)
+
     if (!on) {
       dHeld = false
       eraseDrag = null
+      provinceDrag = null
       updateEraseRect()
       handleGroup.replaceChildren()
+      provinceLabels?.setSelectedId(null)
       viewer.setMouseNavEnabled(true)
       setStatus(dirtyKeys.size ? 'Unsaved changes' : 'Idle', dirtyKeys.size ? 'busy' : 'idle')
+    } else if (prov) {
+      overlayStore.setGroupVisible(manager.idsForGroup(HANDI_GROUP_ID), true)
+      overlayStore.setGroupVisible(manager.idsForGroup(ZHONGGUO_GROUP_ID), true)
+      handleGroup.replaceChildren()
+      // Pan off so the province hit layer can receive pointer events reliably.
+      viewer.setMouseNavEnabled(false)
+      if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
+      else setStatus('Editing province labels — drag cyan boxes · scroll to scale · uncheck Edit to pan', 'idle')
     } else {
       const meta = FILE_KEYS.find((f) => f.key === targetEl.value)
       if (meta) {
@@ -520,7 +649,11 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
   }
 
   enabledEl.addEventListener('change', syncEnabled)
+  modeEl.addEventListener('change', () => {
+    syncEnabled()
+  })
   targetEl.addEventListener('change', () => {
+    if (isProvinceMode()) return
     const meta = FILE_KEYS.find((f) => f.key === targetEl.value)
     if (meta && enabledEl.checked) {
       overlayStore.setGroupVisible(manager.idsForGroup(meta.groupId), true)
@@ -533,7 +666,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     void saveDirty()
   })
 
-  // Keyboard: E toggles edit; hold D = box erase; ⌘/Ctrl+S saves
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
     if (e.target instanceof HTMLSelectElement) return
@@ -544,7 +676,7 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     }
     if (e.key === 'd' || e.key === 'D') {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return
-      if (!enabledEl.checked) return
+      if (!enabledEl.checked || isProvinceMode()) return
       e.preventDefault()
       dHeld = true
       syncEraseCapture()
@@ -564,7 +696,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     if (e.key !== 'd' && e.key !== 'D') return
     if (!dHeld) return
     dHeld = false
-    // Finish an in-progress erase box if any
     if (eraseDrag) {
       erasePointsInBox()
       eraseDrag = null
@@ -573,7 +704,12 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
     syncEraseCapture()
     rebuildHandles()
     if (enabledEl.checked && dirtyKeys.size === 0) {
-      setStatus('Editing — hold D to erase, Save when ready', 'idle')
+      setStatus(
+        isProvinceMode()
+          ? 'Editing province labels — drag to move, scroll to scale'
+          : 'Editing — hold D to erase, Save when ready',
+        'idle',
+      )
     } else if (dirtyKeys.size) {
       setStatus('Unsaved changes', 'busy')
     }
@@ -581,7 +717,6 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
 
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
-  // If the window blurs while D is held, drop erase mode
   const onBlur = () => {
     if (!dHeld) return
     dHeld = false
@@ -592,9 +727,8 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
   }
   window.addEventListener('blur', onBlur)
 
-  // Keep handle size stable on zoom/resize
   const onAnim = () => {
-    if (!enabledEl.checked) return
+    if (!enabledEl.checked || isProvinceMode()) return
     const { rx, ry } = handleRadii()
     handleGroup.querySelectorAll('ellipse.vertex-editor-handle').forEach((c) => {
       c.setAttribute('rx', String(rx))
@@ -628,6 +762,10 @@ export function mountOverlayVertexEditor(viewer: Viewer): () => void {
   return () => {
     unsubChrome()
     markVertexEditorAvailable(false)
+    provinceLabels?.setEditing(false)
+    provinceLabels?.setSelectedId(null)
+    provinceHitLayer?.removeEventListener('pointerdown', onProvincePointerDown)
+    provinceHitLayer?.removeEventListener('wheel', onProvinceWheel)
     window.removeEventListener('keydown', onKeyDown)
     window.removeEventListener('keyup', onKeyUp)
     window.removeEventListener('blur', onBlur)

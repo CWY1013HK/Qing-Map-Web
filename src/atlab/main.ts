@@ -1,3 +1,4 @@
+import '../styles/fonts.css'
 import '../styles/viewer.css'
 import '../styles/atlab.css'
 import '../styles/overlays.css'

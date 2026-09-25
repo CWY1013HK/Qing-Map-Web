@@ -1,6 +1,7 @@
 import OpenSeadragon from 'openseadragon'
 import { FLOOR_DECOR_COUNTS } from '../lib/mapDecor'
 import { mountOverlaysOnViewer } from '../overlays/manager'
+import { mountProvinceLabels } from '../overlays/provinceLabels'
 import { startFocusClouds, type FocusCloudsHandle } from '../viewer/focusMode'
 import { startSeaUnderlay, type SeaUnderlayHandle } from '../viewer/seaUnderlay'
 
@@ -79,6 +80,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
   }
 
   mountOverlaysOnViewer(viewer)
+  mountProvinceLabels(viewer)
 
   viewer.addHandler('open', () => {
     fitHome()

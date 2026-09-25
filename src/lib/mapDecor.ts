@@ -251,6 +251,8 @@ export function randomInRegion(
 }
 
 export type LaneTracker = {
+  /** Source sea-lane id (for endpoint transfers). */
+  laneId: string
   /** Image-pixel polyline. */
   points: { x: number; y: number }[]
   /** Cumulative length at each vertex (image px). */
@@ -266,6 +268,7 @@ export function buildLaneTracker(
   lane: SeaLane,
   size: { x: number; y: number },
   startFrac = Math.random(),
+  pathDir?: 1 | -1,
 ): LaneTracker {
   const points = lane.points.map((p) => ({
     x: p.x * size.x,
@@ -279,11 +282,12 @@ export function buildLaneTracker(
   }
   const total = cum[cum.length - 1] || 1
   return {
+    laneId: lane.id,
     points,
     cum,
     total,
     s: clamp01(startFrac) * total,
-    pathDir: Math.random() < 0.5 ? 1 : -1,
+    pathDir: pathDir ?? (Math.random() < 0.5 ? 1 : -1),
   }
 }
 
@@ -314,6 +318,228 @@ export function sampleLane(
     tx: dx / len,
     ty: dy / len,
   }
+}
+
+type LaneEnd = 'start' | 'end'
+
+/** Hop onto another lane at a fractional arc length (0 = start, 1 = end, mid allowed). */
+type LaneTransfer = {
+  laneId: string
+  /** Fraction along the target lane [0, 1]. */
+  sFrac: number
+}
+
+/** Spur / cross attachment along a trunk (another lane’s endpoint meets this polyline). */
+type MidJunction = {
+  /** Fraction along this lane where the hub sits. */
+  sFrac: number
+  transfers: LaneTransfer[]
+}
+
+/** Normalized distance for “almost overlapping” hubs (end↔end or end↔mid). */
+const HUB_EPS = 0.01
+
+function endKey(laneId: string, at: LaneEnd): string {
+  return `${laneId}:${at}`
+}
+
+/** Closest point on a polyline (vertex or segment projection), as arc-length fraction. */
+function nearestFracOnLane(
+  px: number,
+  py: number,
+  points: readonly NormPoint[],
+): { d: number; sFrac: number } {
+  if (points.length === 0) return { d: Infinity, sFrac: 0 }
+  if (points.length === 1) {
+    const p = points[0]!
+    return { d: Math.hypot(p.x - px, p.y - py), sFrac: 0 }
+  }
+
+  const cum = [0]
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!
+    const b = points[i]!
+    cum.push(cum[i - 1]! + Math.hypot(b.x - a.x, b.y - a.y))
+  }
+  const total = Math.max(cum[cum.length - 1]!, 1e-9)
+
+  let bestD = Infinity
+  let bestFrac = 0
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!
+    const b = points[i]!
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const len2 = dx * dx + dy * dy || 1e-12
+    let t = ((px - a.x) * dx + (py - a.y) * dy) / len2
+    t = Math.max(0, Math.min(1, t))
+    const qx = a.x + t * dx
+    const qy = a.y + t * dy
+    const d = Math.hypot(qx - px, qy - py)
+    if (d < bestD) {
+      bestD = d
+      const s = cum[i - 1]! + t * (cum[i]! - cum[i - 1]!)
+      bestFrac = s / total
+    }
+  }
+  return { d: bestD, sFrac: bestFrac }
+}
+
+function applyTransfer(
+  tracker: LaneTracker,
+  transfer: LaneTransfer,
+  size: { x: number; y: number },
+): boolean {
+  const nextLane = LANE_BY_ID.get(transfer.laneId)
+  if (!nextLane) return false
+
+  let pathDir: 1 | -1
+  if (transfer.sFrac <= 1e-6) pathDir = 1
+  else if (transfer.sFrac >= 1 - 1e-6) pathDir = -1
+  else pathDir = Math.random() < 0.5 ? 1 : -1
+
+  const next = buildLaneTracker(nextLane, size, transfer.sFrac, pathDir)
+  tracker.laneId = next.laneId
+  tracker.points = next.points
+  tracker.cum = next.cum
+  tracker.total = next.total
+  tracker.s = next.s
+  tracker.pathDir = next.pathDir
+  return true
+}
+
+function buildHubGraph(lanes: readonly SeaLane[], eps: number): {
+  endpointAdj: Map<string, LaneTransfer[]>
+  midByLane: Map<string, MidJunction[]>
+} {
+  type EndPt = { laneId: string; at: LaneEnd; x: number; y: number }
+  const ends: EndPt[] = []
+  for (const lane of lanes) {
+    if (lane.points.length === 0) continue
+    const first = lane.points[0]!
+    const last = lane.points[lane.points.length - 1]!
+    ends.push({ laneId: lane.id, at: 'start', x: first.x, y: first.y })
+    ends.push({ laneId: lane.id, at: 'end', x: last.x, y: last.y })
+  }
+
+  const endpointAdj = new Map<string, LaneTransfer[]>()
+  const midRaw = new Map<string, { sFrac: number; transfer: LaneTransfer }[]>()
+
+  for (const end of ends) {
+    const key = endKey(end.laneId, end.at)
+    const fromEnd: LaneTransfer[] = []
+
+    for (const other of lanes) {
+      if (other.id === end.laneId) continue
+      const hit = nearestFracOnLane(end.x, end.y, other.points)
+      if (hit.d > eps) continue
+
+      fromEnd.push({ laneId: other.id, sFrac: hit.sFrac })
+
+      // Reciprocal: ships on `other` at this mid can hop onto this endpoint.
+      const list = midRaw.get(other.id) ?? []
+      list.push({
+        sFrac: hit.sFrac,
+        transfer: {
+          laneId: end.laneId,
+          sFrac: end.at === 'start' ? 0 : 1,
+        },
+      })
+      midRaw.set(other.id, list)
+    }
+
+    endpointAdj.set(key, fromEnd)
+  }
+
+  // Cluster nearby mid hits on the same lane into one junction.
+  const midByLane = new Map<string, MidJunction[]>()
+  const clusterEps = eps * 0.5
+  for (const [laneId, raw] of midRaw) {
+    raw.sort((a, b) => a.sFrac - b.sFrac)
+    const clusters: MidJunction[] = []
+    for (const item of raw) {
+      const last = clusters[clusters.length - 1]
+      if (last && Math.abs(item.sFrac - last.sFrac) <= clusterEps) {
+        if (
+          !last.transfers.some(
+            (t) =>
+              t.laneId === item.transfer.laneId &&
+              Math.abs(t.sFrac - item.transfer.sFrac) < 1e-6,
+          )
+        ) {
+          last.transfers.push(item.transfer)
+        }
+        last.sFrac =
+          (last.sFrac * (last.transfers.length - 1) + item.sFrac) /
+          last.transfers.length
+      } else {
+        clusters.push({ sFrac: item.sFrac, transfers: [item.transfer] })
+      }
+    }
+    midByLane.set(laneId, clusters)
+  }
+
+  return { endpointAdj, midByLane }
+}
+
+const LANE_BY_ID = new Map(SEA_LANES.map((l) => [l.id, l]))
+const { endpointAdj: ENDPOINT_ADJ, midByLane: MID_BY_LANE } = buildHubGraph(
+  SEA_LANES,
+  HUB_EPS,
+)
+
+/**
+ * When a ship reaches a lane end: reverse, or jump to a nearly-overlapping
+ * point on another route (endpoint or mid-trunk). Equal weight among reverse + transfers.
+ * Mutates `tracker` in place (may replace polyline when transferring).
+ */
+export function resolveLaneEndpoint(
+  tracker: LaneTracker,
+  size: { x: number; y: number },
+): void {
+  const at: LaneEnd = tracker.s <= 0 ? 'start' : 'end'
+  tracker.s = at === 'start' ? 0 : tracker.total
+
+  const transfers = ENDPOINT_ADJ.get(endKey(tracker.laneId, at)) ?? []
+  const choice = Math.floor(Math.random() * (transfers.length + 1))
+  if (choice === 0 || transfers.length === 0) {
+    tracker.pathDir = at === 'start' ? 1 : -1
+    return
+  }
+
+  if (!applyTransfer(tracker, transfers[choice - 1]!, size)) {
+    tracker.pathDir = at === 'start' ? 1 : -1
+  }
+}
+
+/**
+ * If the ship just crossed a mid-lane hub (spur endpoint meeting this trunk),
+ * optionally hop onto that spur. `sBefore` is arc length before this frame’s step.
+ * Returns true if a transfer occurred.
+ */
+export function resolveLaneMidJunction(
+  tracker: LaneTracker,
+  sBefore: number,
+  size: { x: number; y: number },
+): boolean {
+  const junctions = MID_BY_LANE.get(tracker.laneId)
+  if (!junctions || junctions.length === 0) return false
+
+  const lo = Math.min(sBefore, tracker.s)
+  const hi = Math.max(sBefore, tracker.s)
+  // Tiny pad so slow ships still register thin junctions.
+  const pad = Math.max(tracker.total * 1e-4, 0.5)
+
+  for (const j of junctions) {
+    const sHub = j.sFrac * tracker.total
+    if (sHub < lo - pad || sHub > hi + pad) continue
+
+    // choices = continue (no hop) + each spur transfer
+    const choice = Math.floor(Math.random() * (j.transfers.length + 1))
+    if (choice === 0) return false
+    return applyTransfer(tracker, j.transfers[choice - 1]!, size)
+  }
+  return false
 }
 
 /**

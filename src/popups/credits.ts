@@ -1,5 +1,13 @@
 import { CREDITS_SHOW_DEV_TOOLS } from '../config'
 import {
+  getLocale,
+  LOCALES,
+  registerLocaleRefresh,
+  setLocale,
+  t,
+  type Locale,
+} from '../i18n'
+import {
   isVertexEditorAvailable,
   isVertexEditorPanelVisible,
   onVertexEditorAvailable,
@@ -36,37 +44,90 @@ function waitForAnimation(panel: HTMLElement, className: string, fallbackMs: num
 }
 
 function syncEdgeEditButton(): void {
-  const tools = panelEl?.querySelector<HTMLElement>('#credits-popup-tools')
-  if (!edgeEditBtn || !tools) return
+  if (!edgeEditBtn) return
 
   const available = isVertexEditorAvailable()
-  tools.hidden = !available
+  edgeEditBtn.hidden = !available
   edgeEditBtn.disabled = !available
   if (!available) {
     edgeEditBtn.setAttribute('aria-pressed', 'false')
-    edgeEditBtn.title = '邊線 — Edge editor unavailable'
+    edgeEditBtn.title = t('credits.edgeUnavailable')
     return
   }
 
   const shown = isVertexEditorPanelVisible()
   edgeEditBtn.setAttribute('aria-pressed', shown ? 'true' : 'false')
-  edgeEditBtn.title = shown ? '邊線 — Hide edge editor' : '邊線 — Show edge editor'
-  edgeEditBtn.textContent = shown ? '邊線編輯 · 開' : '邊線編輯 · 關'
+  edgeEditBtn.title = shown ? t('credits.edgeHide') : t('credits.edgeShow')
+  edgeEditBtn.textContent = shown ? t('credits.edgeOn') : t('credits.edgeOff')
 }
 
 function toolsRowHtml(): string {
-  if (!CREDITS_SHOW_DEV_TOOLS) return ''
-  return `
-      <div class="credits-popup-tools" id="credits-popup-tools">
+  const edgeBtn = CREDITS_SHOW_DEV_TOOLS
+    ? `
         <button
           type="button"
           class="credits-popup-tool-btn"
           id="credits-toggle-edge-edit"
           aria-pressed="false"
-          title="邊線 — Show edge editor"
-        >邊線編輯 · 關</button>
+          title=""
+          hidden
+        ></button>`
+    : ''
+  return `
+      <div class="credits-popup-tools" id="credits-popup-tools">
+        <div class="credits-lang" id="credits-lang" role="group" aria-label="">
+          <button type="button" class="credits-lang-btn" data-locale="zh-Hant" aria-pressed="false"></button>
+          <button type="button" class="credits-lang-btn" data-locale="zh-Hans" aria-pressed="false"></button>
+          <button type="button" class="credits-lang-btn" data-locale="en" aria-pressed="false"></button>
+        </div>
+        ${edgeBtn}
       </div>
   `
+}
+
+function applyCreditsCopy(): void {
+  if (!panelEl) return
+
+  const setText = (sel: string, value: string) => {
+    const el = panelEl!.querySelector(sel)
+    if (el) el.textContent = value
+  }
+
+  closeBtn?.setAttribute('title', t('popup.close'))
+  closeBtn?.setAttribute('aria-label', t('popup.closeAria'))
+
+  setText('#credits-popup-title', t('credits.title'))
+  setText('[data-i18n="credits.design"]', t('credits.design'))
+  setText('[data-i18n="credits.designName"]', t('credits.designName'))
+  setText('[data-i18n="credits.supervision"]', t('credits.supervision'))
+  setText('[data-i18n="credits.supervisionNames"]', t('credits.supervisionNames'))
+  setText('[data-i18n="credits.support"]', t('credits.support'))
+  setText('[data-i18n="credits.supportName"]', t('credits.supportName'))
+  setText('[data-i18n="credits.fonts"]', t('credits.fonts'))
+  setText('[data-i18n="credits.fontsMap"]', t('credits.fontsMap'))
+  setText('[data-i18n="credits.fontsPopup"]', t('credits.fontsPopup'))
+  setText('[data-i18n="credits.music"]', t('credits.music'))
+  setText('[data-i18n="credits.trackMist"]', t('credits.trackMist'))
+  setText('[data-i18n="credits.trackChao"]', t('credits.trackChao'))
+  setText('[data-i18n="credits.trackJing"]', t('credits.trackJing'))
+
+  const fontsCont = panelEl.querySelector<HTMLElement>('[data-i18n-aria="credits.fontsContAria"]')
+  fontsCont?.setAttribute('aria-label', t('credits.fontsContAria'))
+
+  const langGroup = panelEl.querySelector<HTMLElement>('#credits-lang')
+  langGroup?.setAttribute('aria-label', t('credits.langAria'))
+
+  const locale = getLocale()
+  for (const btn of panelEl.querySelectorAll<HTMLButtonElement>('.credits-lang-btn')) {
+    const loc = btn.dataset.locale as Locale | undefined
+    if (!loc || !LOCALES.includes(loc)) continue
+    btn.setAttribute('aria-pressed', loc === locale ? 'true' : 'false')
+    if (loc === 'zh-Hant') btn.textContent = t('credits.langHant')
+    else if (loc === 'zh-Hans') btn.textContent = t('credits.langHans')
+    else btn.textContent = t('credits.langEn')
+  }
+
+  syncEdgeEditButton()
 }
 
 function ensurePanel(): HTMLElement {
@@ -84,38 +145,46 @@ function ensurePanel(): HTMLElement {
   panel.hidden = true
 
   panel.innerHTML = `
-    <button type="button" class="annotation-popup-close badge-btn" id="credits-popup-close" title="收 — Close" aria-label="Close"></button>
+    <button type="button" class="annotation-popup-close badge-btn" id="credits-popup-close" title="" aria-label=""></button>
     <div class="annotation-popup-paper">
-      <h2 class="annotation-popup-title" id="credits-popup-title">致謝</h2>
+      <h2 class="annotation-popup-title" id="credits-popup-title"></h2>
       <table class="annotation-popup-table" id="credits-popup-table">
         <tbody>
           <tr>
-            <th scope="row">設計</th>
-            <td>王譽</td>
+            <th scope="row" data-i18n="credits.design"></th>
+            <td data-i18n="credits.designName"></td>
           </tr>
           <tr>
-            <th scope="row">督導</th>
-            <td>王迪安教授、李紀教授</td>
+            <th scope="row" data-i18n="credits.supervision"></th>
+            <td data-i18n="credits.supervisionNames"></td>
           </tr>
           <tr>
-            <th scope="row">支持</th>
-            <td>HKU Arts Tech Lab</td>
+            <th scope="row" data-i18n="credits.support"></th>
+            <td data-i18n="credits.supportName"></td>
+          </tr>
+          <tr>
+            <th scope="row" data-i18n="credits.fonts"></th>
+            <td data-i18n="credits.fontsMap"></td>
+          </tr>
+          <tr>
+            <th scope="row" data-i18n-aria="credits.fontsContAria"></th>
+            <td data-i18n="credits.fontsPopup"></td>
           </tr>
         </tbody>
       </table>
       <div class="annotation-popup-body credits-popup-music">
-        <p class="credits-popup-music-heading">音樂來源</p>
+        <p class="credits-popup-music-heading" data-i18n="credits.music"></p>
         <ul class="credits-popup-music-list">
           <li>
-            <span class="credits-track">Mist Sheng（雾笙）</span>
+            <span class="credits-track" data-i18n="credits.trackMist"></span>
             <a href="https://www.youtube.com/watch?v=Me8y6EKQcYk" target="_blank" rel="noopener noreferrer">YouTube</a>
           </li>
           <li>
-            <span class="credits-track">Chao Tian Zi（朝天子）</span>
+            <span class="credits-track" data-i18n="credits.trackChao"></span>
             <a href="https://www.youtube.com/watch?v=0JSjMvkaS8Q" target="_blank" rel="noopener noreferrer">YouTube</a>
           </li>
           <li>
-            <span class="credits-track">Jing Diao（京調）</span>
+            <span class="credits-track" data-i18n="credits.trackJing"></span>
             <a href="https://www.youtube.com/watch?v=EMYsu8PvkYk" target="_blank" rel="noopener noreferrer">YouTube</a>
           </li>
         </ul>
@@ -138,15 +207,25 @@ function ensurePanel(): HTMLElement {
     syncEdgeEditButton()
   })
 
+  panel.querySelector('#credits-lang')?.addEventListener('click', (e) => {
+    const target = e.target
+    if (!(target instanceof HTMLButtonElement)) return
+    const loc = target.dataset.locale
+    if (loc !== 'zh-Hant' && loc !== 'zh-Hans' && loc !== 'en') return
+    setLocale(loc)
+  })
+
   if (CREDITS_SHOW_DEV_TOOLS) {
     onVertexEditorPanelVisible(() => syncEdgeEditButton())
     onVertexEditorAvailable(() => syncEdgeEditButton())
-    syncEdgeEditButton()
   }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && open) void closeCreditsPopup()
   })
+
+  applyCreditsCopy()
+  registerLocaleRefresh(applyCreditsCopy)
 
   return panel
 }
@@ -157,6 +236,7 @@ export async function openCreditsPopup(): Promise<void> {
 
   open = true
   animating = true
+  applyCreditsCopy()
   panel.classList.remove('is-folding', 'is-folded', 'is-open')
   panel.hidden = false
   panel.classList.add('is-animating')
@@ -203,7 +283,7 @@ function syncToggle(pressed: boolean): void {
   const btn = document.querySelector<HTMLButtonElement>('#btn-credits')
   if (!btn) return
   btn.setAttribute('aria-pressed', pressed ? 'true' : 'false')
-  btn.title = pressed ? '功 — Hide credits' : '功 — Show credits'
+  btn.title = pressed ? t('toolbar.creditsHide') : t('toolbar.creditsShow')
 }
 
 /** Wire #btn-credits (功) to the credits popup. */
@@ -212,12 +292,12 @@ export function mountCreditsToggle(): void {
   if (!btn) throw new Error('Missing #btn-credits')
 
   btn.setAttribute('aria-pressed', 'false')
-  btn.title = '功 — Show credits'
+  btn.title = t('toolbar.creditsShow')
 
   btn.addEventListener('click', () => {
     void toggleCreditsPopup()
   })
 
-  // Prefetch panel wiring so edge-edit availability syncs once the DEV editor mounts.
-  if (CREDITS_SHOW_DEV_TOOLS) ensurePanel()
+  // Prefetch panel so language + edge-edit wiring is ready before first open.
+  ensurePanel()
 }
