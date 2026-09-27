@@ -1,7 +1,7 @@
 import OpenSeadragon, { type Viewer, type TiledImage } from 'openseadragon'
 import seaBlocsFile from '../../data/sea-blocs.json'
 
-const LAND_URL = '/land/map-land.webp?v=20'
+const LAND_URL = '/land/map-land.webp?v=21'
 /** Canonical seigaiha tile — default for seas 1 & 3. */
 const WAVE_ORIGINAL = '/patterns/wave-seigaiha.jpg'
 const FADE_MS = 650

@@ -118,7 +118,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   // Warm the land plate so 淨 mode does not wait on an 8MB fetch.
   const landWarm = new Image()
   landWarm.decoding = 'async'
-  landWarm.src = '/land/map-land.webp?v=20'
+  landWarm.src = '/land/map-land.webp?v=21'
   mountOverlaysOnViewer(viewer)
   mountOverlaySealControls()
   const provinceLabels = mountProvinceLabels(viewer)

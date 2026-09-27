@@ -6,6 +6,8 @@ Seas 1 & 2 are traced from the pink/green annotation
 (data/sea-guides/seas-annotated.png), including the circled islands.
 Sea 3 uses the same coastline rule on the rest of the map: light-blue
 scallop wash, stop on dark indigo, punch islands and sea labels.
+中國疆域 (data/overlays/zhongguo.json) is always forced to land so waves
+never show through China.
 
 Bloc boxes only choose wave size / debug numbers.
 """
@@ -27,6 +29,7 @@ ANN_PATH = ROOT / "data" / "sea-guides" / "seas-annotated.png"
 OUT_DIR = ROOT / "assets" / "land"
 PUBLIC_DIR = ROOT / "public" / "land"
 BLOCS_PATH = ROOT / "data" / "sea-blocs.json"
+ZHONGGUO_PATH = ROOT / "data" / "overlays" / "zhongguo.json"
 
 SERVE_SCALE = 0.5
 TITLE_X = 0.948  # solid ground under 大清萬年…
@@ -45,6 +48,31 @@ def apply_force_land(sea: np.ndarray, h: int, w: int) -> None:
 
 def load_blocs() -> list[dict]:
     return list(json.loads(BLOCS_PATH.read_text())["blocs"])
+
+
+def rasterize_zhongguo_land(h: int, w: int) -> np.ndarray:
+    """Fill 中國疆域 rings → land mask (True = inside China, no waves)."""
+    if not ZHONGGUO_PATH.is_file():
+        print(f"  missing {ZHONGGUO_PATH.relative_to(ROOT)}; skip China crop", file=sys.stderr)
+        return np.zeros((h, w), dtype=bool)
+
+    data = json.loads(ZHONGGUO_PATH.read_text())
+    overlays = data.get("overlays") or []
+    img = Image.new("L", (w, h), 0)
+    draw = ImageDraw.Draw(img)
+    n_rings = 0
+    for feat in overlays:
+        if (feat.get("pathMode") or "closed") == "open":
+            continue
+        for ring in feat.get("rings") or []:
+            if len(ring) < 3:
+                continue
+            pts = [(float(p["x"]) * w, float(p["y"]) * h) for p in ring]
+            draw.polygon(pts, outline=1, fill=1)
+            n_rings += 1
+    mask = np.asarray(img) > 0
+    print(f"  China (zhongguo) land mask: {n_rings} rings, {mask.mean():.3%} of plate")
+    return mask
 
 
 def _colors(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -352,7 +380,7 @@ def coastline_sea_region(
     return sea, islands
 
 
-def build_sea_mask(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def build_sea_mask(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     h, w = rgb.shape[:2]
     r, g, b, lum = _colors(rgb)
     pale = pale_wash(r, g, b, lum)
@@ -363,8 +391,10 @@ def build_sea_mask(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         print(f"  missing annotation {ANN_PATH}; falling back to full coastline", file=sys.stderr)
         sea, islands = coastline_sea_region(rgb)
         apply_force_land(sea, h, w)
+        china = rasterize_zhongguo_land(h, w)
+        sea &= ~china
         Image.fromarray((islands.astype(np.uint8) * 255)).save(OUT_DIR / "islands-binary.png")
-        return sea, np.zeros((h, w), dtype=bool)
+        return sea, np.zeros((h, w), dtype=bool), china
 
     print(f"  reading {ANN_PATH.relative_to(ROOT)}…")
     ann = np.asarray(Image.open(ANN_PATH).convert("RGB"))
@@ -484,9 +514,13 @@ def build_sea_mask(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     apply_force_land(sea, h, w)
     sea |= sea2_keep
     sea &= ~g_isl
+    # China proper domains: never show waves over the landmass.
+    china = rasterize_zhongguo_land(h, w)
+    sea &= ~china
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     Image.fromarray((islands.astype(np.uint8) * 255)).save(OUT_DIR / "islands-binary.png")
-    return sea, g_isl
+    Image.fromarray((china.astype(np.uint8) * 255)).save(OUT_DIR / "china-land-binary.png")
+    return sea, g_isl, china
 
 
 def write_debug(rgb: np.ndarray, sea: np.ndarray, rgba: np.ndarray) -> None:
@@ -542,17 +576,17 @@ def main() -> int:
     PUBLIC_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Building sea mask…")
-    sea, pink_islands = build_sea_mask(rgb)
+    sea, pink_islands, china = build_sea_mask(rgb)
     print(f"  sea fraction {sea.mean():.3%}")
 
     land_mask = Image.fromarray((~sea).astype(np.uint8) * 255)
     alpha = np.asarray(land_mask.filter(ImageFilter.GaussianBlur(radius=1.0)))
-    # Blur softens tiny island edges — force pink-island pixels fully opaque.
+    # Blur softens edges — force pink islands + China land fully opaque.
+    alpha = np.array(alpha, copy=True)
     if pink_islands.any():
-        alpha = alpha.copy()
         alpha[pink_islands] = 255
-    else:
-        alpha = np.array(alpha, copy=True)
+    if china.any():
+        alpha[china] = 255
 
     # Hard vertical left cuts (sea1 / Bay of Bengal): blur otherwise softens the
     # frame margin into a stair-step against wavelength bands.
@@ -578,7 +612,7 @@ def main() -> int:
     serve_h = max(1, int(round(h * SERVE_SCALE)))
     served = full.resize((serve_w, serve_h), Image.Resampling.LANCZOS)
 
-    # Re-assert islands after downscale (LANCZOS can re-soften edges).
+    # Re-assert islands + China after downscale (LANCZOS can re-soften edges).
     served_a = np.array(served, copy=True)
     if pink_islands.any():
         isl_s = (
@@ -590,6 +624,16 @@ def main() -> int:
             > 128
         )
         served_a[isl_s, 3] = 255
+    if china.any():
+        china_s = (
+            np.asarray(
+                Image.fromarray(china.astype(np.uint8) * 255).resize(
+                    (serve_w, serve_h), Image.Resampling.NEAREST
+                )
+            )
+            > 128
+        )
+        served_a[china_s, 3] = 255
 
     # Re-assert hard left cuts at serve resolution.
     sea_s = (
