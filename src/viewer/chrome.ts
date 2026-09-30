@@ -24,24 +24,28 @@ export function mountChrome(viewer: Viewer): void {
   // 令牌 tablets follow the chrome theme (silver metal vs ebony wood)
   const lingpai: Record<
     typeof UI_THEME,
-    { handi: string; zhongguo: string; hailu: string }
+    { handi: string; zhongguo: string; xiandai: string; hailu: string }
   > = {
     silver: {
       handi: '/ui/silver/handi-lingpai.png',
       zhongguo: '/ui/silver/zhongguo-lingpai.png',
+      xiandai: '/ui/silver/xiandai-lingpai.png?v=kaiti16',
       hailu: '/ui/silver/hailu-lingpai.png',
     },
     bronze: {
       handi: '/ui/bronze/handi-lingpai.png',
       zhongguo: '/ui/bronze/zhongguo-lingpai.png',
+      xiandai: '/ui/bronze/xiandai-lingpai.png?v=kaiti16',
       hailu: '/ui/bronze/hailu-lingpai.png',
     },
   }
   const handiImg = document.querySelector<HTMLImageElement>('#overlay-seal-handi img')
   const zhongImg = document.querySelector<HTMLImageElement>('#overlay-seal-zhongguo img')
+  const xiandaiImg = document.querySelector<HTMLImageElement>('#overlay-seal-xiandai img')
   const hailuImg = document.querySelector<HTMLImageElement>('#overlay-seal-hailu img')
   if (handiImg) handiImg.src = lingpai[UI_THEME].handi
   if (zhongImg) zhongImg.src = lingpai[UI_THEME].zhongguo
+  if (xiandaiImg) xiandaiImg.src = lingpai[UI_THEME].xiandai
   if (hailuImg) hailuImg.src = lingpai[UI_THEME].hailu
 
   zoomIn.addEventListener('click', () => {

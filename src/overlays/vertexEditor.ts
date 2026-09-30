@@ -10,6 +10,7 @@ import {
   getOverlayManager,
   HANDI_GROUP_ID,
   ZHONGGUO_GROUP_ID,
+  XIANDAI_GROUP_ID,
   HAILU_GROUP_ID,
 } from './manager'
 import {
@@ -37,6 +38,7 @@ type ProvinceDragState = {
 const FILE_KEYS: { key: string; groupId: string; label: string }[] = [
   { key: 'handi-shibasheng', groupId: HANDI_GROUP_ID, label: '漢地十八省' },
   { key: 'zhongguo', groupId: ZHONGGUO_GROUP_ID, label: '中國疆域' },
+  { key: 'xiandai-zhongguo', groupId: XIANDAI_GROUP_ID, label: '現代中國' },
   { key: 'hailu', groupId: HAILU_GROUP_ID, label: '海路一覽' },
 ]
 
@@ -109,7 +111,7 @@ export function mountOverlayVertexEditor(
       </label>
     </div>
     <div class="vertex-editor-row" id="vertex-edit-province-row" hidden>
-      <span class="vertex-editor-hint">Drag label to move · scroll to scale · linked 漢地/中國 share one position · 海路 labels are cyan</span>
+      <span class="vertex-editor-hint">Drag label to move · scroll to scale · linked 漢地/中國 share one position · 現代中國 labels are separate (pink Kai) · 海路 labels are cyan</span>
     </div>
     <div class="vertex-editor-row">
       <span class="vertex-editor-hint">Hold <kbd>D</kbd> + drag to box-erase (vertices mode)</span>
@@ -627,6 +629,7 @@ export function mountOverlayVertexEditor(
     } else if (prov) {
       overlayStore.setGroupVisible(manager.idsForGroup(HANDI_GROUP_ID), true)
       overlayStore.setGroupVisible(manager.idsForGroup(ZHONGGUO_GROUP_ID), true)
+      overlayStore.setGroupVisible(manager.idsForGroup(XIANDAI_GROUP_ID), true)
       overlayStore.setGroupVisible(manager.idsForGroup(HAILU_GROUP_ID), true)
       handleGroup.replaceChildren()
       // Pan off so the province hit layer can receive pointer events reliably.

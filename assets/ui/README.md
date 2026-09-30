@@ -12,8 +12,9 @@ Two complete chrome sets (badges + paper + 令牌 tablets):
 - `handi-lingpai.png` — crimson ribbon, 漢地十八省 (**base template**)
 - `zhongguo-lingpai.png` — yellow ribbon, 中國疆域
 - `hailu-lingpai.png` — cyan ribbon, 海路一覽
+- `xiandai-lingpai.png` — pink ribbon, 現代中國
 
-**Generating / regenerating:** follow [`.cursor/rules/lingpai-tablets.mdc`](../../.cursor/rules/lingpai-tablets.mdc). Always keep the Handi canvas size; change text + accent only.
+**Generating / regenerating:** follow [`lingpai-protocol.md`](lingpai-protocol.md) (and [`.cursor/rules/lingpai-tablets.mdc`](../../.cursor/rules/lingpai-tablets.mdc)). **Do not use AI image models** — run `python3 scripts/build-xiandai-lingpai.py` (or the same PIL recipe). Always keep the Handi canvas size; change text + accent only.
 
 Ebony originals are also archived as `public/intro/handi-lingpai-ebony.png` and `zhongguo-lingpai-ebony.png`.
 

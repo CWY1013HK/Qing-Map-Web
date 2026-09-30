@@ -52,7 +52,7 @@ export type AnnotationCollection = {
 /** Closed ring of normalized points (first ≈ last optional). */
 export type MapRing = MapPoint[]
 
-export type OverlayStyle = 'crimson-glow' | 'yellow-glow' | 'cyan-glow'
+export type OverlayStyle = 'crimson-glow' | 'yellow-glow' | 'cyan-glow' | 'pink-glow'
 
 export type OverlayFeature = {
   id: string
@@ -77,7 +77,11 @@ export type OverlayCollection = {
 }
 
 /** Overlay seal ids a province label can attach to. */
-export type ProvinceLabelAttachment = 'handi-shibasheng' | 'zhongguo' | 'hailu'
+export type ProvinceLabelAttachment =
+  | 'handi-shibasheng'
+  | 'zhongguo'
+  | 'hailu'
+  | 'xiandai-zhongguo'
 
 /**
  * Shared province name plate — one position/scale, rendered once per attached overlay.

@@ -2,12 +2,14 @@ import type { Viewer } from 'openseadragon'
 import type { OverlayCollection, OverlayFeature, MapRing } from '../lib/types'
 import handiCollection from '../../data/overlays/handi-shibasheng.json'
 import zhongguoCollection from '../../data/overlays/zhongguo.json'
+import xiandaiCollection from '../../data/overlays/xiandai-zhongguo.json'
 import hailuCollection from '../../data/overlays/hailu.json'
 import { overlayStore } from './store'
 import { attachSvgOverlayLayer, type SvgOverlayLayer } from './svgLayer'
 
 export const HANDI_GROUP_ID = 'handi-shibasheng'
 export const ZHONGGUO_GROUP_ID = 'zhongguo'
+export const XIANDAI_GROUP_ID = 'xiandai-zhongguo'
 export const HAILU_GROUP_ID = 'hailu'
 
 export type OverlaySourcePart = {
@@ -57,10 +59,11 @@ export function getOverlayManager(): OverlayManager {
   if (singleton) return singleton
 
   const sourceParts: OverlaySourcePart[] = [
-    // Load order for data; SVG paint order is enforced in svgLayer (hailu < handi < zhongguo).
+    // Load order for data; SVG paint order is enforced in svgLayer.
     { fileKey: 'hailu', collection: asCollection(hailuCollection) },
     { fileKey: 'handi-shibasheng', collection: asCollection(handiCollection) },
     { fileKey: 'zhongguo', collection: asCollection(zhongguoCollection) },
+    { fileKey: 'xiandai-zhongguo', collection: asCollection(xiandaiCollection) },
   ]
   const parts = sourceParts.map((p) => p.collection)
   const collection = mergeCollections(parts)

@@ -3,13 +3,14 @@ import type { OverlayCollection, OverlayFeature, MapRing, MapPoint } from '../li
 import { overlayStore } from './store'
 
 /**
- * SVG paint order (bottom → top): Sea Routes < China Proper < China.
+ * SVG paint order (bottom → top): Sea Routes < China Proper < Qing domains < Modern China.
  * Later siblings draw above earlier ones.
  */
 const PAINT_ORDER: Record<string, number> = {
   hailu: 0,
   'handi-shibasheng': 1,
   zhongguo: 2,
+  'xiandai-zhongguo': 3,
 }
 
 /** Stroke scale vs home zoom: thinner when zoomed out, thicker when zoomed in. */
@@ -30,6 +31,7 @@ export function ringToPathD(ring: MapRing, pathMode: 'closed' | 'open' = 'closed
 function styleClassFor(style: OverlayFeature['style']): string {
   if (style === 'yellow-glow') return 'style-yellow-glow'
   if (style === 'cyan-glow') return 'style-cyan-glow'
+  if (style === 'pink-glow') return 'style-pink-glow'
   return 'style-crimson-glow'
 }
 
@@ -157,6 +159,8 @@ export function attachSvgOverlayLayer(
     if (wrap && wrap !== viewer.element) {
       wrap.classList.add('map-overlay-layer-wrap')
       wrap.style.pointerEvents = 'none'
+      // Modern China extends past the scan (north of the painting); don't clip it.
+      wrap.style.overflow = 'visible'
     }
     syncStrokeScale()
   }

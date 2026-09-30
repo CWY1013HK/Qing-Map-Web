@@ -7,7 +7,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const ALLOWED = new Set(['handi-shibasheng', 'zhongguo', 'hailu', 'province-labels'])
+const ALLOWED = new Set([
+  'handi-shibasheng',
+  'zhongguo',
+  'xiandai-zhongguo',
+  'hailu',
+  'province-labels',
+])
 
 function readBody(req) {
   return new Promise((resolve, reject) => {

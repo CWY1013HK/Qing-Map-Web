@@ -188,10 +188,10 @@
       "id": "fujian",
       "title": "福建",
       "point": {
-        "x": 0.70172,
-        "y": 0.629668
+        "x": 0.693783,
+        "y": 0.629306
       },
-      "scale": 1.891,
+      "scale": 2.205,
       "attachments": [
         "handi-shibasheng",
         "zhongguo"
@@ -204,7 +204,7 @@
         "x": 0.574724,
         "y": 0.708871
       },
-      "scale": 1.751,
+      "scale": 2.381,
       "attachments": [
         "handi-shibasheng",
         "zhongguo"
@@ -595,6 +595,402 @@
       "scale": 1.293,
       "attachments": [
         "hailu"
+      ]
+    },
+    {
+      "id": "xiandai-anhui",
+      "title": "安徽",
+      "point": {
+        "x": 0.601987,
+        "y": 0.440776
+      },
+      "scale": 1.45,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-beijing",
+      "title": "北京",
+      "point": {
+        "x": 0.578996,
+        "y": 0.173467
+      },
+      "scale": 1.15,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-chongqing",
+      "title": "重慶",
+      "point": {
+        "x": 0.463518,
+        "y": 0.503212
+      },
+      "scale": 1.25,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-fujian",
+      "title": "福建",
+      "point": {
+        "x": 0.621515,
+        "y": 0.615006
+      },
+      "scale": 1.4,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-gansu",
+      "title": "甘肅",
+      "point": {
+        "x": 0.411376,
+        "y": 0.354116
+      },
+      "scale": 1.6,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-guangdong",
+      "title": "廣東",
+      "point": {
+        "x": 0.551533,
+        "y": 0.706257
+      },
+      "scale": 1.55,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-guangxi",
+      "title": "廣西",
+      "point": {
+        "x": 0.477142,
+        "y": 0.693605
+      },
+      "scale": 1.5,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-guizhou",
+      "title": "貴州",
+      "point": {
+        "x": 0.447376,
+        "y": 0.60173
+      },
+      "scale": 1.4,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-hainan",
+      "title": "海南",
+      "point": {
+        "x": 0.493046,
+        "y": 0.834811
+      },
+      "scale": 1.2,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-hebei",
+      "title": "河北",
+      "point": {
+        "x": 0.566175,
+        "y": 0.227565
+      },
+      "scale": 1.55,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-heilongjiang",
+      "title": "黑龍江",
+      "point": {
+        "x": 0.69965,
+        "y": 0.014752
+      },
+      "scale": 1.85,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-henan",
+      "title": "河南",
+      "point": {
+        "x": 0.547073,
+        "y": 0.383892
+      },
+      "scale": 1.5,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-hongkong",
+      "title": "香港",
+      "point": {
+        "x": 0.571635,
+        "y": 0.742146
+      },
+      "scale": 1.05,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-hubei",
+      "title": "湖北",
+      "point": {
+        "x": 0.529285,
+        "y": 0.473923
+      },
+      "scale": 1.5,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-hunan",
+      "title": "湖南",
+      "point": {
+        "x": 0.522373,
+        "y": 0.577082
+      },
+      "scale": 1.5,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-jiangsu",
+      "title": "江蘇",
+      "point": {
+        "x": 0.633319,
+        "y": 0.400701
+      },
+      "scale": 1.45,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-jiangxi",
+      "title": "江西",
+      "point": {
+        "x": 0.584322,
+        "y": 0.572108
+      },
+      "scale": 1.45,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-jilin",
+      "title": "吉林",
+      "point": {
+        "x": 0.700661,
+        "y": 0.062076
+      },
+      "scale": 1.621,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-liaoning",
+      "title": "遼寧",
+      "point": {
+        "x": 0.661401,
+        "y": 0.132207
+      },
+      "scale": 1.391,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-neimenggu",
+      "title": "內蒙古",
+      "point": {
+        "x": 0.488095,
+        "y": 0.167419
+      },
+      "scale": 2.2,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-ningxia",
+      "title": "寧夏",
+      "point": {
+        "x": 0.441113,
+        "y": 0.282202
+      },
+      "scale": 1.15,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-qinghai",
+      "title": "青海",
+      "point": {
+        "x": 0.297664,
+        "y": 0.311491
+      },
+      "scale": 1.85,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-shaanxi",
+      "title": "陝西",
+      "point": {
+        "x": 0.473545,
+        "y": 0.378468
+      },
+      "scale": 1.45,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-shandong",
+      "title": "山東",
+      "point": {
+        "x": 0.608813,
+        "y": 0.300485
+      },
+      "scale": 1.55,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-shanghai",
+      "title": "上海",
+      "point": {
+        "x": 0.675433,
+        "y": 0.464779
+      },
+      "scale": 1.1,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-shanxi",
+      "title": "山西",
+      "point": {
+        "x": 0.525793,
+        "y": 0.27264
+      },
+      "scale": 1.5,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-sichuan",
+      "title": "四川",
+      "point": {
+        "x": 0.385993,
+        "y": 0.481021
+      },
+      "scale": 1.85,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-taiwan",
+      "title": "臺灣",
+      "point": {
+        "x": 0.671861,
+        "y": 0.677716
+      },
+      "scale": 1.2,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-tianjin",
+      "title": "天津",
+      "point": {
+        "x": 0.608717,
+        "y": 0.223222
+      },
+      "scale": 1.12,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-xinjiang",
+      "title": "新疆",
+      "point": {
+        "x": 0.170897,
+        "y": 0.09798
+      },
+      "scale": 2.25,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-xizang",
+      "title": "西藏",
+      "point": {
+        "x": 0.177205,
+        "y": 0.40686
+      },
+      "scale": 2,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-yunnan",
+      "title": "雲南",
+      "point": {
+        "x": 0.361522,
+        "y": 0.651412
+      },
+      "scale": 1.7,
+      "attachments": [
+        "xiandai-zhongguo"
+      ]
+    },
+    {
+      "id": "xiandai-zhejiang",
+      "title": "浙江",
+      "point": {
+        "x": 0.649112,
+        "y": 0.514689
+      },
+      "scale": 1.4,
+      "attachments": [
+        "xiandai-zhongguo"
       ]
     }
   ]

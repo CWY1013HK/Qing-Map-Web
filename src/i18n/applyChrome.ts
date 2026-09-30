@@ -75,6 +75,7 @@ export function applyChromeI18n(): void {
 
   setSeal('#overlay-seal-handi', 'seals.handi', 'seals.handiAria')
   setSeal('#overlay-seal-zhongguo', 'seals.zhongguo', 'seals.zhongguoAria')
+  setSeal('#overlay-seal-xiandai', 'seals.xiandai', 'seals.xiandaiAria')
   setSeal('#overlay-seal-hailu', 'seals.hailu', 'seals.hailuAria')
 
   const intro = document.querySelector('#intro-seal')

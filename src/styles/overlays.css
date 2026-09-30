@@ -11,8 +11,9 @@
 
 /* Keep ink rims under drifting mist / décor (OSD wrapper). */
 .map-overlay-layer-wrap {
-  z-index: 1 !important;
+  z-index: 3 !important;
   pointer-events: none !important;
+  overflow: visible !important;
 }
 
 .map-overlay-svg {
@@ -116,8 +117,32 @@
   opacity: 1;
 }
 
-/* —— Province name plates (linked to 漢地 / 中國 seals) ——
- * Stack above 誌 location hotspots (z=5). Hit pads are filter-free rects
+/* Pink — 現代中國 (modern provinces, true scale from Shaanxi) */
+.style-pink-glow.is-active .overlay-layer-bleed {
+  filter: drop-shadow(0 0 3px rgba(255, 80, 160, 0.85))
+    drop-shadow(0 0 9px rgba(220, 40, 130, 0.55));
+}
+
+.style-pink-glow .overlay-stroke-bleed {
+  stroke: #a01858;
+  stroke-width: calc(13px * var(--overlay-stroke-scale, 1));
+  opacity: 1;
+}
+
+.style-pink-glow .overlay-stroke-body {
+  stroke: #e04890;
+  stroke-width: calc(8.5px * var(--overlay-stroke-scale, 1));
+  opacity: 1;
+}
+
+.style-pink-glow .overlay-stroke-core {
+  stroke: #ffb0d8;
+  stroke-width: calc(3px * var(--overlay-stroke-scale, 1));
+  opacity: 1;
+}
+
+/* —— Province name plates (linked to 漢地 / 中國 / 現代 seals) ——
+ * Stack above ink (3) and 誌 (1). Hit pads are filter-free rects
  * matching the cyan edit box — CSS filters on <text> must never receive hits.
  */
 
@@ -131,7 +156,7 @@
 }
 
 .province-labels-layer-wrap {
-  /* Above ink (1), décor (2), 誌 labels (5); below mist clouds (6) when idle. */
+  /* Above ink (3) and 誌 (1); below mist clouds (6) when idle. */
   z-index: 6 !important;
   pointer-events: none !important;
 }
@@ -235,6 +260,18 @@ html:lang(zh-Hans) .province-label {
   filter: drop-shadow(0 0 2px rgba(0, 200, 230, 0.75));
 }
 
+/* Modern China — pink KaiTi (distinct from LiShu 漢地 / 疆域 plates) */
+.province-label--xiandai {
+  font-family: var(--font-kaiti);
+  fill: #ff9ec8;
+  stroke: rgba(70, 10, 40, 0.85);
+  filter: drop-shadow(0 0 2px rgba(255, 90, 160, 0.75));
+}
+
+html:lang(zh-Hans) .province-label--xiandai {
+  font-family: var(--font-kaiti);
+}
+
 .province-label.is-selected {
   filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.95))
     drop-shadow(0 0 6px rgba(0, 180, 210, 0.85));
@@ -310,6 +347,12 @@ html:lang(zh-Hans) .province-label {
 #overlay-seal-zhongguo[aria-pressed='true'] {
   filter: drop-shadow(0 0 12px rgba(230, 190, 40, 0.85))
     drop-shadow(0 4px 10px rgba(80, 50, 0, 0.35)) brightness(1.06);
+}
+
+/* Pink ribbon — 現代中國 (pressed: depth only — no colored bloom on glyph rims) */
+#overlay-seal-xiandai.is-pressed,
+#overlay-seal-xiandai[aria-pressed='true'] {
+  filter: drop-shadow(0 4px 10px rgba(40, 20, 0, 0.45)) brightness(1.04);
 }
 
 /* Cyan ribbon — 海路一覽 */

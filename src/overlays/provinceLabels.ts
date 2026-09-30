@@ -10,7 +10,7 @@ import type {
   ProvinceLabelAttachment,
   ProvinceLabelCollection,
 } from '../lib/types'
-import { HANDI_GROUP_ID, ZHONGGUO_GROUP_ID, HAILU_GROUP_ID } from './manager'
+import { HANDI_GROUP_ID, ZHONGGUO_GROUP_ID, HAILU_GROUP_ID, XIANDAI_GROUP_ID } from './manager'
 import { overlayStore } from './store'
 
 /** Base font size in viewBox units (~1% of map width). */
@@ -20,12 +20,14 @@ const ATTACH_CLASS: Record<ProvinceLabelAttachment, string> = {
   'handi-shibasheng': 'province-label--handi',
   zhongguo: 'province-label--zhongguo',
   hailu: 'province-label--hailu',
+  'xiandai-zhongguo': 'province-label--xiandai',
 }
 
 const GROUP_FOR: Record<ProvinceLabelAttachment, string> = {
   'handi-shibasheng': HANDI_GROUP_ID,
   zhongguo: ZHONGGUO_GROUP_ID,
   hailu: HAILU_GROUP_ID,
+  'xiandai-zhongguo': XIANDAI_GROUP_ID,
 }
 
 /** Live mutable collection (vertex editor mutates in place, Save writes to disk). */
@@ -96,21 +98,25 @@ export function mountProvinceLabels(viewer: Viewer): ProvinceLabelsHandle {
   const hailuG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   const handiG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   const zhongG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  const xiandaiG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   const hitG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   hailuG.classList.add('province-labels-group', 'province-labels-group--hailu')
   handiG.classList.add('province-labels-group', 'province-labels-group--handi')
   zhongG.classList.add('province-labels-group', 'province-labels-group--zhongguo')
+  xiandaiG.classList.add('province-labels-group', 'province-labels-group--xiandai')
   hitG.classList.add('province-labels-hits')
   hailuG.dataset.attachment = HAILU_GROUP_ID
   handiG.dataset.attachment = HANDI_GROUP_ID
   zhongG.dataset.attachment = ZHONGGUO_GROUP_ID
-  svg.append(hailuG, handiG, zhongG, hitG)
+  xiandaiG.dataset.attachment = XIANDAI_GROUP_ID
+  svg.append(hailuG, handiG, zhongG, xiandaiG, hitG)
   root.appendChild(svg)
 
   const groupEl: Record<ProvinceLabelAttachment, SVGGElement> = {
     hailu: hailuG,
     'handi-shibasheng': handiG,
     zhongguo: zhongG,
+    'xiandai-zhongguo': xiandaiG,
   }
 
   const textByKey = new Map<string, SVGTextElement>()
@@ -210,15 +216,18 @@ export function mountProvinceLabels(viewer: Viewer): ProvinceLabelsHandle {
     const hailuOn = overlayStore.isVisible(HAILU_GROUP_ID)
     const handiOn = overlayStore.isVisible(HANDI_GROUP_ID)
     const zhongOn = overlayStore.isVisible(ZHONGGUO_GROUP_ID)
+    const xiandaiOn = overlayStore.isVisible(XIANDAI_GROUP_ID)
     const onByGroup: Record<string, boolean> = {
       [HAILU_GROUP_ID]: hailuOn,
       [HANDI_GROUP_ID]: handiOn,
       [ZHONGGUO_GROUP_ID]: zhongOn,
+      [XIANDAI_GROUP_ID]: xiandaiOn,
     }
     hailuG.classList.toggle('is-active', hailuOn)
     handiG.classList.toggle('is-active', handiOn)
     zhongG.classList.toggle('is-active', zhongOn)
-    root.classList.toggle('is-active', hailuOn || handiOn || zhongOn)
+    xiandaiG.classList.toggle('is-active', xiandaiOn)
+    root.classList.toggle('is-active', hailuOn || handiOn || zhongOn || xiandaiOn)
 
     // Hit pad only when at least one of its attachments is visible (or always while editing).
     for (const label of collection.labels) {
@@ -253,6 +262,7 @@ export function mountProvinceLabels(viewer: Viewer): ProvinceLabelsHandle {
     hailuG.replaceChildren()
     handiG.replaceChildren()
     zhongG.replaceChildren()
+    xiandaiG.replaceChildren()
     hitG.replaceChildren()
     textByKey.clear()
     hitById.clear()

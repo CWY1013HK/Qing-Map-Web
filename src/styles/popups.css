@@ -1,9 +1,10 @@
 /* —— Location label hotspots (誌) + annotation popup —— */
 
-/* Above décor / ink, below mist clouds (focus-cloud-overlay: 6) and chrome GUIs */
+/* Below ink outlines so 漢地 / 疆域 / 現代 strokes draw over the 誌 crops.
+ * Clicks still land: outline wraps are pointer-events: none. */
 .map-label-overlay {
   pointer-events: auto !important;
-  z-index: 5 !important;
+  z-index: 1 !important;
 }
 
 .map-label-btn {
