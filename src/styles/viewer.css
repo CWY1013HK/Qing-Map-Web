@@ -580,9 +580,10 @@ body {
 /* —— Focus mode (淨) —— */
 /*
  * OSD overlay stacking (all inside .viewer z-index:2 — below chrome GUIs):
- *   sea underlay → location labels (誌) → décor stamps → ink overlays →
+ *   sea underlay → location labels (誌) → ink overlays → décor stamps →
  *   province name plates → mist clouds
  * 誌 sit under every outline so the strokes can cross the map’s own seals.
+ * Ships / décor sit above ink outlines so they read on top of borders.
  * Province labels sit above ink so outline names stay readable / editable.
  * Mist must overtake map content / décor; toolbar, seals, popups stay above.
  */
@@ -667,7 +668,8 @@ body {
 }
 
 .focus-decor-overlay {
-  z-index: 2 !important;
+  /* Above ink overlays (z:3); below province plates / mist (z:6). */
+  z-index: 4 !important;
   pointer-events: none !important;
 }
 

@@ -6,8 +6,8 @@ Do NOT use diffusion / GenerateImage for these — AI softens glyph edges and
 mismatches Kai faces. Follow assets/ui/lingpai-protocol.md:
 
   1. Recolor gold accent → pink (ribbon + inset border only)
-  2. Wipe glyph column; refill from clean metal gutters
-  3. Paint 現代中國 with system Kaiti TC Bold, hard mask + shadow stack
+  2. Wipe glyph column; refill from clean metal *below* last char (smooth)
+  3. Paint 現代中國 with system Kaiti TC Bold, hard mask + bottom soft shadows
   4. Install to assets/ + public/; bump cache-bust separately
 
 Usage:
@@ -154,10 +154,15 @@ def wipe_glyph_column(out: np.ndarray, *, bronze: bool = False) -> None:
     target = np.clip(target, 62.0, 88.0)
     target = target * 0.55 + 75.0 * 0.45
     fill = pick * (target / p_lum)[..., None]
-    # Match sibling metal grain (Zhongguo face std ≈ 15)
-    for _ in range(2):
-        fill[1:] = fill[1:] * 0.4 + fill[:-1] * 0.6
-    fill += rng.normal(0, 5.5, fill.shape)
+    # Smooth plate: light vertical blend + fine grain only (no coarse noise)
+    for _ in range(4):
+        fill[1:] = fill[1:] * 0.35 + fill[:-1] * 0.65
+    fill += rng.normal(0, 1.6, fill.shape)
+    # Bilateral-ish smooth via small Gaussian so the face isn't speckled
+    fill_u8 = np.clip(fill, 0, 255).astype(np.uint8)
+    fill = cv2.GaussianBlur(fill_u8, (5, 5), 0).astype(np.float32)
+    # Re-add tiny grain so it still reads as metal, not plastic
+    fill += rng.normal(0, 0.9, fill.shape)
     np.clip(fill, 0, 255, out=fill)
 
     dst = out[y0:y1, x0:x1, :3].astype(np.float32)
@@ -184,51 +189,33 @@ def hard_glyph_mask(ch: str, font: ImageFont.FreeTypeFont, box: int = 420) -> Im
 def _glyph_shadow_stack(overlay: Image.Image, mask: Image.Image, x0: int, y0: int) -> None:
     """Paint emboss shadows into the glyph overlay only (never tint the plate).
 
-    Full soft casts are placed first; the opaque silver/bronze body covers the
-    overlap. Strength tuned for UI scale: deep SE under-cast + soft bloom.
+    Cast sits directly below the strokes (x offset = 0), soft and diffuse.
     """
-    from PIL import ImageChops
-
     mw, mh = mask.size
 
-    # Soft all-sided ambient halo (~+30% vs prior via denser alpha + 2nd pass)
-    amb = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(3.6))
+    # Soft all-sided ambient
+    amb = mask.filter(ImageFilter.GaussianBlur(4.5))
     amb_rgba = np.zeros((mh, mw, 4), np.uint8)
-    amb_rgba[:, :, 3] = np.clip(np.array(amb).astype(np.float32) * 1.0, 0, 255).astype(
+    amb_rgba[:, :, 3] = np.clip(np.array(amb).astype(np.float32) * 0.562, 0, 255).astype(
         np.uint8
     )
     overlay.alpha_composite(Image.fromarray(amb_rgba, "RGBA"), (x0, y0))
-    overlay.alpha_composite(Image.fromarray(amb_rgba, "RGBA"), (x0 + 1, y0 + 1))
 
-    # Heavier SE under-puddle — three stacked casts (~+30% depth)
-    puddle = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(3.2))
+    # Main under-cast — straight down, heavily blurred
+    puddle = mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(5.5))
     pud_rgba = np.zeros((mh, mw, 4), np.uint8)
-    pud_rgba[:, :, 3] = np.clip(np.array(puddle).astype(np.float32) * 1.0, 0, 255).astype(
+    pud_rgba[:, :, 3] = np.clip(np.array(puddle).astype(np.float32) * 0.78, 0, 255).astype(
         np.uint8
     )
-    overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 5, y0 + 6))
-    overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 7, y0 + 9))
-    overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 9, y0 + 12))
+    overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0, y0 + 7))
 
-    # Far soft SE bloom (+10% alpha & spread)
-    bloom = mask.filter(ImageFilter.MaxFilter(11)).filter(ImageFilter.GaussianBlur(5.0))
+    # Far soft bloom further below
+    bloom = mask.filter(ImageFilter.GaussianBlur(7.5))
     bloom_rgba = np.zeros((mh, mw, 4), np.uint8)
-    bloom_rgba[:, :, 3] = np.clip(np.array(bloom).astype(np.float32) * 0.61, 0, 255).astype(
+    bloom_rgba[:, :, 3] = np.clip(np.array(bloom).astype(np.float32) * 0.437, 0, 255).astype(
         np.uint8
     )
-    overlay.alpha_composite(Image.fromarray(bloom_rgba, "RGBA"), (x0 + 9, y0 + 12))
-    overlay.alpha_composite(Image.fromarray(bloom_rgba, "RGBA"), (x0 + 11, y0 + 14))
-
-    # Hard contact rim
-    dil = mask.filter(ImageFilter.MaxFilter(5))
-    edge = ImageChops.subtract(dil, mask)
-    edge_rgba = np.zeros((mh, mw, 4), np.uint8)
-    edge_rgba[:, :, 3] = np.clip(np.array(edge).astype(np.float32) * 1.0, 0, 255).astype(
-        np.uint8
-    )
-    overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 2, y0 + 3))
-    overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 3, y0 + 4))
-    overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 4, y0 + 5))
+    overlay.alpha_composite(Image.fromarray(bloom_rgba, "RGBA"), (x0, y0 + 12))
 
 
 def paint_silver_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Image.Image:

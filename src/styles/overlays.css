@@ -23,6 +23,12 @@
   overflow: visible;
 }
 
+/* ATLab floor lite: no bleed glow filters (body stroke only in DOM). */
+.map-overlay-layer.is-lite .overlay-layer-bleed,
+.map-overlay-layer.is-lite .overlay-layer-core {
+  display: none;
+}
+
 .map-overlay-feature {
   opacity: 0;
   transition: opacity 0.55s ease;
@@ -53,19 +59,19 @@
 
 .style-crimson-glow .overlay-stroke-bleed {
   stroke: #a01422;
-  stroke-width: calc(14px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(7px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-crimson-glow .overlay-stroke-body {
   stroke: #e02838;
-  stroke-width: calc(9px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(4.5px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-crimson-glow .overlay-stroke-core {
   stroke: #ff6a72;
-  stroke-width: calc(3.2px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(1.6px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
@@ -77,19 +83,19 @@
 
 .style-yellow-glow .overlay-stroke-bleed {
   stroke: #a88818;
-  stroke-width: calc(13px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(6.5px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-yellow-glow .overlay-stroke-body {
   stroke: #e0c030;
-  stroke-width: calc(8.5px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(4.25px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-yellow-glow .overlay-stroke-core {
   stroke: #ffe878;
-  stroke-width: calc(3px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(1.5px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
@@ -101,19 +107,19 @@
 
 .style-cyan-glow .overlay-stroke-bleed {
   stroke: #1a7a8c;
-  stroke-width: calc(12px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(6px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-cyan-glow .overlay-stroke-body {
   stroke: #35c8e0;
-  stroke-width: calc(7.5px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(3.75px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-cyan-glow .overlay-stroke-core {
   stroke: #9ef8ff;
-  stroke-width: calc(2.8px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(1.4px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
@@ -125,19 +131,19 @@
 
 .style-pink-glow .overlay-stroke-bleed {
   stroke: #a01858;
-  stroke-width: calc(13px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(6.5px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-pink-glow .overlay-stroke-body {
   stroke: #e04890;
-  stroke-width: calc(8.5px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(4.25px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
 .style-pink-glow .overlay-stroke-core {
   stroke: #ffb0d8;
-  stroke-width: calc(3px * var(--overlay-stroke-scale, 1));
+  stroke-width: calc(1.5px * var(--overlay-stroke-scale, 1));
   opacity: 1;
 }
 
@@ -246,6 +252,10 @@ html:lang(zh-Hans) .province-label {
   filter: drop-shadow(0 0 2px rgba(255, 60, 70, 0.75));
 }
 
+.province-labels-layer.is-lite .province-label {
+  filter: none;
+}
+
 /* China — gold */
 .province-label--zhongguo {
   fill: #ffe878;
@@ -349,10 +359,11 @@ html:lang(zh-Hans) .province-label--xiandai {
     drop-shadow(0 4px 10px rgba(80, 50, 0, 0.35)) brightness(1.06);
 }
 
-/* Pink ribbon — 現代中國 (pressed: depth only — no colored bloom on glyph rims) */
+/* Pink ribbon — 現代中國 */
 #overlay-seal-xiandai.is-pressed,
 #overlay-seal-xiandai[aria-pressed='true'] {
-  filter: drop-shadow(0 4px 10px rgba(40, 20, 0, 0.45)) brightness(1.04);
+  filter: drop-shadow(0 0 12px rgba(255, 80, 160, 0.85))
+    drop-shadow(0 4px 10px rgba(80, 0, 40, 0.4)) brightness(1.06);
 }
 
 /* Cyan ribbon — 海路一覽 */

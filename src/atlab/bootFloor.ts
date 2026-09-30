@@ -5,14 +5,15 @@ import { mountProvinceLabels } from '../overlays/provinceLabels'
 import { startFocusClouds, type FocusCloudsHandle } from '../viewer/focusMode'
 import { startSeaUnderlay, type SeaUnderlayHandle } from '../viewer/seaUnderlay'
 
-const PREVIEW_URL = '/map-preview.jpg'
-const TILE_SOURCE = '/tiles/map.dzi'
-/** Floor is a large canvas — a few more puffs than wall focus. */
-const FLOOR_CLOUD_COUNT = 32
+/** Floor stays at home zoom — low-res single image is enough (no DZI). */
+const PREVIEW_URL = '/map-preview-low.jpg'
+/** Fewer mist puffs than wall focus; floor is a large but static display. */
+const FLOOR_CLOUD_COUNT = 14
 
 /**
  * Floor map: full-bleed fitted map, no chrome / interaction.
- * Permanently runs focus-mode mist. Vector overlays attach via OSD (same store as wall).
+ * Permanently runs a lite focus-mode mist. Vector overlays attach via OSD
+ * (same store as wall) with thinner strokes.
  */
 export function bootFloorViewer(): OpenSeadragon.Viewer {
   const el = document.querySelector<HTMLElement>('#floor-viewer')
@@ -33,12 +34,13 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
     showNavigationControl: false,
     showNavigator: false,
     animationTime: 0,
-    blendTime: 0.35,
+    blendTime: 0.2,
     immediateRender: true,
-    imageLoaderLimit: 6,
+    imageLoaderLimit: 2,
     visibilityRatio: 1,
     minZoomImageRatio: 1,
-    maxZoomPixelRatio: 3,
+    maxZoomPixelRatio: 1,
+    maxImageCacheCount: 4,
     homeFillsViewer: true,
     panHorizontal: false,
     panVertical: false,
@@ -68,7 +70,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
 
   const ensureMist = () => {
     if (!viewer.world.getItemAt(0)) return
-    if (!sea) sea = startSeaUnderlay(viewer)
+    if (!sea) sea = startSeaUnderlay(viewer, { lite: true })
     if (!mist) {
       mist = startFocusClouds(viewer, {
         canvas: el,
@@ -79,29 +81,13 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
     }
   }
 
-  mountOverlaysOnViewer(viewer)
-  mountProvinceLabels(viewer)
+  mountOverlaysOnViewer(viewer, { lite: true })
+  mountProvinceLabels(viewer, { lite: true })
 
   viewer.addHandler('open', () => {
     fitHome()
     hidePreview()
     ensureMist()
-    const base = viewer.world.getItemAt(0)
-    if (!base) return
-    const bounds = base.getBounds()
-    viewer.addTiledImage({
-      tileSource: TILE_SOURCE,
-      x: bounds.x,
-      y: bounds.y,
-      width: bounds.width,
-      success: () => {
-        fitHome()
-        ensureMist()
-      },
-      error: () => {
-        /* preview-only is fine on floor */
-      },
-    })
     window.dispatchEvent(new Event('resize'))
   })
 

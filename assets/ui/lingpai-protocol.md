@@ -29,16 +29,25 @@ Fewer characters ⇒ more empty metal below. Never shorten the PNG.
 1. **Base** — start from the closest sibling (4-char → `zhongguo-lingpai.png`; 5-char → `handi-lingpai.png`). Canvas must stay **575×1510**.
 2. **Accent** — hue-shift only the saturated ribbon + inset border (gold→pink/cyan/…). Leave metal alone.
 3. **Wipe** — clear the old glyph column by sampling **clean face metal below the last character** (not side gutters — ribbons contaminate them). Feather the wipe edges.
-4. **Glyphs** — system **Kaiti TC Bold** (`Kaiti.ttc` index **4**), not LXGW. Hard-threshold the mask (no soft outer halo on the body).
-5. **Shadow stack** (paint order):
-   - all-sided ambient (dilated + soft) near-black
-   - under / SE puddle (heavier + farther) + hard contact strip
-   - optional −1,−1 inner bevel highlight *inside* the stroke
+4. **Smooth metal** — after refill, keep the face continuous: match sibling mid-tone luma (~75), light vertical blend, small Gaussian smooth, only *fine* grain. Avoid coarse noise or tiled strips (they read as segmented blotches). Never darken the plate when painting shadows.
+5. **Glyphs** — system **Kaiti TC Bold** (`Kaiti.ttc` index **4**), not LXGW. Hard-threshold the mask (no soft outer halo on the body). Glyph size ≈ Zhongguo (~215px at 575 width), not oversized.
+6. **Shadow stack** (overlay-only; paint order):
+   - soft all-sided ambient (Gaussian blur, modest alpha)
+   - **straight-down** under-cast (x offset = 0; heavier blur + farther y)
+   - far soft bloom further below
+   - **no** hard SE contact strip / no bottom-right skew
    - solid silver (or bronze-red) body last
-6. Center on Zhongguo body centre; slight left optical nudge so under-cast does not read as right-shift.
-7. Install to `assets/ui/{theme}/` **and** `public/ui/{theme}/`; bump cache-bust.
+7. Center on Zhongguo body centre. Opaque body covers the cast overlap so only the under-shadow shows.
+8. Install to `assets/ui/{theme}/` **and** `public/ui/{theme}/`; bump cache-bust.
 
-Bronze: same stack; body ≈ dark red; shadows warm-dark. Normalize to 575×1510 (width-lock, top-align).
+Bronze: same stack; body ≈ dark red; shadows near-black. Normalize to 575×1510 (width-lock, top-align).
+
+### Shadow / metal pitfalls
+
+- Side-gutter donors pick up pink/gold ribbon → purple blotches in the column.
+- Soft-blending over leftover Zhongguo strokes → glyph ghosts.
+- Baking shadows into the plate (multiply / `apply_dark`) → segmented dark panels.
+- Hard SE rims at UI scale → text looks stamped; prefer soft bottom-only casts.
 
 ## Pressed / CSS
 
@@ -48,9 +57,9 @@ Never add a colored bloom on glyph rims on click — that reads as glowing word 
 ## Checklist
 
 - [ ] 575×1510, ribbon uncropped
-- [ ] Accent = ribbon + border only; metal matches siblings
-- [ ] Hard glyph edges; strong all-sided + under-main shadows
-- [ ] No wipe stripes / no ribbon color in the text column
+- [ ] Accent = ribbon + border only; metal continuous & smooth (matches sibling luma)
+- [ ] Hard glyph edges; soft **bottom-only** under-shadows (overlay layer)
+- [ ] No wipe stripes / no ribbon color in the text column / no glyph ghosts
 - [ ] Pressed CSS has no colored rim bloom
 - [ ] Installed under `assets/` + `public/`; cache-bust bumped
 - [ ] Built via script / PIL — **not** an image model

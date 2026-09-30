@@ -10,8 +10,10 @@ import { mountChrome } from './chrome'
 import { focusIntroRegion, mountIntro } from './intro'
 import { mountFocusMode } from './focusMode'
 import { mountMusicToggle } from './musicToggle'
+import { clearHighResTileCache } from './seaUnderlay'
 
-const PREVIEW_URL = '/map-preview.jpg'
+/** Permanent OSD underlayer — pans/zooms with DZI; shows through unloaded tiles. */
+const UNDERLAY_URL = '/map-preview-low.jpg'
 const TILE_SOURCE = '/tiles/map.dzi'
 
 export type BootInteractiveOptions = {
@@ -90,8 +92,9 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     prefixUrl: '/osd-images/',
     tileSources: {
       type: 'image',
-      url: PREVIEW_URL,
+      url: UNDERLAY_URL,
     },
+    // Unloaded DZI tiles stay transparent so the low-res underlay shows through.
     placeholderFillStyle: 'transparent',
     showNavigationControl: false,
     showNavigator: true,
@@ -107,7 +110,12 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     constrainDuringPan: true,
     visibilityRatio: 1,
     minZoomImageRatio: 1,
-    maxZoomPixelRatio: 3,
+    /** Cap overzoom so level-15 tiles are not over-fetched. */
+    maxZoomPixelRatio: 1.5,
+    /** Prefer true pixel density — fewer oversampled high-LOD tiles. */
+    minPixelRatio: 1,
+    /** Bound decoded tile textures (OSD default is 200). */
+    maxImageCacheCount: 100,
     gestureSettingsMouse: {
       clickToZoom: false,
     },
@@ -140,7 +148,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     }
   }
 
-  function stackHighResDirectlyOnPreview(): void {
+  function stackHighResOnUnderlay(): void {
     const base = viewer.world.getItemAt(0)
     if (!base) {
       failToHtmlPreview('status.previewLayerMissing')
@@ -164,10 +172,28 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     })
   }
 
+  /** Despawn high-LOD tiles after zooming back toward home; underlay stays. */
+  let wasDeepZoom = false
+  const clearDeepTilesNearHome = () => {
+    const home = viewer.viewport.getHomeZoom()
+    if (!(home > 0)) return
+    const z = viewer.viewport.getZoom(true)
+    const nearHome = z <= home * 1.2
+    if (wasDeepZoom && nearHome) {
+      try {
+        clearHighResTileCache(viewer)
+        viewer.forceRedraw()
+      } catch {
+        /* ignore */
+      }
+    }
+    wasDeepZoom = !nearHome
+  }
+
   viewer.addHandler('open', () => {
     showViewer()
     lockMinZoomToHome()
-    stackHighResDirectlyOnPreview()
+    stackHighResOnUnderlay()
     if (withIntro) {
       mountIntro(viewer)
     } else {
@@ -175,6 +201,8 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     }
     window.dispatchEvent(new Event('resize'))
   })
+
+  viewer.addHandler('animation-finish', clearDeepTilesNearHome)
 
   viewer.addHandler('resize', () => {
     lockMinZoomToHome()

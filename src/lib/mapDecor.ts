@@ -193,9 +193,9 @@ export const DEFAULT_DECOR_COUNTS: DecorCounts = {
   merchant: 0,
 }
 
-/** Slightly denser scatter for the large ATLab floor canvas. */
+/** Sparse décor for the ATLab floor (keeps mist cheap on the large canvas). */
 export const FLOOR_DECOR_COUNTS: DecorCounts = {
-  fuchuan: 7,
+  fuchuan: 3,
   mongol: 0,
   merchant: 0,
 }

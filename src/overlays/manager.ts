@@ -29,7 +29,7 @@ export type OverlayManager = {
     rings: MapRing[],
     pathMode?: 'closed' | 'open',
   ) => void
-  attach: (viewer: Viewer) => () => void
+  attach: (viewer: Viewer, opts?: { lite?: boolean }) => () => void
   destroyAll: () => void
 }
 
@@ -113,8 +113,8 @@ export function getOverlayManager(): OverlayManager {
       }
       for (const layer of layers) layer.updateFeatureRings(featureId, rings, pathMode)
     },
-    attach(viewer: Viewer) {
-      const layer = attachSvgOverlayLayer(viewer, collection)
+    attach(viewer: Viewer, opts?: { lite?: boolean }) {
+      const layer = attachSvgOverlayLayer(viewer, collection, opts)
       layers.push(layer)
       layer.setActiveIds(overlayStore.getVisible())
       return () => {
@@ -135,6 +135,9 @@ export function getOverlayManager(): OverlayManager {
   return singleton
 }
 
-export function mountOverlaysOnViewer(viewer: Viewer): () => void {
-  return getOverlayManager().attach(viewer)
+export function mountOverlaysOnViewer(
+  viewer: Viewer,
+  opts?: { lite?: boolean },
+): () => void {
+  return getOverlayManager().attach(viewer, opts)
 }

@@ -35,8 +35,7 @@ type SeaBloc = {
 const BLOCS = seaBlocsFile.blocs as SeaBloc[]
 
 /** Split a bloc with tileFracEnd into overlapping strips for a Y wavelength ramp. */
-function expandWavelengthBands(blocs: SeaBloc[]): SeaBloc[] {
-  const BANDS = 8
+function expandWavelengthBands(blocs: SeaBloc[], bands: number): SeaBloc[] {
   const OVERLAP = 0.22
   const out: SeaBloc[] = []
   for (const b of blocs) {
@@ -46,15 +45,15 @@ function expandWavelengthBands(blocs: SeaBloc[]): SeaBloc[] {
       continue
     }
     const span = b.y1 - b.y0
-    const step = span / BANDS
+    const step = span / bands
     const pad = step * OVERLAP
-    for (let i = 0; i < BANDS; i++) {
-      const t = (i + 0.5) / BANDS
+    for (let i = 0; i < bands; i++) {
+      const t = (i + 0.5) / bands
       const frac = b.tileFrac + (end - b.tileFrac) * t
       const y0 = Math.max(b.y0, b.y0 + i * step - (i > 0 ? pad : 0))
-      const y1 = Math.min(b.y1, b.y0 + (i + 1) * step + (i < BANDS - 1 ? pad : 0))
+      const y1 = Math.min(b.y1, b.y0 + (i + 1) * step + (i < bands - 1 ? pad : 0))
       const fadeY: SeaBloc['fadeY'] =
-        i === 0 ? 'bottom' : i === BANDS - 1 ? 'top' : 'both'
+        i === 0 ? 'bottom' : i === bands - 1 ? 'top' : 'both'
       out.push({
         ...b,
         name: `${b.name} ·${i + 1}`,
@@ -83,9 +82,37 @@ export type SeaUnderlayHandle = {
   stop: () => void
 }
 
+export type SeaUnderlayOptions = {
+  /**
+   * Floor / kiosk lite path: fewer wavelength bands, no alternate wave pass.
+   * Drift still runs unless `static` is set.
+   */
+  lite?: boolean
+  /** Freeze wave patterns (no patternTransform animation). */
+  static?: boolean
+}
+
 function waveUrl(name: string | undefined): string {
   if (!name || name === 'wave-seigaiha.jpg') return WAVE_ORIGINAL
   return `/patterns/${name}`
+}
+
+function clearTileCache(viewer: Viewer): void {
+  try {
+    // Keep world[0] (low-res underlay) warm; only despawn high-res DZI tiles.
+    const n = viewer.world.getItemCount()
+    for (let i = 1; i < n; i++) {
+      const item = viewer.world.getItemAt(i)
+      if (item) viewer.tileCache.clearTilesFor(item)
+    }
+  } catch {
+    /* OSD may not be fully open yet */
+  }
+}
+
+/** Drop decoded high-res tiles while leaving the low-res underlay in place. */
+export function clearHighResTileCache(viewer: Viewer): void {
+  clearTileCache(viewer)
 }
 
 /**
@@ -93,9 +120,16 @@ function waveUrl(name: string | undefined): string {
  * transparent seas. Patterns live in map userSpace so they stay locked while
  * OSD springs the viewport.
  */
-export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
+export function startSeaUnderlay(
+  viewer: Viewer,
+  opts: SeaUnderlayOptions = {},
+): SeaUnderlayHandle {
+  const lite = opts.lite === true
+  const staticWaves = opts.static === true
+
   const root = document.createElement('div')
   root.className = 'sea-underlay'
+  if (lite) root.classList.add('is-lite')
   root.setAttribute('aria-hidden', 'true')
 
   const waveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -107,7 +141,7 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
   waveSvg.append(defs)
 
   const patterns: DriftPat[] = []
-  const waveBlocs = expandWavelengthBands(BLOCS)
+  const waveBlocs = expandWavelengthBands(BLOCS, lite ? 3 : 8)
 
   waveBlocs.forEach((bloc, i) => {
     const tileFrac = bloc.tileFrac
@@ -142,41 +176,6 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
     pattern.append(img)
     defs.append(pattern)
     patterns.push({ el: pattern, tileFrac, phase, drift, originX })
-
-    // Second pass: same art, different scale/phase — breaks obvious tiling.
-    const useOwnAlt = Boolean(bloc.wave && bloc.wave !== 'wave-seigaiha.jpg')
-    const altUrl = useOwnAlt ? primaryUrl : WAVE_ORIGINAL
-    const altAspect = useOwnAlt ? aspect : WAVE_TILE_ASPECT
-    const altFrac = tileFrac * 1.28
-    const altH = altFrac * MAP_ASPECT * altAspect
-    const pid2 = `sea-wave-pat2-${bloc.id}-${i}`
-    const pattern2 = document.createElementNS('http://www.w3.org/2000/svg', 'pattern')
-    pattern2.setAttribute('id', pid2)
-    pattern2.setAttribute('patternUnits', 'userSpaceOnUse')
-    pattern2.setAttribute('width', String(altFrac))
-    pattern2.setAttribute('height', String(altH))
-    const altPhase = (phase + 0.47) % 1
-    pattern2.setAttribute(
-      'patternTransform',
-      `translate(${originX + altPhase * altFrac} 0)`,
-    )
-    const img2 = document.createElementNS('http://www.w3.org/2000/svg', 'image')
-    img2.setAttribute('href', altUrl)
-    img2.setAttributeNS('http://www.w3.org/1999/xlink', 'href', altUrl)
-    img2.setAttribute('x', '0')
-    img2.setAttribute('y', '0')
-    img2.setAttribute('width', String(altFrac))
-    img2.setAttribute('height', String(altH))
-    img2.setAttribute('preserveAspectRatio', 'none')
-    pattern2.append(img2)
-    defs.append(pattern2)
-    patterns.push({
-      el: pattern2,
-      tileFrac: altFrac,
-      phase: altPhase,
-      drift: drift * 0.7,
-      originX,
-    })
 
     let maskAttr: string | undefined
     if (bloc.fadeY) {
@@ -240,6 +239,43 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
     if (maskAttr) rect.setAttribute('mask', maskAttr)
     waveSvg.append(rect)
 
+    if (lite) return
+
+    // Second pass: same art, different scale/phase — breaks obvious tiling.
+    const useOwnAlt = Boolean(bloc.wave && bloc.wave !== 'wave-seigaiha.jpg')
+    const altUrl = useOwnAlt ? primaryUrl : WAVE_ORIGINAL
+    const altAspect = useOwnAlt ? aspect : WAVE_TILE_ASPECT
+    const altFrac = tileFrac * 1.28
+    const altH = altFrac * MAP_ASPECT * altAspect
+    const pid2 = `sea-wave-pat2-${bloc.id}-${i}`
+    const pattern2 = document.createElementNS('http://www.w3.org/2000/svg', 'pattern')
+    pattern2.setAttribute('id', pid2)
+    pattern2.setAttribute('patternUnits', 'userSpaceOnUse')
+    pattern2.setAttribute('width', String(altFrac))
+    pattern2.setAttribute('height', String(altH))
+    const altPhase = (phase + 0.47) % 1
+    pattern2.setAttribute(
+      'patternTransform',
+      `translate(${originX + altPhase * altFrac} 0)`,
+    )
+    const img2 = document.createElementNS('http://www.w3.org/2000/svg', 'image')
+    img2.setAttribute('href', altUrl)
+    img2.setAttributeNS('http://www.w3.org/1999/xlink', 'href', altUrl)
+    img2.setAttribute('x', '0')
+    img2.setAttribute('y', '0')
+    img2.setAttribute('width', String(altFrac))
+    img2.setAttribute('height', String(altH))
+    img2.setAttribute('preserveAspectRatio', 'none')
+    pattern2.append(img2)
+    defs.append(pattern2)
+    patterns.push({
+      el: pattern2,
+      tileFrac: altFrac,
+      phase: altPhase,
+      drift: drift * 0.7,
+      originX,
+    })
+
     const rect2 = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     rect2.setAttribute('x', String(bloc.x0))
     rect2.setAttribute('y', String(bloc.y0))
@@ -297,7 +333,8 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
   let pauseAccum = 0
   let wavesPaused = false
   const preferStill =
-    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    staticWaves ||
+    (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)
 
   const worldOpacities: number[] = []
 
@@ -366,6 +403,7 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
       if (worldOpacities[i] == null) worldOpacities[i] = item.getOpacity()
       item.setOpacity(opacity)
     }
+    if (opacity === 0) clearTileCache(viewer)
   }
 
   const restoreWorld = () => {
@@ -375,10 +413,16 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
       if (!item) continue
       item.setOpacity(worldOpacities[i] ?? 1)
     }
+    // Nudge a redraw so cleared tiles refetch now that the map is visible again.
+    try {
+      viewer.forceRedraw()
+    } catch {
+      /* ignore */
+    }
   }
 
   const setWavePaused = (paused: boolean) => {
-    if (paused === wavesPaused) return
+    if (staticWaves || paused === wavesPaused) return
     root.classList.toggle('is-moving', paused)
     if (paused) {
       pauseStarted = performance.now()
@@ -393,7 +437,9 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
   const onAnimationFinish = () => setWavePaused(false)
 
   place()
-  raf = requestAnimationFrame(tickDrift)
+  if (!staticWaves) {
+    raf = requestAnimationFrame(tickDrift)
+  }
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       if (stopping) return
@@ -407,8 +453,10 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
     place()
   }
   viewer.world.addHandler('add-item', onAdd)
-  viewer.addHandler('animation', onAnimation)
-  viewer.addHandler('animation-finish', onAnimationFinish)
+  if (!staticWaves) {
+    viewer.addHandler('animation', onAnimation)
+    viewer.addHandler('animation-finish', onAnimationFinish)
+  }
 
   return {
     stop: () => {
@@ -416,8 +464,10 @@ export function startSeaUnderlay(viewer: Viewer): SeaUnderlayHandle {
       stopping = true
       cancelAnimationFrame(raf)
       viewer.world.removeHandler('add-item', onAdd)
-      viewer.removeHandler('animation', onAnimation)
-      viewer.removeHandler('animation-finish', onAnimationFinish)
+      if (!staticWaves) {
+        viewer.removeHandler('animation', onAnimation)
+        viewer.removeHandler('animation-finish', onAnimationFinish)
+      }
       root.classList.remove('is-visible', 'is-moving')
       restoreWorld()
       window.clearTimeout(removeTimer)

@@ -82,9 +82,13 @@ export type ProvinceLabelsHandle = {
  * Full-map SVG of province names. Visibility follows overlay seals;
  * linked attachments share one data record but draw as separate styled nodes.
  */
-export function mountProvinceLabels(viewer: Viewer): ProvinceLabelsHandle {
+export function mountProvinceLabels(
+  viewer: Viewer,
+  opts: { lite?: boolean } = {},
+): ProvinceLabelsHandle {
   const root = document.createElement('div')
   root.className = 'province-labels-layer'
+  if (opts.lite) root.classList.add('is-lite')
   root.setAttribute('aria-hidden', 'true')
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')

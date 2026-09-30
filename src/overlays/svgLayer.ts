@@ -51,19 +51,32 @@ function appendStrokePath(
 /**
  * Uniform layered stack (all bleeds → bodies → cores) matching sea-route rendering.
  * Avoids per-ring interleaved opacity bloom at overlaps.
+ * Lite: body stroke only (no bleed glow / core) for ATLab floor.
  */
-function buildFeatureGroup(feature: OverlayFeature): SVGGElement {
+function buildFeatureGroup(feature: OverlayFeature, lite = false): SVGGElement {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   g.setAttribute('data-overlay-id', feature.id)
   g.classList.add('map-overlay-feature')
   g.classList.add(styleClassFor(feature.style))
   const pathMode = feature.pathMode ?? 'closed'
 
-  const bleedG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   const bodyG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+  bodyG.classList.add('overlay-layer-body')
+
+  if (lite) {
+    for (let ringIndex = 0; ringIndex < feature.rings.length; ringIndex++) {
+      const ring = feature.rings[ringIndex]!
+      const d = ringToPathD(ring, pathMode)
+      if (!d) continue
+      appendStrokePath(bodyG, d, ringIndex, 'body')
+    }
+    g.appendChild(bodyG)
+    return g
+  }
+
+  const bleedG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   const coreG = document.createElementNS('http://www.w3.org/2000/svg', 'g')
   bleedG.classList.add('overlay-layer-bleed')
-  bodyG.classList.add('overlay-layer-body')
   coreG.classList.add('overlay-layer-core')
 
   for (let ringIndex = 0; ringIndex < feature.rings.length; ringIndex++) {
@@ -103,6 +116,11 @@ export type SvgOverlayLayer = {
   destroy: () => void
 }
 
+export type AttachSvgOverlayOptions = {
+  /** Body stroke only — skip bleed/core glow stacks (ATLab floor). */
+  lite?: boolean
+}
+
 /**
  * Full-image SVG overlay locked to the map via OpenSeadragon addOverlay.
  * Paths use normalized image coordinates (viewBox 0 0 1 1).
@@ -110,9 +128,12 @@ export type SvgOverlayLayer = {
 export function attachSvgOverlayLayer(
   viewer: Viewer,
   collection: OverlayCollection,
+  opts: AttachSvgOverlayOptions = {},
 ): SvgOverlayLayer {
+  const lite = opts.lite === true
   const root = document.createElement('div')
   root.className = 'map-overlay-layer'
+  if (lite) root.classList.add('is-lite')
   root.setAttribute('aria-hidden', 'true')
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -125,7 +146,7 @@ export function attachSvgOverlayLayer(
     (a, b) => paintRank(a.id) - paintRank(b.id),
   )
   for (const feature of sorted) {
-    const g = buildFeatureGroup(feature)
+    const g = buildFeatureGroup(feature, lite)
     groups.set(feature.id, g)
     svg.appendChild(g)
   }
