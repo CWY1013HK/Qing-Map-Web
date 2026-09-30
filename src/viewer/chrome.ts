@@ -29,13 +29,13 @@ export function mountChrome(viewer: Viewer): void {
     silver: {
       handi: '/ui/silver/handi-lingpai.png',
       zhongguo: '/ui/silver/zhongguo-lingpai.png',
-      xiandai: '/ui/silver/xiandai-lingpai.png?v=kaiti42',
+      xiandai: '/ui/silver/xiandai-lingpai.png?v=kaiti43',
       hailu: '/ui/silver/hailu-lingpai.png',
     },
     bronze: {
       handi: '/ui/bronze/handi-lingpai.png',
       zhongguo: '/ui/bronze/zhongguo-lingpai.png',
-      xiandai: '/ui/bronze/xiandai-lingpai.png?v=kaiti42',
+      xiandai: '/ui/bronze/xiandai-lingpai.png?v=kaiti43',
       hailu: '/ui/bronze/hailu-lingpai.png',
     },
   }

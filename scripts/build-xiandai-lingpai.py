@@ -185,38 +185,39 @@ def _glyph_shadow_stack(overlay: Image.Image, mask: Image.Image, x0: int, y0: in
     """Paint emboss shadows into the glyph overlay only (never tint the plate).
 
     Full soft casts are placed first; the opaque silver/bronze body covers the
-    overlap, leaving a visible SE under-shadow like Zhongguo/Hailu.
-    Tuned ~3× stronger than the first pass so depth reads at UI scale.
+    overlap. Strength tuned for UI scale: deep SE under-cast + soft bloom.
     """
     from PIL import ImageChops
 
     mw, mh = mask.size
 
-    # Soft all-sided ambient halo
-    amb = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(3.2))
+    # Soft all-sided ambient halo (~+30% vs prior via denser alpha + 2nd pass)
+    amb = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(3.6))
     amb_rgba = np.zeros((mh, mw, 4), np.uint8)
-    amb_rgba[:, :, 3] = np.clip(np.array(amb).astype(np.float32) * 0.95, 0, 255).astype(
+    amb_rgba[:, :, 3] = np.clip(np.array(amb).astype(np.float32) * 1.0, 0, 255).astype(
         np.uint8
     )
     overlay.alpha_composite(Image.fromarray(amb_rgba, "RGBA"), (x0, y0))
+    overlay.alpha_composite(Image.fromarray(amb_rgba, "RGBA"), (x0 + 1, y0 + 1))
 
-    # Heavier SE under-puddle (main cast beneath the strokes)
-    puddle = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(2.8))
+    # Heavier SE under-puddle — three stacked casts (~+30% depth)
+    puddle = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(3.2))
     pud_rgba = np.zeros((mh, mw, 4), np.uint8)
     pud_rgba[:, :, 3] = np.clip(np.array(puddle).astype(np.float32) * 1.0, 0, 255).astype(
         np.uint8
     )
-    # Second pass of the puddle for ~3× depth without washing the plate
     overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 5, y0 + 6))
     overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 7, y0 + 9))
+    overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 9, y0 + 12))
 
-    # Far soft SE bloom
-    bloom = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(4.5))
+    # Far soft SE bloom (+10% alpha & spread)
+    bloom = mask.filter(ImageFilter.MaxFilter(11)).filter(ImageFilter.GaussianBlur(5.0))
     bloom_rgba = np.zeros((mh, mw, 4), np.uint8)
-    bloom_rgba[:, :, 3] = np.clip(np.array(bloom).astype(np.float32) * 0.55, 0, 255).astype(
+    bloom_rgba[:, :, 3] = np.clip(np.array(bloom).astype(np.float32) * 0.61, 0, 255).astype(
         np.uint8
     )
-    overlay.alpha_composite(Image.fromarray(bloom_rgba, "RGBA"), (x0 + 8, y0 + 11))
+    overlay.alpha_composite(Image.fromarray(bloom_rgba, "RGBA"), (x0 + 9, y0 + 12))
+    overlay.alpha_composite(Image.fromarray(bloom_rgba, "RGBA"), (x0 + 11, y0 + 14))
 
     # Hard contact rim
     dil = mask.filter(ImageFilter.MaxFilter(5))
@@ -227,6 +228,7 @@ def _glyph_shadow_stack(overlay: Image.Image, mask: Image.Image, x0: int, y0: in
     )
     overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 2, y0 + 3))
     overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 3, y0 + 4))
+    overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 4, y0 + 5))
 
 
 def paint_silver_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Image.Image:
