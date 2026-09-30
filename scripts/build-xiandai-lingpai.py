@@ -32,16 +32,35 @@ FONT_INDEX = 4
 TITLE = "現代中國"
 
 # Zhongguo 4-char vertical band midpoints (575×1510 silver).
-# Keep top padding; empty metal below last char is intentional.
 CHAR_MIDS_Y = (445, 664, 883, 1096)
-BODY_CX = 287  # slight left of geometric 287.5 so under-cast doesn't read right-shift
-GLYPH_SIZE = 300  # ~0.52 of width — matches sibling scale
+BODY_CX = 287
+# Sibling chars are ~170–180px tall — was 300 (too big / too bright flat fill).
+GLYPH_SIZE = 215
 
 # Wipe / inpaint column covering all four glyph boxes.
 WIPE_X0, WIPE_X1 = 145, 435
 WIPE_Y0, WIPE_Y1 = 340, 1220
-GUTTER_X0, GUTTER_X1 = 95, 135  # clean metal left of glyphs
+GUTTER_X0, GUTTER_X1 = 95, 135  # unused; wipe uses bottom face metal
 
+
+def sample_sibling_silver(path: Path) -> tuple[np.ndarray, tuple[int, int, int]]:
+    """Return (Nx3 RGB samples, median RGB) from low-sat bright glyph cores."""
+    a = np.array(Image.open(path).convert("RGBA"))
+    r, g, b, al = [a[:, :, i].astype(np.float32) for i in range(4)]
+    mx = np.maximum(np.maximum(r, g), b)
+    mn = np.minimum(np.minimum(r, g), b)
+    sat = np.zeros_like(mx)
+    pos = mx > 0
+    sat[pos] = (mx - mn)[pos] / mx[pos]
+    lum = 0.3 * r + 0.59 * g + 0.11 * b
+    m = (al > 200) & (sat < 0.12) & (lum > 155) & (lum < 240)
+    m[:, :160] = False
+    m[:, 430:] = False
+    m[:350] = False
+    m[1200:] = False
+    samples = np.stack([r[m], g[m], b[m]], axis=1)
+    med = tuple(int(round(x)) for x in np.median(samples, axis=0))
+    return samples, med  # type: ignore[return-value]
 
 def recolor_gold_to_pink(rgba: np.ndarray, *, sat_scale: float = 0.92) -> np.ndarray:
     """Hue-shift gold ribbon/border pixels to magenta; leave metal/glyphs alone."""
@@ -138,18 +157,16 @@ def paint_silver_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Imag
         x0 = int(BODY_CX - mw / 2)
         y0 = int(cy - mh / 2)
 
-        amb = mask.filter(ImageFilter.MaxFilter(11)).filter(ImageFilter.GaussianBlur(5))
+        amb = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(4))
         ambient = _paste_lighter(ambient, amb, x0, y0)
 
-        pud = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(3.5))
-        under = _paste_lighter(under, pud, x0 + 6, y0 + 10)
-        # hard contact strip (1–2px SE)
+        pud = mask.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(2.5))
+        under = _paste_lighter(under, pud, x0 + 4, y0 + 7)
         contact = mask.filter(ImageFilter.MaxFilter(3))
-        under = _paste_lighter(under, contact, x0 + 2, y0 + 3)
+        under = _paste_lighter(under, contact, x0 + 1, y0 + 2)
 
         body = _paste_lighter(body, mask, x0, y0)
 
-        # Inner bevel highlight: mask eroded, shifted NW
         eroded = ImageEval_erode(mask, 2)
         bevel = _paste_lighter(bevel, eroded, x0 - 1, y0 - 1)
 
@@ -160,24 +177,32 @@ def paint_silver_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Imag
         for c, mul in enumerate((0.12, 0.10, 0.10)):
             rgba[:, :, c] *= 1.0 - m * strength * (1.0 - mul)
 
-    apply_dark(ambient, 0.55)
-    apply_dark(under, 0.85)
+    apply_dark(ambient, 0.45)
+    apply_dark(under, 0.70)
 
-    # Bevel highlight (inside stroke)
     bm = np.array(bevel).astype(np.float32) / 255.0
     body_m = np.array(body).astype(np.float32) / 255.0
     bm *= body_m
-    for c, add in enumerate((28, 26, 24)):
+    for c, add in enumerate((18, 16, 14)):
         rgba[:, :, c] = np.clip(rgba[:, :, c] + bm * add, 0, 255)
 
-    # Solid silver body last (slightly bright)
-    silver = np.array([214, 214, 218], dtype=np.float32)
-    for c in range(3):
-        rgba[:, :, c] = np.where(body_m > 0.5, silver[c], rgba[:, :, c])
+    # Exact sibling silver — sample Zhongguo glyph cores (not a guessed flat #D6D6DA).
+    samples, med = sample_sibling_silver(ROOT / "assets/ui/silver/zhongguo-lingpai.png")
+    silver = np.array(med, dtype=np.float32)
+    # Light grain from real samples so the fill isn't a flat plastic plate
+    rng = np.random.default_rng(42)
+    ys, xs = np.where(body_m > 0.5)
+    if len(ys):
+        idx = rng.integers(0, len(samples), size=len(ys))
+        # Blend median with sampled grain (mostly median so colour matches)
+        grain = samples[idx]
+        fill = silver * 0.72 + grain * 0.28
+        rgba[ys, xs, 0] = fill[:, 0]
+        rgba[ys, xs, 1] = fill[:, 1]
+        rgba[ys, xs, 2] = fill[:, 2]
 
     rgba[:, :, 3] = np.array(canvas)[:, :, 3]
     return Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8), "RGBA")
-
 
 def paint_bronze_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Image.Image:
     """Same stack; body ≈ dark red carving to match bronze siblings."""
