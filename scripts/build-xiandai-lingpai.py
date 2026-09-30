@@ -37,9 +37,9 @@ BODY_CX = 287
 # Sibling chars are ~170–180px tall — was 300 (too big / too bright flat fill).
 GLYPH_SIZE = 215
 
-# Wipe / inpaint column covering all four glyph boxes.
-WIPE_X0, WIPE_X1 = 145, 435
-WIPE_Y0, WIPE_Y1 = 340, 1220
+# Wipe / inpaint column covering all four glyph boxes + face interior.
+WIPE_X0, WIPE_X1 = 130, 450
+WIPE_Y0, WIPE_Y1 = 300, 1320
 GUTTER_X0, GUTTER_X1 = 95, 135  # unused; wipe uses bottom face metal
 
 
@@ -86,44 +86,83 @@ def recolor_gold_to_pink(rgba: np.ndarray, *, sat_scale: float = 0.92) -> np.nda
 
 
 def wipe_glyph_column(out: np.ndarray, *, bronze: bool = False) -> None:
-    """Replace old title column using clean face metal from below the last glyph."""
+    """Replace the title-column face with continuous clean metal.
+
+    Builds a luma field from the plate (glyphs ignored), then fills every
+    non-pink column pixel from the clean strip below the last character,
+    scaled to that field. No glyph ghosts, no rectangular donor patch of a
+    different brightness.
+    """
+    import cv2
+
     H, W = out.shape[:2]
     y0, y1 = max(0, WIPE_Y0), min(H, WIPE_Y1)
     x0, x1 = max(0, WIPE_X0), min(W, WIPE_X1)
-    # Bottom empty face — no ribbon, no glyphs (Zhongguo layout).
-    by0, by1 = int(H * 0.84), int(H * 0.92)
-    bx0, bx1 = int(W * 0.30), int(W * 0.70)
-    patch = out[by0:by1, bx0:bx1, :3].astype(np.float32)
-    if patch.size == 0:
-        raise RuntimeError("empty metal patch")
-    ph, pw = patch.shape[:2]
+    col_h, col_w = y1 - y0, x1 - x0
 
-    region = out[y0:y1, x0:x1, :3].astype(np.float32)
-    rh, rw = region.shape[:2]
-    fill = np.zeros((rh, rw, 3), np.float32)
-    for yy in range(0, rh, ph):
-        for xx in range(0, rw, pw):
-            h = min(ph, rh - yy)
-            w = min(pw, rw - xx)
-            fill[yy : yy + h, xx : xx + w] = patch[:h, :w]
+    r = out[:, :, 0].astype(np.float32)
+    g = out[:, :, 1].astype(np.float32)
+    b = out[:, :, 2].astype(np.float32)
+    al = out[:, :, 3]
+    mx = np.maximum(np.maximum(r, g), b)
+    mn = np.minimum(np.minimum(r, g), b)
+    sat = np.zeros_like(mx)
+    pos = mx > 0
+    sat[pos] = (mx - mn)[pos] / mx[pos]
+    lum = 0.3 * r + 0.59 * g + 0.11 * b
 
-    feather = 14
-    alpha = np.ones((rh, rw), np.float32)
+    pinkish = (al > 20) & (sat > 0.28)
+    outside = al < 180
+    # Anything that isn't mid-tone face metal must not seed the luma field
+    not_metal = pinkish | outside | (al < 200) | (sat > 0.18) | (lum > 125) | (lum < 58)
+
+    lum_u8 = np.clip(lum, 0, 255).astype(np.uint8)
+    ignore = not_metal.astype(np.uint8) * 255
+    lum_field = cv2.inpaint(lum_u8, ignore, 6, cv2.INPAINT_TELEA).astype(np.float32)
+    lum_field = cv2.GaussianBlur(lum_field, (81, 81), 0)
+
+    # Clean donor pixels from below last glyph
+    src_y0, src_y1 = min(H, 1240), min(H, 1375)
+    d_good = (
+        (al[src_y0:src_y1, x0:x1] > 220)
+        & (sat[src_y0:src_y1, x0:x1] < 0.15)
+        & (lum[src_y0:src_y1, x0:x1] > 55)
+        & (lum[src_y0:src_y1, x0:x1] < 115)
+    )
+    donor = out[src_y0:src_y1, x0:x1, :3].astype(np.float32)
+    samples = donor[d_good]
+    if len(samples) < 80:
+        samples = np.broadcast_to(
+            np.array([72.0, 70.0, 71.0], np.float32), (512, 3)
+        ).copy()
+
+    rng = np.random.default_rng(37)
+    # Feathered full-column replace — wide feather hides the column edge
+    feather = 28
+    alpha = np.ones((col_h, col_w), np.float32)
     for i in range(feather):
-        t = (i + 1) / feather
+        t = (i + 1) / (feather + 1)
+        alpha[i, :] *= t
+        alpha[-(i + 1), :] *= t
         alpha[:, i] *= t
-        alpha[:, -1 - i] *= t
-        if i < rh:
-            alpha[i, :] = np.minimum(alpha[i, :], t)
-            alpha[-1 - i, :] = np.minimum(alpha[-1 - i, :], t)
+        alpha[:, -(i + 1)] *= t
+    alpha[pinkish[y0:y1, x0:x1] | outside[y0:y1, x0:x1]] = 0.0
 
-    al = out[y0:y1, x0:x1, 3] > 180
-    for c in range(3):
-        src = region[:, :, c]
-        dst = fill[:, :, c]
-        blended = src * (1 - alpha) + dst * alpha
-        region[:, :, c] = np.where(al, blended, src)
-    out[y0:y1, x0:x1, :3] = region
+    pick = samples[rng.integers(0, len(samples), size=(col_h, col_w))]
+    p_lum = np.maximum(0.3 * pick[:, :, 0] + 0.59 * pick[:, :, 1] + 0.11 * pick[:, :, 2], 1.0)
+    target = lum_field[y0:y1, x0:x1]
+    target = np.clip(target, 62.0, 88.0)
+    target = target * 0.55 + 75.0 * 0.45
+    fill = pick * (target / p_lum)[..., None]
+    # Match sibling metal grain (Zhongguo face std ≈ 15)
+    for _ in range(2):
+        fill[1:] = fill[1:] * 0.4 + fill[:-1] * 0.6
+    fill += rng.normal(0, 5.5, fill.shape)
+    np.clip(fill, 0, 255, out=fill)
+
+    dst = out[y0:y1, x0:x1, :3].astype(np.float32)
+    a = alpha[..., None]
+    out[y0:y1, x0:x1, :3] = np.clip(dst * (1.0 - a) + fill * a, 0, 255).astype(np.uint8)
 
 
 def hard_glyph_mask(ch: str, font: ImageFont.FreeTypeFont, box: int = 420) -> Image.Image:
@@ -142,14 +181,63 @@ def hard_glyph_mask(ch: str, font: ImageFont.FreeTypeFont, box: int = 420) -> Im
     return Image.fromarray(hard, mode="L")
 
 
+def _glyph_shadow_stack(overlay: Image.Image, mask: Image.Image, x0: int, y0: int) -> None:
+    """Paint emboss shadows into the glyph overlay only (never tint the plate).
+
+    Full soft casts are placed first; the opaque silver/bronze body covers the
+    overlap, leaving a visible SE under-shadow like Zhongguo/Hailu.
+    Tuned ~3× stronger than the first pass so depth reads at UI scale.
+    """
+    from PIL import ImageChops
+
+    mw, mh = mask.size
+
+    # Soft all-sided ambient halo
+    amb = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(3.2))
+    amb_rgba = np.zeros((mh, mw, 4), np.uint8)
+    amb_rgba[:, :, 3] = np.clip(np.array(amb).astype(np.float32) * 0.95, 0, 255).astype(
+        np.uint8
+    )
+    overlay.alpha_composite(Image.fromarray(amb_rgba, "RGBA"), (x0, y0))
+
+    # Heavier SE under-puddle (main cast beneath the strokes)
+    puddle = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(2.8))
+    pud_rgba = np.zeros((mh, mw, 4), np.uint8)
+    pud_rgba[:, :, 3] = np.clip(np.array(puddle).astype(np.float32) * 1.0, 0, 255).astype(
+        np.uint8
+    )
+    # Second pass of the puddle for ~3× depth without washing the plate
+    overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 5, y0 + 6))
+    overlay.alpha_composite(Image.fromarray(pud_rgba, "RGBA"), (x0 + 7, y0 + 9))
+
+    # Far soft SE bloom
+    bloom = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(4.5))
+    bloom_rgba = np.zeros((mh, mw, 4), np.uint8)
+    bloom_rgba[:, :, 3] = np.clip(np.array(bloom).astype(np.float32) * 0.55, 0, 255).astype(
+        np.uint8
+    )
+    overlay.alpha_composite(Image.fromarray(bloom_rgba, "RGBA"), (x0 + 8, y0 + 11))
+
+    # Hard contact rim
+    dil = mask.filter(ImageFilter.MaxFilter(5))
+    edge = ImageChops.subtract(dil, mask)
+    edge_rgba = np.zeros((mh, mw, 4), np.uint8)
+    edge_rgba[:, :, 3] = np.clip(np.array(edge).astype(np.float32) * 1.0, 0, 255).astype(
+        np.uint8
+    )
+    overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 2, y0 + 3))
+    overlay.alpha_composite(Image.fromarray(edge_rgba, "RGBA"), (x0 + 3, y0 + 4))
+
+
 def paint_silver_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Image.Image:
-    """Composite hard silver glyphs with ambient + under-SE shadows onto base."""
+    """Stamp glyphs onto untouched metal — shadow lives only in the glyph layer."""
     canvas = base.copy()
     W, H = canvas.size
-    ambient = Image.new("L", (W, H), 0)
-    under = Image.new("L", (W, H), 0)
-    body = Image.new("L", (W, H), 0)
-    bevel = Image.new("L", (W, H), 0)
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+
+    samples, med = sample_sibling_silver(ROOT / "assets/ui/silver/zhongguo-lingpai.png")
+    silver = tuple(int(x) for x in med)
+    rng = np.random.default_rng(42)
 
     for ch, cy in zip(TITLE, CHAR_MIDS_Y):
         mask = hard_glyph_mask(ch, font)
@@ -157,60 +245,29 @@ def paint_silver_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Imag
         x0 = int(BODY_CX - mw / 2)
         y0 = int(cy - mh / 2)
 
-        amb = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(4))
-        ambient = _paste_lighter(ambient, amb, x0, y0)
+        _glyph_shadow_stack(overlay, mask, x0, y0)
 
-        pud = mask.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(2.5))
-        under = _paste_lighter(under, pud, x0 + 4, y0 + 7)
-        contact = mask.filter(ImageFilter.MaxFilter(3))
-        under = _paste_lighter(under, contact, x0 + 1, y0 + 2)
+        # Silver body with sibling colour + light grain
+        body = np.zeros((mh, mw, 4), np.uint8)
+        m = np.array(mask) > 140
+        ys, xs = np.where(m)
+        if len(ys):
+            idx = rng.integers(0, len(samples), size=len(ys))
+            fill = np.array(silver, dtype=np.float32) * 0.72 + samples[idx] * 0.28
+            body[ys, xs, 0] = np.clip(fill[:, 0], 0, 255).astype(np.uint8)
+            body[ys, xs, 1] = np.clip(fill[:, 1], 0, 255).astype(np.uint8)
+            body[ys, xs, 2] = np.clip(fill[:, 2], 0, 255).astype(np.uint8)
+            body[ys, xs, 3] = 255
+        overlay.alpha_composite(Image.fromarray(body, "RGBA"), (x0, y0))
 
-        body = _paste_lighter(body, mask, x0, y0)
+    return Image.alpha_composite(canvas, overlay)
 
-        eroded = ImageEval_erode(mask, 2)
-        bevel = _paste_lighter(bevel, eroded, x0 - 1, y0 - 1)
-
-    rgba = np.array(canvas).astype(np.float32)
-
-    def apply_dark(layer: Image.Image, strength: float) -> None:
-        m = np.array(layer).astype(np.float32) / 255.0
-        for c, mul in enumerate((0.12, 0.10, 0.10)):
-            rgba[:, :, c] *= 1.0 - m * strength * (1.0 - mul)
-
-    apply_dark(ambient, 0.45)
-    apply_dark(under, 0.70)
-
-    bm = np.array(bevel).astype(np.float32) / 255.0
-    body_m = np.array(body).astype(np.float32) / 255.0
-    bm *= body_m
-    for c, add in enumerate((18, 16, 14)):
-        rgba[:, :, c] = np.clip(rgba[:, :, c] + bm * add, 0, 255)
-
-    # Exact sibling silver — sample Zhongguo glyph cores (not a guessed flat #D6D6DA).
-    samples, med = sample_sibling_silver(ROOT / "assets/ui/silver/zhongguo-lingpai.png")
-    silver = np.array(med, dtype=np.float32)
-    # Light grain from real samples so the fill isn't a flat plastic plate
-    rng = np.random.default_rng(42)
-    ys, xs = np.where(body_m > 0.5)
-    if len(ys):
-        idx = rng.integers(0, len(samples), size=len(ys))
-        # Blend median with sampled grain (mostly median so colour matches)
-        grain = samples[idx]
-        fill = silver * 0.72 + grain * 0.28
-        rgba[ys, xs, 0] = fill[:, 0]
-        rgba[ys, xs, 1] = fill[:, 1]
-        rgba[ys, xs, 2] = fill[:, 2]
-
-    rgba[:, :, 3] = np.array(canvas)[:, :, 3]
-    return Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8), "RGBA")
 
 def paint_bronze_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Image.Image:
-    """Same stack; body ≈ dark red carving to match bronze siblings."""
+    """Same as silver: glyph-layer shadow only; metal plate stays continuous."""
     canvas = base.copy()
     W, H = canvas.size
-    ambient = Image.new("L", (W, H), 0)
-    under = Image.new("L", (W, H), 0)
-    body = Image.new("L", (W, H), 0)
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
 
     scale_y = H / 1510.0
     scale_x = W / 575.0
@@ -218,38 +275,25 @@ def paint_bronze_glyphs(base: Image.Image, font: ImageFont.FreeTypeFont) -> Imag
     cx = int(BODY_CX * scale_x)
     size = int(GLYPH_SIZE * min(scale_x, scale_y))
     font_scaled = ImageFont.truetype(KAITI_TTC, size, index=FONT_INDEX)
+    red = (168, 42, 38)
 
     for ch, cy in zip(TITLE, mids):
         mask = hard_glyph_mask(ch, font_scaled, box=max(360, size + 80))
         mw, mh = mask.size
         x0 = int(cx - mw / 2)
         y0 = int(cy - mh / 2)
-        amb = mask.filter(ImageFilter.MaxFilter(11)).filter(ImageFilter.GaussianBlur(5))
-        ambient = _paste_lighter(ambient, amb, x0, y0)
-        pud = mask.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(3.5))
-        under = _paste_lighter(under, pud, x0 + 6, y0 + 10)
-        contact = mask.filter(ImageFilter.MaxFilter(3))
-        under = _paste_lighter(under, contact, x0 + 2, y0 + 3)
-        body = _paste_lighter(body, mask, x0, y0)
 
-    rgba = np.array(canvas).astype(np.float32)
+        _glyph_shadow_stack(overlay, mask, x0, y0)
 
-    def apply_dark(layer: Image.Image, strength: float) -> None:
-        m = np.array(layer).astype(np.float32) / 255.0
-        for c, mul in enumerate((0.18, 0.08, 0.06)):
-            rgba[:, :, c] *= 1.0 - m * strength * (1.0 - mul)
+        body = np.zeros((mh, mw, 4), np.uint8)
+        m = np.array(mask) > 140
+        body[m, 0] = red[0]
+        body[m, 1] = red[1]
+        body[m, 2] = red[2]
+        body[m, 3] = 255
+        overlay.alpha_composite(Image.fromarray(body, "RGBA"), (x0, y0))
 
-    apply_dark(ambient, 0.50)
-    apply_dark(under, 0.80)
-
-    body_m = np.array(body).astype(np.float32) / 255.0
-    red = np.array([168, 42, 38], dtype=np.float32)
-    for c in range(3):
-        rgba[:, :, c] = np.where(body_m > 0.5, red[c], rgba[:, :, c])
-
-    rgba[:, :, 3] = np.array(canvas)[:, :, 3]
-    return Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8), "RGBA")
-
+    return Image.alpha_composite(canvas, overlay)
 
 def _paste_lighter(dst: Image.Image, src: Image.Image, x: int, y: int) -> Image.Image:
     from PIL import ImageChops
@@ -285,8 +329,8 @@ def build_bronze() -> Image.Image:
     W, H = src.size
     sx, sy = W / 575.0, H / 1510.0
     old = (WIPE_X0, WIPE_X1, WIPE_Y0, WIPE_Y1, GUTTER_X0, GUTTER_X1)
-    WIPE_X0, WIPE_X1 = int(145 * sx), int(435 * sx)
-    WIPE_Y0, WIPE_Y1 = int(340 * sy), int(1220 * sy)
+    WIPE_X0, WIPE_X1 = int(130 * sx), int(450 * sx)
+    WIPE_Y0, WIPE_Y1 = int(300 * sy), int(1320 * sy)
     GUTTER_X0, GUTTER_X1 = int(95 * sx), int(135 * sx)
     try:
         wipe_glyph_column(arr, bronze=True)
