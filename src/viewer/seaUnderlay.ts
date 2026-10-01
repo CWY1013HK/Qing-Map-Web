@@ -4,7 +4,7 @@ import { MAP_ASPECT } from '../config'
 
 const LAND_URL = '/land/map-land.webp?v=21'
 /** Canonical seigaiha tile — default for seas 1 & 3. */
-const WAVE_ORIGINAL = '/patterns/wave-seigaiha.jpg'
+const WAVE_ORIGINAL = '/patterns/wave-seigaiha.jpg?v=2'
 const FADE_MS = 650
 const DRIFT_MS = 36_000
 /** Default tile aspect (height / width) for wave-seigaiha.jpg */
@@ -98,7 +98,7 @@ export type SeaUnderlayOptions = {
 
 function waveUrl(name: string | undefined): string {
   if (!name || name === 'wave-seigaiha.jpg') return WAVE_ORIGINAL
-  return `/patterns/${name}`
+  return `/patterns/${name}?v=2`
 }
 
 function clearTileCache(viewer: Viewer): void {
@@ -343,9 +343,12 @@ export function startSeaUnderlay(
 
   const worldOpacities: number[] = []
 
-  const applyDrift = (t: number) => {
+  const applyDrift = (cycles: number) => {
+    // Unwrapped cycle count — wrapping *before* multiplying by drift jumps
+    // any pattern whose drift ≠ 1 when the global loop restarts.
     for (const { el, tileFrac, phase, drift, originX } of patterns) {
-      const p = (phase + t * drift) % 1
+      let p = (phase + cycles * drift) % 1
+      if (p < 0) p += 1
       el.setAttribute('patternTransform', `translate(${originX + p * tileFrac} 0)`)
     }
   }
@@ -354,8 +357,8 @@ export function startSeaUnderlay(
     if (stopping) return
     raf = requestAnimationFrame(tickDrift)
     if (preferStill || wavesPaused) return
-    const t = ((now - driftOrigin - pauseAccum) / DRIFT_MS) % 1
-    applyDrift(t < 0 ? t + 1 : t)
+    const cycles = (now - driftOrigin - pauseAccum) / DRIFT_MS
+    applyDrift(cycles)
   }
 
   const onDraw = (

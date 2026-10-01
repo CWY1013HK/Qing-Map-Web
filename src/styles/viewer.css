@@ -85,7 +85,7 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url('/patterns/wave-seigaiha.jpg');
+  background-image: url('/patterns/wave-seigaiha.jpg?v=2');
   background-repeat: repeat;
   background-position: center;
   background-size: 280px auto;
