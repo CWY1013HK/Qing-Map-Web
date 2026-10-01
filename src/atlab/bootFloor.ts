@@ -41,12 +41,8 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
     minZoomImageRatio: 1,
     maxZoomPixelRatio: 1,
     maxImageCacheCount: 4,
-    /** Floor pixel box matches map aspect; CSS scale lives on #atlab. */
+    /** Floor OSD box is aspect-correct; CSS scaleY stretches it to the floor band. */
     autoResize: false,
-    /**
-     * Fit the whole map inside the floor (letterbox if aspect drifts).
-     * Avoid homeFillsViewer — that crops left/right when the box is taller than the map.
-     */
     homeFillsViewer: false,
     panHorizontal: false,
     panVertical: false,

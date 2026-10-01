@@ -3,12 +3,13 @@ import '../styles/viewer.css'
 import '../styles/atlab.css'
 import '../styles/overlays.css'
 import '../styles/popups.css'
-import { ATLAB } from '../config'
+import { ATLAB, MAP_ASPECT } from '../config'
 import { bootInteractiveViewer } from '../viewer/bootViewer'
 import { bootFloorViewer } from './bootFloor'
 
 /**
- * Fixed ATLab pixel frame (wall + aspect-correct floor).
+ * Fixed ATLab pixel frame (wall + floor band).
+ * Floor map is laid out at scan aspect then vertically stretched to fill the floor.
  * Always scale to fit the browser so both wall + floor are visible
  * (native 1:1 when the window is at least that large).
  * Pass ?nofit=1 to scroll the raw pixel canvas instead.
@@ -23,6 +24,8 @@ function layoutAtlabFrame(): void {
   root.style.setProperty('--atlab-w', `${ATLAB.width}px`)
   root.style.setProperty('--atlab-wall-h', `${ATLAB.wallHeight}px`)
   root.style.setProperty('--atlab-floor-h', `${ATLAB.floorHeight}px`)
+  root.style.setProperty('--floor-native-h', `${ATLAB.floorNativeHeight}px`)
+  root.style.setProperty('--map-aspect', String(MAP_ASPECT))
 
   const noFit = new URLSearchParams(window.location.search).has('nofit')
   if (noFit) {

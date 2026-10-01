@@ -20,7 +20,8 @@ export const INTRO_FOCUS = {
 
 /**
  * Map scan aspect (width ÷ height). Matches preview / DZI (9219×5258).
- * ATLab floor height is derived from this so the map is neither squashed nor side-cropped.
+ * Floor content is laid out at this aspect, then scaleY-stretched to fill the floor band
+ * (anamorphic correction for angled floor viewing).
  */
 export const MAP_ASPECT = 9219 / 5258
 
@@ -31,15 +32,14 @@ export const MAP_ASPECT = 9219 / 5258
 export const ATLAB = {
   width: 3536,
   /**
-   * Wall band height (~95% of the native 808px strip + 8px) so Edge app-mode
+   * Wall band height (~95% of the native 808px strip + 4px) so Edge app-mode
    * title chrome does not crowd the interactive map.
    */
-  wallHeight: Math.round(808 * 0.95) + 8,
-  /**
-   * Floor height at map aspect for `width` (was 2400 — too tall → horizontal squash / side crop).
-   * ~2017 = round(3536 / MAP_ASPECT).
-   */
-  floorHeight: Math.round(3536 / MAP_ASPECT),
+  wallHeight: Math.round(808 * 0.95) + 4,
+  /** Physical floor band height (map is vertically stretched to fill this). */
+  floorHeight: 2400,
+  /** Aspect-correct map height at `width` — used before scaleY stretch. */
+  floorNativeHeight: Math.round(3536 / MAP_ASPECT),
 } as const
 
 /**

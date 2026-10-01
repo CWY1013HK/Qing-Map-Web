@@ -1,4 +1,4 @@
-/* ATLab dual-canvas: Wall ~95% of 808 over Floor (map-aspect height from config) */
+/* ATLab dual-canvas: Wall ~772 over Floor 2400 (map vertically stretched for angled view) */
 
 .atlab-body {
   margin: 0;
@@ -10,8 +10,9 @@
 
 .atlab {
   --atlab-w: 3536px;
-  --atlab-wall-h: 776px;
-  --atlab-floor-h: 2017px;
+  --atlab-wall-h: 772px;
+  --atlab-floor-h: 2400px;
+  --floor-native-h: 2017px;
   position: relative;
   width: var(--atlab-w);
   height: calc(var(--atlab-wall-h) + var(--atlab-floor-h));
@@ -68,13 +69,26 @@
   background: #7ea4b8;
 }
 
-.floor-preview {
+/*
+ * Map stage: laid out at scan aspect (--floor-native-h), then scaleY to fill the
+ * floor band so labels read better when the floor is viewed at an angle.
+ */
+.floor-preview,
+.floor-viewer,
+.atlab-floor > .sea-underlay.is-pinned,
+.floor-overlays {
   position: absolute;
-  inset: 0;
-  z-index: 0;
+  left: 0;
+  top: 0;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  height: var(--floor-native-h);
+  transform: scaleY(calc(var(--atlab-floor-h) / var(--floor-native-h)));
+  transform-origin: top center;
+}
+
+.floor-preview {
+  z-index: 0;
+  object-fit: fill;
   object-position: center;
   display: block;
   pointer-events: none;
@@ -85,10 +99,6 @@
 }
 
 .floor-viewer {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   z-index: 2;
   background: transparent;
 }
@@ -111,17 +121,11 @@
 
 /* Full-bleed sea (not an OSD overlay) — immune to viewport/resize redraws. */
 .atlab-floor > .sea-underlay.is-pinned {
-  position: absolute;
-  inset: 0;
   z-index: 1;
-  width: 100%;
-  height: 100%;
 }
 
 /* Reserved for future highlight overlays (above the map, below nothing) */
 .floor-overlays {
-  position: absolute;
-  inset: 0;
   z-index: 2;
   pointer-events: none;
 }
