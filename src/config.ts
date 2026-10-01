@@ -19,13 +19,23 @@ export const INTRO_FOCUS = {
 } as const
 
 /**
+ * Map scan aspect (width ÷ height). Matches preview / DZI (9219×5258).
+ * ATLab floor height is derived from this so the map is neither squashed nor side-cropped.
+ */
+export const MAP_ASPECT = 9219 / 5258
+
+/**
  * ATLab dual-canvas layout (wall + floor stacked).
  * Browse at `/atlab` — fixed pixel frame for the exhibition screens.
  */
 export const ATLAB = {
   width: 3536,
   wallHeight: 808,
-  floorHeight: 2400,
+  /**
+   * Floor height at map aspect for `width` (was 2400 — too tall → horizontal squash / side crop).
+   * ~2017 = round(3536 / MAP_ASPECT).
+   */
+  floorHeight: Math.round(3536 / MAP_ASPECT),
 } as const
 
 /**

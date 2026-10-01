@@ -1,5 +1,6 @@
 import OpenSeadragon, { type Viewer, type TiledImage } from 'openseadragon'
 import seaBlocsFile from '../../data/sea-blocs.json'
+import { MAP_ASPECT } from '../config'
 
 const LAND_URL = '/land/map-land.webp?v=21'
 /** Canonical seigaiha tile — default for seas 1 & 3. */
@@ -8,8 +9,6 @@ const FADE_MS = 650
 const DRIFT_MS = 36_000
 /** Default tile aspect (height / width) for wave-seigaiha.jpg */
 const WAVE_TILE_ASPECT = 608 / 704
-/** Map preview aspect (width / height) — needed for SVG userSpace Y scale */
-const MAP_ASPECT = 9219 / 5258
 
 type SeaBloc = {
   id: number

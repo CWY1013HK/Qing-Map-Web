@@ -8,7 +8,7 @@ import { bootInteractiveViewer } from '../viewer/bootViewer'
 import { bootFloorViewer } from './bootFloor'
 
 /**
- * Fixed ATLab pixel frame (3536 × 3208).
+ * Fixed ATLab pixel frame (wall + aspect-correct floor).
  * Always scale to fit the browser so both wall + floor are visible
  * (native 1:1 when the window is at least that large).
  * Pass ?nofit=1 to scroll the raw pixel canvas instead.

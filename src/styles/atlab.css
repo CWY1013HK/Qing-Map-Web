@@ -1,4 +1,4 @@
-/* ATLab dual-canvas: Wall 3536×808 over Floor 3536×2400 */
+/* ATLab dual-canvas: Wall 3536×808 over Floor (map-aspect height from config) */
 
 .atlab-body {
   margin: 0;
@@ -11,7 +11,7 @@
 .atlab {
   --atlab-w: 3536px;
   --atlab-wall-h: 808px;
-  --atlab-floor-h: 2400px;
+  --atlab-floor-h: 2017px;
   position: relative;
   width: var(--atlab-w);
   height: calc(var(--atlab-wall-h) + var(--atlab-floor-h));
