@@ -34,13 +34,15 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
     showNavigationControl: false,
     showNavigator: false,
     animationTime: 0,
-    blendTime: 0.2,
+    blendTime: 0,
     immediateRender: true,
     imageLoaderLimit: 2,
     visibilityRatio: 1,
     minZoomImageRatio: 1,
     maxZoomPixelRatio: 1,
     maxImageCacheCount: 4,
+    /** Floor pixel box is fixed (3536×2400); CSS scale lives on #atlab. */
+    autoResize: false,
     homeFillsViewer: true,
     panHorizontal: false,
     panVertical: false,
@@ -70,7 +72,11 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
 
   const ensureMist = () => {
     if (!viewer.world.getItemAt(0)) return
-    if (!sea) sea = startSeaUnderlay(viewer, { lite: true })
+    if (!sea) {
+      const floorHost =
+        document.querySelector<HTMLElement>('#atlab-floor') ?? el
+      sea = startSeaUnderlay(viewer, { lite: true, host: floorHost })
+    }
     if (!mist) {
       mist = startFocusClouds(viewer, {
         canvas: el,
@@ -88,11 +94,6 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
     fitHome()
     hidePreview()
     ensureMist()
-    window.dispatchEvent(new Event('resize'))
-  })
-
-  viewer.addHandler('resize', () => {
-    fitHome()
   })
 
   viewer.addHandler('open-failed', () => {

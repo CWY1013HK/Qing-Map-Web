@@ -90,6 +90,11 @@ export type SeaUnderlayOptions = {
   lite?: boolean
   /** Freeze wave patterns (no patternTransform animation). */
   static?: boolean
+  /**
+   * Pin the underlay to this element (full-bleed) instead of an OSD overlay.
+   * Use on the ATLab floor so viewport/resize redraws cannot uncover a blank canvas.
+   */
+  host?: HTMLElement
 }
 
 function waveUrl(name: string | undefined): string {
@@ -126,6 +131,7 @@ export function startSeaUnderlay(
 ): SeaUnderlayHandle {
   const lite = opts.lite === true
   const staticWaves = opts.static === true
+  const host = opts.host ?? null
 
   const root = document.createElement('div')
   root.className = 'sea-underlay'
@@ -378,6 +384,14 @@ export function startSeaUnderlay(
   }
 
   const place = () => {
+    if (host) {
+      if (!attached) {
+        root.classList.add('is-pinned')
+        host.prepend(root)
+        attached = true
+      }
+      return
+    }
     const item = viewer.world.getItemAt(0) as TiledImage | null
     if (!item) return
     const bounds = item.getBounds()
@@ -472,14 +486,14 @@ export function startSeaUnderlay(
       restoreWorld()
       window.clearTimeout(removeTimer)
       removeTimer = window.setTimeout(() => {
-        if (attached) {
+        if (attached && !host) {
           try {
             viewer.removeOverlay(root)
           } catch {
             /* already removed */
           }
-          attached = false
         }
+        attached = false
         root.remove()
       }, FADE_MS)
     },

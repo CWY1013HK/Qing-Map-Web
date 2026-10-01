@@ -188,14 +188,14 @@ export type DecorCounts = {
  * bump the counts to re-enable.
  */
 export const DEFAULT_DECOR_COUNTS: DecorCounts = {
-  fuchuan: 5,
+  fuchuan: 15,
   mongol: 0,
   merchant: 0,
 }
 
 /** Sparse décor for the ATLab floor (keeps mist cheap on the large canvas). */
 export const FLOOR_DECOR_COUNTS: DecorCounts = {
-  fuchuan: 3,
+  fuchuan: 20,
   mongol: 0,
   merchant: 0,
 }
