@@ -97,9 +97,15 @@
   background: transparent !important;
 }
 
-/* Map world is faded for sea/land; hide the drawer so canvas clears cannot flash. */
 .floor-viewer .openseadragon-canvas {
   background: transparent !important;
+}
+
+/*
+ * Hide only the map <canvas>, not .openseadragon-canvas — OSD mounts
+ * mist / ships / ink overlays as siblings of that canvas inside the wrapper.
+ */
+.floor-viewer .openseadragon-canvas > canvas {
   opacity: 0 !important;
 }
 
