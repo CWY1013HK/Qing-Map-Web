@@ -29,6 +29,20 @@
   display: none;
 }
 
+/* Skip fade-in on the huge floor SVG — first paint was flashing white tiles. */
+.map-overlay-layer.is-lite .map-overlay-feature {
+  transition: none;
+}
+
+.map-overlay-layer.is-lite .map-overlay-feature:not(.is-active) {
+  content-visibility: hidden;
+  visibility: hidden;
+}
+
+.province-labels-layer.is-lite .province-labels-group {
+  transition: none;
+}
+
 .map-overlay-feature {
   opacity: 0;
   transition: opacity 0.55s ease;

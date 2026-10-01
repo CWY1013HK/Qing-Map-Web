@@ -464,7 +464,7 @@ export function startSeaUnderlay(
 
   const onAdd = () => {
     if (!stopping && root.classList.contains('is-visible')) fadeWorld(0)
-    place()
+    if (!host) place()
   }
   viewer.world.addHandler('add-item', onAdd)
   if (!staticWaves) {
