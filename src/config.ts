@@ -31,10 +31,10 @@ export const MAP_ASPECT = 9219 / 5258
 export const ATLAB = {
   width: 3536,
   /**
-   * Wall band height (~95% of the native 808px strip) so Edge app-mode
+   * Wall band height (~95% of the native 808px strip + 8px) so Edge app-mode
    * title chrome does not crowd the interactive map.
    */
-  wallHeight: Math.round(808 * 0.95),
+  wallHeight: Math.round(808 * 0.95) + 8,
   /**
    * Floor height at map aspect for `width` (was 2400 — too tall → horizontal squash / side crop).
    * ~2017 = round(3536 / MAP_ASPECT).
