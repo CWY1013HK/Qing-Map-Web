@@ -44,3 +44,6 @@ assets/land/land-alpha.png
 *.sw?
 .vercel
 .env*
+
+# Full CNS 說文解字 dump (subset is TW-Shuowen.ttf)
+assets/fonts/TW-Shuowen-full.ttf

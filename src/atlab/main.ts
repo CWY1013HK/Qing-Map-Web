@@ -47,6 +47,13 @@ window.addEventListener('resize', () => {
   window.dispatchEvent(new Event('qing-atlab-layout'))
 })
 
+if (new URLSearchParams(window.location.search).has('floorDebug')) {
+  document.getElementById('atlab')?.classList.add('floor-debug')
+  console.info(
+    '[atlab floorDebug] magenta=bg hole · lime=land mask · orange=wave svg · cyan outline=preview still up',
+  )
+}
+
 bootInteractiveViewer()
 bootFloorViewer()
 

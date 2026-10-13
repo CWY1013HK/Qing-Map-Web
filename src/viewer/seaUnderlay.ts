@@ -94,11 +94,44 @@ export type SeaUnderlayOptions = {
    * Use on the ATLab floor so viewport/resize redraws cannot uncover a blank canvas.
    */
   host?: HTMLElement
+  /**
+   * Fired after land + wave assets are decoded and the underlay has been marked
+   * visible (start of the CSS opacity fade). Use to drop a placeholder preview.
+   */
+  onReady?: () => void
 }
+
+/** Crossfade length — keep in sync with `.sea-underlay` CSS transition. */
+export const SEA_UNDERLAY_FADE_MS = FADE_MS
 
 function waveUrl(name: string | undefined): string {
   if (!name || name === 'wave-seigaiha.jpg') return WAVE_ORIGINAL
   return `/patterns/${name}?v=2`
+}
+
+/** Resolve when a URL is decoded (or failed) so we never block 淨 forever. */
+function preloadImage(url: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const done = () => resolve()
+    img.onload = done
+    img.onerror = done
+    img.src = url
+    if (img.complete) done()
+  })
+}
+
+function waitForImgElement(img: HTMLImageElement): Promise<void> {
+  if (img.complete) {
+    return img.decode?.().catch(() => undefined) ?? Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    const done = () => {
+      void (img.decode?.().catch(() => undefined) ?? Promise.resolve()).then(resolve)
+    }
+    img.addEventListener('load', done, { once: true })
+    img.addEventListener('error', () => resolve(), { once: true })
+  })
 }
 
 function clearTileCache(viewer: Viewer): void {
@@ -131,10 +164,14 @@ export function startSeaUnderlay(
   const lite = opts.lite === true
   const staticWaves = opts.static === true
   const host = opts.host ?? null
+  const onReady = opts.onReady
+  /** Namespace SVG ids so wall 淨 + floor underlays never share mask/pattern urls. */
+  const idNs = host ? 'floor' : 'wall'
 
   const root = document.createElement('div')
   root.className = 'sea-underlay'
   if (lite) root.classList.add('is-lite')
+  if (host) root.classList.add('is-floor')
   root.setAttribute('aria-hidden', 'true')
 
   const waveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -159,7 +196,7 @@ export function startSeaUnderlay(
     // Anchor tiles at the bloc's left edge so wavelength bands don't stair-step.
     const originX = bloc.x0
 
-    const pid = `sea-wave-pat-${bloc.id}-${i}`
+    const pid = `${idNs}-sea-wave-pat-${bloc.id}-${i}`
     const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern')
     pattern.setAttribute('id', pid)
     pattern.setAttribute('patternUnits', 'userSpaceOnUse')
@@ -184,7 +221,7 @@ export function startSeaUnderlay(
 
     let maskAttr: string | undefined
     if (bloc.fadeY) {
-      const gid = `sea-wave-fade-${bloc.id}-${i}`
+      const gid = `${idNs}-sea-wave-fade-${bloc.id}-${i}`
       const mid = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
       mid.setAttribute('id', gid)
       mid.setAttribute('gradientUnits', 'objectBoundingBox')
@@ -219,7 +256,7 @@ export function startSeaUnderlay(
         mid.append(stop)
       }
       defs.append(mid)
-      const midId = `sea-wave-mask-${bloc.id}-${i}`
+      const midId = `${idNs}-sea-wave-mask-${bloc.id}-${i}`
       const mask = document.createElementNS('http://www.w3.org/2000/svg', 'mask')
       mask.setAttribute('id', midId)
       mask.setAttribute('maskUnits', 'userSpaceOnUse')
@@ -252,7 +289,7 @@ export function startSeaUnderlay(
     const altAspect = useOwnAlt ? aspect : WAVE_TILE_ASPECT
     const altFrac = tileFrac * 1.28
     const altH = altFrac * MAP_ASPECT * altAspect
-    const pid2 = `sea-wave-pat2-${bloc.id}-${i}`
+    const pid2 = `${idNs}-sea-wave-pat2-${bloc.id}-${i}`
     const pattern2 = document.createElementNS('http://www.w3.org/2000/svg', 'pattern')
     pattern2.setAttribute('id', pid2)
     pattern2.setAttribute('patternUnits', 'userSpaceOnUse')
@@ -332,6 +369,7 @@ export function startSeaUnderlay(
   let attached = false
   let stopping = false
   let removeTimer = 0
+  let unloadTimer = 0
   let raf = 0
   let driftOrigin = performance.now()
   let pauseStarted = 0
@@ -343,6 +381,20 @@ export function startSeaUnderlay(
 
   const worldOpacities: number[] = []
 
+  const underlayAssetUrls = (): string[] => {
+    const urls = new Set<string>([LAND_URL, WAVE_ORIGINAL])
+    for (const bloc of waveBlocs) {
+      urls.add(waveUrl(bloc.wave))
+    }
+    return [...urls]
+  }
+
+  const waitForUnderlayAssets = (): Promise<void> =>
+    Promise.all([
+      ...underlayAssetUrls().map(preloadImage),
+      waitForImgElement(land),
+    ]).then(() => undefined)
+
   const applyDrift = (cycles: number) => {
     // Unwrapped cycle count — wrapping *before* multiplying by drift jumps
     // any pattern whose drift ≠ 1 when the global loop restarts.
@@ -353,10 +405,14 @@ export function startSeaUnderlay(
     }
   }
 
+  const introBusy = () =>
+    Boolean(host && document.getElementById('app')?.classList.contains('intro-active'))
+
   const tickDrift = (now: number) => {
     if (stopping) return
     raf = requestAnimationFrame(tickDrift)
-    if (preferStill || wavesPaused) return
+    // Floor: freeze wave masks while the wall intro still owns the GPU.
+    if (preferStill || wavesPaused || introBusy()) return
     const cycles = (now - driftOrigin - pauseAccum) / DRIFT_MS
     applyDrift(cycles)
   }
@@ -456,16 +512,34 @@ export function startSeaUnderlay(
   if (!staticWaves) {
     raf = requestAnimationFrame(tickDrift)
   }
-  requestAnimationFrame(() => {
+
+  /*
+   * Keep the DZI/map (and floor preview) painted until the land alpha-mask +
+   * wave tiles are decoded, then fade the underlay in and only unload after.
+   * The land plate is the real “mask” (transparent seas); revealing before it
+   * paints leaves holes that flash the floor background.
+   */
+  void waitForUnderlayAssets().then(() => {
+    if (stopping) return
     requestAnimationFrame(() => {
       if (stopping) return
       root.classList.add('is-visible')
-      fadeWorld(0)
+      try {
+        onReady?.()
+      } catch {
+        /* caller errors must not break underlay */
+      }
+      window.clearTimeout(unloadTimer)
+      unloadTimer = window.setTimeout(() => {
+        if (stopping) return
+        fadeWorld(0)
+      }, FADE_MS)
     })
   })
 
   const onAdd = () => {
-    if (!stopping && root.classList.contains('is-visible')) fadeWorld(0)
+    /* Only re-hide world items after the deferred unload has run. */
+    if (!stopping && worldOpacities.length > 0) fadeWorld(0)
     if (!host) place()
   }
   viewer.world.addHandler('add-item', onAdd)
@@ -479,6 +553,7 @@ export function startSeaUnderlay(
       if (stopping) return
       stopping = true
       cancelAnimationFrame(raf)
+      window.clearTimeout(unloadTimer)
       viewer.world.removeHandler('add-item', onAdd)
       if (!staticWaves) {
         viewer.removeHandler('animation', onAnimation)

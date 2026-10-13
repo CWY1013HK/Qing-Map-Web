@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "id": "jiaqing-1812",
+  "title": "嘉慶十七年",
+  "i18n": {
+    "zh-Hans": { "title": "嘉庆十七年" },
+    "en": { "title": "Jiaqing 17 (1812)" }
+  },
+  "narrationDir": "jiaqing-1812",
+  "sealTitle": "世界略覽",
+  "steps": [
+    {
+      "type": "overlays",
+      "show": ["zhongguo", "hailu"],
+      "hide": ["handi-shibasheng", "xiandai-zhongguo"]
+    },
+    {
+      "id": "year",
+      "type": "stop",
+      "camera": {
+        "x": 0.9365,
+        "y": 0.651,
+        "zoomFactor": 2.4,
+        "durationMs": 2800
+      },
+      "caption": {
+        "zh-Hant": "嘉慶十七年 · 題識",
+        "zh-Hans": "嘉庆十七年 · 题识",
+        "en": "Jiaqing 17 · Colophon"
+      },
+      "narrate": "year",
+      "waitAfterMs": 400
+    },
+    {
+      "id": "russia",
+      "type": "stop",
+      "camera": {
+        "labelId": "russia",
+        "zoomFactor": 3.2,
+        "durationMs": 3200
+      },
+      "overlays": { "show": ["hailu"] },
+      "caption": {
+        "zh-Hant": "俄羅斯 · 拿破崙東征",
+        "zh-Hans": "俄罗斯 · 拿破仑东征",
+        "en": "Russia · Napoleon’s invasion"
+      },
+      "narrate": "russia",
+      "waitAfterMs": 400
+    },
+    {
+      "id": "england",
+      "type": "stop",
+      "camera": {
+        "labelId": "england",
+        "zoomFactor": 4.0,
+        "durationMs": 3000
+      },
+      "caption": {
+        "zh-Hant": "英國 · 一八一二年戰爭",
+        "zh-Hans": "英国 · 一八一二年战争",
+        "en": "Britain · War of 1812"
+      },
+      "narrate": "england",
+      "waitAfterMs": 400
+    },
+    {
+      "id": "tartary",
+      "type": "stop",
+      "camera": {
+        "labelId": "menggu",
+        "zoomFactor": 2.2,
+        "durationMs": 3400
+      },
+      "overlays": { "show": ["zhongguo"], "hide": ["hailu"] },
+      "draw": { "featureId": "zhongguo", "durationMs": 4000 },
+      "caption": {
+        "zh-Hant": "中國韃靼 · 藩部與新邊",
+        "zh-Hans": "中国鞑靼 · 藩部与新边",
+        "en": "Chinese Tartary · Outer dependencies"
+      },
+      "narrate": "tartary",
+      "waitAfterMs": 400
+    },
+    {
+      "id": "tribute",
+      "type": "stop",
+      "camera": {
+        "labelId": "korea",
+        "zoomFactor": 2.6,
+        "durationMs": 3000
+      },
+      "overlays": { "show": ["hailu", "zhongguo"] },
+      "draw": { "featureId": "hailu", "durationMs": 5000 },
+      "caption": {
+        "zh-Hant": "職貢 · 朝貢網絡",
+        "zh-Hans": "职贡 · 朝贡网络",
+        "en": "Tribute · The tributary web"
+      },
+      "narrate": "tribute",
+      "waitAfterMs": 400
+    },
+    {
+      "id": "colophon",
+      "type": "stop",
+      "camera": {
+        "x": 0.9365,
+        "y": 0.651,
+        "zoomFactor": 2.2,
+        "durationMs": 2800
+      },
+      "caption": {
+        "zh-Hant": "同一年 · 幾幅世界",
+        "zh-Hans": "同一年 · 几幅世界",
+        "en": "One year · Several worlds"
+      },
+      "narrate": "colophon",
+      "waitAfterMs": 600
+    },
+    {
+      "type": "camera",
+      "home": true,
+      "durationMs": 4000
+    }
+  ]
+}

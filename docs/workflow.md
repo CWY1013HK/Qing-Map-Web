@@ -39,9 +39,12 @@ Toggles via bottom-left seals (`#overlay-seal-handi`, `#overlay-seal-zhongguo`).
 
 Implement under `src/popups/`. Bind clicks/hotspots to annotation records (title, body, tags).
 
-## 6. Transition animations
+## 6. Tours and narration
 
-Implement under `src/transitions/` and optional JSON under `data/transitions/` (camera paths, fades, sequenced reveals).
+- Tour JSON: [`data/transitions/`](../data/transitions/) — see [tours.md](./tours.md).
+- Voice scripts: [`data/narration/`](../data/narration/) — see [narration.md](./narration.md).
+- Bake audio: `npm run generate-narration -- --tour <id>` ([scripts/generate-narration.md](../scripts/generate-narration.md)).
+- Runtime player under `src/transitions/` (camera / overlays / draw / narrate); intro seal stays in `src/viewer/intro.ts`.
 
 ## 7. TouchDesigner sync
 

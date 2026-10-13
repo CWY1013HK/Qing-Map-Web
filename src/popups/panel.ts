@@ -94,13 +94,17 @@ function fillAnnotationContent(annotation: Annotation): void {
   if (titleEl) titleEl.textContent = localized.title
   renderAkaTable(localized.aka)
   if (bodyEl) {
-    bodyEl.textContent = localized.body?.trim() || ''
-    bodyEl.hidden = !localized.body?.trim()
+    const raw = localized.body ?? ''
+    bodyEl.textContent = raw.replace(/[ \t\n]+$/, '')
+    bodyEl.hidden = !raw.trim()
   }
+  const lines = (localized.body ?? '').split('\n').filter((line) => line.trim().length > 0)
+  const unwrapped = lines.length >= 4
   panelEl?.classList.toggle(
     'annotation-popup--long',
     (localized.body?.trim().length ?? 0) > 180,
   )
+  panelEl?.classList.toggle('annotation-popup--unwrapped', unwrapped)
 }
 
 function waitForAnimation(panel: HTMLElement, className: string, fallbackMs: number): Promise<void> {

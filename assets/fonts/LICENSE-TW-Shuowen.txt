@@ -1,0 +1,4 @@
+TW-Shuowen — subset of 全字庫「說文解字」True Type (小篆) for tour seals (世界略覽).
+Source: https://www.cns11643.gov.tw/ (ebas927.ttf)
+Licence: OFL-1.1 / 政府資料開放授權 — https://www.cns11643.gov.tw/pageView.jsp?ID=59
+Full dump (optional, gitignored): TW-Shuowen-full.ttf

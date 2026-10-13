@@ -3,6 +3,7 @@
  *
  * - TW-MOE-Li (教育部隸書): map province labels — CC BY-ND 3.0 TW
  * - LXGW WenKai Lite (霞鹜文楷): popups / body copy — OFL 1.1
+ * - TW-Shuowen (全字庫說文解字 / 小篆): tour seals — CNS11643 OFL-1.1
  */
 @font-face {
   font-family: 'TW-MOE-Li';
@@ -20,10 +21,20 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'TW-Shuowen';
+  src: url('/fonts/TW-Shuowen.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Map labels — LiShu first; Kai buffer for missing glyphs (e.g. 撾) before SongTi. */
   --font-lishu: Georgia, 'TW-MOE-Li', 'Libian SC', 'Baoli SC', 'LXGW WenKai Lite',
     'Kaiti TC', 'Kaiti SC', KaiTi, 'STKaiti', serif;
   /* Popups / UI — Georgia for Latin, Kai for Han (per-glyph fallback). */
   --font-kaiti: Georgia, 'LXGW WenKai Lite', 'Kaiti TC', 'Kaiti SC', KaiTi, 'STKaiti', serif;
+  /* Imperial / tour seals — 小篆 (說文解字). */
+  --font-xiaozhuan: 'TW-Shuowen', 'STZhongsong', 'Baoli SC', 'TW-MOE-Li', serif;
 }

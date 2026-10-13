@@ -11,6 +11,7 @@ import { focusIntroRegion, mountIntro } from './intro'
 import { mountFocusMode } from './focusMode'
 import { mountMusicToggle } from './musicToggle'
 import { clearHighResTileCache } from './seaUnderlay'
+import { mountTourSeals } from '../transitions/seals'
 
 /** Permanent OSD underlayer — pans/zooms with DZI; shows through unloaded tiles. */
 const UNDERLAY_URL = '/map-preview-low.jpg'
@@ -129,6 +130,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   landWarm.src = '/land/map-land.webp?v=21'
   mountOverlaysOnViewer(viewer)
   mountOverlaySealControls()
+  mountTourSeals(viewer)
   const provinceLabels = mountProvinceLabels(viewer)
   if (import.meta.env.DEV) {
     void import('../overlays/vertexEditor').then(({ mountOverlayVertexEditor }) => {

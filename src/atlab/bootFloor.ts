@@ -3,7 +3,11 @@ import { FLOOR_DECOR_COUNTS } from '../lib/mapDecor'
 import { mountOverlaysOnViewer } from '../overlays/manager'
 import { mountProvinceLabels } from '../overlays/provinceLabels'
 import { startFocusClouds, type FocusCloudsHandle } from '../viewer/focusMode'
-import { startSeaUnderlay, type SeaUnderlayHandle } from '../viewer/seaUnderlay'
+import {
+  SEA_UNDERLAY_FADE_MS,
+  startSeaUnderlay,
+  type SeaUnderlayHandle,
+} from '../viewer/seaUnderlay'
 
 /** Floor stays at home zoom — low-res single image is enough (no DZI). */
 const PREVIEW_URL = '/map-preview-low.jpg'
@@ -22,6 +26,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
 
   let mist: FocusCloudsHandle | null = null
   let sea: SeaUnderlayHandle | null = null
+  let previewHoldTimer = 0
 
   const viewer = OpenSeadragon({
     element: el,
@@ -70,12 +75,26 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
     if (preview) preview.hidden = true
   }
 
+  /**
+   * Hold the low-res preview under the transparent OSD canvas until the land
+   * alpha-mask (map-land.webp) has faded in — otherwise seas flash the floor
+   * background through holes in an unready mask.
+   */
+  const releasePreviewAfterMask = () => {
+    window.clearTimeout(previewHoldTimer)
+    previewHoldTimer = window.setTimeout(hidePreview, SEA_UNDERLAY_FADE_MS)
+  }
+
   const ensureMist = () => {
     if (!viewer.world.getItemAt(0)) return
     if (!sea) {
       const floorHost =
         document.querySelector<HTMLElement>('#atlab-floor') ?? el
-      sea = startSeaUnderlay(viewer, { lite: true, host: floorHost })
+      sea = startSeaUnderlay(viewer, {
+        lite: true,
+        host: floorHost,
+        onReady: releasePreviewAfterMask,
+      })
     }
     if (!mist) {
       mist = startFocusClouds(viewer, {
@@ -89,14 +108,19 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
 
   mountOverlaysOnViewer(viewer, { lite: true })
   mountProvinceLabels(viewer, { lite: true })
+  // Floor follows overlay show/hide via overlayStore, but must not zoom with tours.
+  void import('../transitions/player').then(({ getTourPlayer }) => {
+    getTourPlayer().registerViewer(viewer, { camera: false })
+  })
 
   viewer.addHandler('open', () => {
     fitHome()
-    hidePreview()
+    // Do NOT hide preview here — wait for land mask ready (onReady).
     ensureMist()
   })
 
   viewer.addHandler('open-failed', () => {
+    window.clearTimeout(previewHoldTimer)
     if (preview) preview.hidden = false
   })
 

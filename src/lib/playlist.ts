@@ -27,6 +27,9 @@ class MapPlaylist {
   private unlockBound = false
   private started = false
   private muted = false
+  /** Soften soundtrack under tour voiceovers without stopping the timeline. */
+  private ducked = false
+  private readonly duckFactor = 0.28
   private readonly unlockHandler = (e: PointerEvent) => this.onUnlockPointer(e)
   private readonly onAudioEnded = () => this.onEnded()
 
@@ -47,6 +50,21 @@ class MapPlaylist {
   toggleMuted(): boolean {
     this.setMuted(!this.muted)
     return this.muted
+  }
+
+  /** Lower (or restore) soundtrack volume while a tour narrates. */
+  setDucked(ducked: boolean): void {
+    this.ducked = ducked
+    this.applyDuckToCurrent()
+  }
+
+  private applyDuckToCurrent(): void {
+    if (this.muted || this.audio.paused) return
+    const base = AUDIO.volume
+    const target = this.ducked ? base * this.duckFactor : base
+    // Don't fight Chao Tian Zi entry spike — only duck ambient levels.
+    if (this.phase === 'entry') return
+    this.audio.volume = target
   }
 
   private bindAudio(el: HTMLAudioElement): void {

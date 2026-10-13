@@ -188,6 +188,23 @@
   max-height: min(52vh, 460px);
 }
 
+/* Inscriptions broken into source lines: one visual line each, as wide as the text. */
+.annotation-popup--long.annotation-popup--unwrapped {
+  --popup-w: max-content;
+  max-width: 96vw;
+}
+
+.annotation-popup--unwrapped .annotation-popup-paper {
+  max-height: min(70vh, 560px);
+}
+
+.annotation-popup--unwrapped .annotation-popup-body {
+  width: max-content;
+  white-space: pre;
+  text-align: left;
+  text-align-last: left;
+}
+
 /* Credits needs more width for font attribution rows */
 .credits-popup {
   --popup-w: min(520px, 92vw);

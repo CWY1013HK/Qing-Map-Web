@@ -535,6 +535,8 @@ export function mountFocusMode(viewer: Viewer): void {
 
   let handle: FocusCloudsHandle | null = null
   let sea: SeaUnderlayHandle | null = null
+  /** True when 淨 was entered for a tour (release on tour end). */
+  let heldByTour = false
 
   const enter = () => {
     if (handle) return
@@ -556,6 +558,7 @@ export function mountFocusMode(viewer: Viewer): void {
 
   const exit = () => {
     if (!handle) return
+    heldByTour = false
     btn.setAttribute('aria-pressed', 'false')
     handle.stop()
     handle = null
@@ -571,8 +574,23 @@ export function mountFocusMode(viewer: Viewer): void {
     else enter()
   })
 
+  /* Tour player requests 淨 for chrome fade (CustomEvent avoids import cycles). */
+  window.addEventListener('qing-tour-playing', ((e: CustomEvent<{ playing: boolean }>) => {
+    if (e.detail.playing) {
+      if (!handle) {
+        enter()
+        heldByTour = true
+      }
+      /* Already in 淨: keep heldByTour as-is (true across tour switches). */
+      return
+    }
+    if (heldByTour) exit()
+  }) as EventListener)
+
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && handle) {
+    if (e.key !== 'Escape') return
+    /* Tour Esc is handled in capture by the player; here only plain 淨 exit. */
+    if (handle && !heldByTour) {
       e.preventDefault()
       exit()
     }

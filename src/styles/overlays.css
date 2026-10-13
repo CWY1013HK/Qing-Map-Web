@@ -302,13 +302,84 @@ html:lang(zh-Hans) .province-label--xiandai {
 }
 
 
-.overlay-seals {
-  /* Width-driven 令牌 sizing so different tablet lengths share the same scale */
-  --lingpai-w: min(61px, 10cqmin, 12.2vw);
+/* Bottom-left stack: tour seals above overlay 令牌 */
+.map-seal-stack {
   position: absolute;
   left: 1rem;
   bottom: 1.15rem;
   z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.95rem;
+}
+
+.tour-seals {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.tour-seals[hidden] {
+  display: none !important;
+}
+
+/**
+ * Square tour seal — transparent PNG stamp (same language as #intro-seal).
+ */
+.tour-seal {
+  --tour-seal-size: min(66px, 10.5cqmin, 12vw);
+  width: var(--tour-seal-size);
+  height: var(--tour-seal-size);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 10px rgba(80, 0, 0, 0.28));
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    opacity 0.35s ease;
+}
+
+.tour-seal img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tour-seal:hover {
+  transform: scale(1.06) translateY(-2px);
+  filter: drop-shadow(0 8px 18px rgba(140, 0, 0, 0.45)) brightness(1.06)
+    saturate(1.08);
+}
+
+.tour-seal:active {
+  transform: scale(0.97);
+}
+
+.tour-seal:focus-visible {
+  outline: 2px solid var(--chrome-focus, #d4b56a);
+  outline-offset: 3px;
+}
+
+.tour-seal.is-pressed,
+.tour-seal[aria-pressed='true'] {
+  filter: drop-shadow(0 0 12px rgba(220, 40, 50, 0.8))
+    drop-shadow(0 4px 10px rgba(60, 0, 0, 0.35)) brightness(1.06);
+}
+
+.overlay-seals {
+  /* Width-driven 令牌 sizing so different tablet lengths share the same scale */
+  --lingpai-w: min(61px, 10cqmin, 12.2vw);
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
   display: flex;
   flex-direction: row;
   align-items: flex-start; /* top-align tablets of different lengths */
@@ -387,17 +458,65 @@ html:lang(zh-Hans) .province-label--xiandai {
     drop-shadow(0 4px 10px rgba(0, 60, 80, 0.4)) brightness(1.06);
 }
 
-#app.intro-active .overlay-seals {
+#app.intro-active .map-seal-stack,
+#app.intro-active .overlay-seals,
+#app.intro-active .tour-seals {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
 }
 
-#app.focus-mode .overlay-seals {
+#app.focus-mode .map-seal-stack,
+#app.focus-mode .overlay-seals,
+#app.focus-mode .tour-seals {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
   transition: opacity 0.4s ease;
+}
+
+/* Keep tour transcript visible while chrome is in 淨 */
+#app.focus-mode .tour-caption:not([hidden]) {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: none;
+}
+
+/* Tour caption — transcript under voiceover (Manchu stays visible here) */
+.tour-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 1.35rem;
+  z-index: 8;
+  transform: translateX(-50%);
+  max-width: min(42rem, 88vw);
+  padding: 0.75rem 1.15rem 0.9rem;
+  border-radius: 2px;
+  background: rgba(28, 22, 16, 0.72);
+  color: #f3e8d4;
+  text-align: center;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.tour-caption[hidden] {
+  display: none !important;
+}
+
+.tour-caption-title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-kaiti);
+  font-size: clamp(0.95rem, 1.6cqmin, 1.15rem);
+  letter-spacing: 0.06em;
+}
+
+.tour-caption-body {
+  margin: 0;
+  font-family: var(--font-kaiti);
+  font-size: clamp(0.78rem, 1.35cqmin, 0.95rem);
+  line-height: 1.55;
+  opacity: 0.92;
+  white-space: pre-wrap;
 }
 
 /* —— Dev: overlay vertex editor —— */

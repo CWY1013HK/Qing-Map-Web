@@ -12,7 +12,8 @@
     "copy-previews": "node scripts/copy-previews.mjs",
     "extract-overlays": "node scripts/extract-crimson-outline.mjs",
     "extract-zhongguo": "node scripts/extract-zhongguo-outline.mjs",
-    "build-land-plate": "python3 scripts/build-land-plate.py"
+    "build-land-plate": "python3 scripts/build-land-plate.py",
+    "generate-narration": "node scripts/generate-narration.mjs"
   },
   "devDependencies": {
     "@types/openseadragon": "^5.0.2",
