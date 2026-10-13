@@ -31,8 +31,12 @@ A **stop** may include:
 - `camera` — `{ x, y, zoomFactor, durationMs }` or `{ labelId, zoomFactor, durationMs }` (resolve `labelId` from [`province-labels.json`](../data/overlays/province-labels.json))
 - `caption` — short titles per locale (UI chrome)
 - `narrate` — stop id matching a `## heading` in the narration markdown
+- `music` — optional underscore `{ path, volume? }` (stops with the dialogue line)
+- `images` — optional `{ src, alt? }[]` white-framed draggable stills (cleared with the line)
 - `draw` — `{ featureId, durationMs }` stroke reveal of an existing overlay
 - `waitAfterMs` — pause after narration
+
+On start, the player snapshots overlay visibility and restores it exactly when the tour ends or is cancelled (Esc / seal toggle) so no tour borders linger.
 
 ## Current tours
 

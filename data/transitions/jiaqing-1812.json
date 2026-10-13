@@ -46,6 +46,20 @@
         "en": "Russia · Napoleon’s invasion"
       },
       "narrate": "russia",
+      "music": {
+        "path": "/audio/tours/jiaqing-1812/cues/la-marseillaise.mp3",
+        "volume": 0.42
+      },
+      "images": [
+        {
+          "src": "/tours/jiaqing-1812/napoleon-1812-staff.png",
+          "alt": "Napoleon and staff, 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/napoleon-1812-moscow.jpg",
+          "alt": "Napoleon before burning Moscow, 1812"
+        }
+      ],
       "waitAfterMs": 400
     },
     {
@@ -62,6 +76,20 @@
         "en": "Britain · War of 1812"
       },
       "narrate": "england",
+      "music": {
+        "path": "/audio/tours/jiaqing-1812/cues/star-spangled-banner.mp3",
+        "volume": 0.42
+      },
+      "images": [
+        {
+          "src": "/tours/jiaqing-1812/war-1812-new-orleans.jpg",
+          "alt": "Battle of New Orleans, War of 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/war-1812-naval.jpg",
+          "alt": "Naval battle, War of 1812"
+        }
+      ],
       "waitAfterMs": 400
     },
     {
@@ -72,12 +100,15 @@
         "zoomFactor": 2.2,
         "durationMs": 3400
       },
-      "overlays": { "show": ["zhongguo"], "hide": ["hailu"] },
+      "overlays": {
+        "show": ["zhongguo", "handi-shibasheng"],
+        "hide": ["hailu"]
+      },
       "draw": { "featureId": "zhongguo", "durationMs": 4000 },
       "caption": {
-        "zh-Hant": "中國韃靼 · 藩部與新邊",
-        "zh-Hans": "中国鞑靼 · 藩部与新边",
-        "en": "Chinese Tartary · Outer dependencies"
+        "zh-Hant": "中屬韃靼利亞（Chinese Tartary）· 藩部與新邊",
+        "zh-Hans": "中属鞑靼利亚（Chinese Tartary）· 藩部与新边",
+        "en": "中屬韃靼利亞 (Chinese Tartary) · Outer dependencies"
       },
       "narrate": "tartary",
       "waitAfterMs": 400
@@ -90,7 +121,10 @@
         "zoomFactor": 2.6,
         "durationMs": 3000
       },
-      "overlays": { "show": ["hailu", "zhongguo"] },
+      "overlays": {
+        "show": ["hailu", "zhongguo"],
+        "hide": ["handi-shibasheng"]
+      },
       "draw": { "featureId": "hailu", "durationMs": 5000 },
       "caption": {
         "zh-Hant": "職貢 · 朝貢網絡",

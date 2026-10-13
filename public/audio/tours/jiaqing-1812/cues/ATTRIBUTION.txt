@@ -1,0 +1,12 @@
+Tour incidental cues (public domain)
+
+la-marseillaise.mp3
+  Title: La Marseillaise
+  Performance: U.S. Navy Band (instrumental)
+  Source: Wikimedia Commons — File:La Marseillaise.ogg
+  License: Public domain (U.S. government work / PD composition)
+
+star-spangled-banner.mp3
+  Title: The Star-Spangled Banner (instrumental)
+  Source: Internet Archive — national-anthem-united-states-star-spangled-banner
+  License: Public domain composition; instrumental recording used as PD/CC0 upload on Archive.org

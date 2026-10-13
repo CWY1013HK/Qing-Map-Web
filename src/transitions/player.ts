@@ -8,12 +8,21 @@ import labelsJson from '../../data/overlays/province-labels.json'
 import { tweenCameras, type LabelPointLookup } from './camera'
 import { hideTourCaption, showTourCaption } from './caption'
 import { drawOverlayFeature } from './draw'
+import { clearTourFrames, showTourFrames } from './frames'
 import {
   captionWithManchu,
   loadNarrationScript,
   playVoiceover,
 } from './narration'
 import type { TourDefinition, TourStep } from './types'
+
+/** Overlay ids the tour may toggle — always restored to the pre-tour snapshot. */
+const TOUR_OVERLAY_IDS = [
+  'handi-shibasheng',
+  'zhongguo',
+  'hailu',
+  'xiandai-zhongguo',
+] as const
 
 export type RegisterViewerOptions = {
   /**
@@ -75,8 +84,10 @@ export function getTourPlayer(): TourPlayer {
   let abort: AbortController | null = null
   /** Aborts only the current dialogue beat (not the whole tour). */
   let lineAbort: AbortController | null = null
-  let savedVisible: string[] = []
+  /** Exact visibility snapshot at tour start (`null` = nothing to restore). */
+  let savedVisible: ReadonlySet<string> | null = null
   let skipBtn: HTMLButtonElement | null = null
+  let clearFrames: (() => void) | null = null
 
   const cameraViewers = () => viewers.filter((v) => v.camera).map((v) => v.viewer)
 
@@ -98,17 +109,19 @@ export function getTourPlayer(): TourPlayer {
   }
 
   const restoreOverlays = () => {
-    if (!savedVisible.length) return
-    const all = new Set([
-      ...savedVisible,
-      'handi-shibasheng',
-      'zhongguo',
-      'hailu',
-      'xiandai-zhongguo',
-    ])
+    if (savedVisible == null) return
+    const snapshot = savedVisible
+    savedVisible = null
+    const all = new Set<string>([...TOUR_OVERLAY_IDS, ...snapshot, ...overlayStore.getVisible()])
     for (const id of all) {
-      overlayStore.setVisible(id, savedVisible.includes(id))
+      overlayStore.setVisible(id, snapshot.has(id))
     }
+  }
+
+  const disposeLineChrome = () => {
+    clearFrames?.()
+    clearFrames = null
+    clearTourFrames()
   }
 
   const skipLine = () => {
@@ -124,6 +137,7 @@ export function getTourPlayer(): TourPlayer {
     const wasPlaying = playingId != null
     playingId = null
     hideTourCaption()
+    disposeLineChrome()
     getPlaylist().setDucked(false)
     restoreOverlays()
     if (wasPlaying) {
@@ -198,7 +212,28 @@ export function getTourPlayer(): TourPlayer {
     const onTourAbort = () => lineAbort?.abort()
     signal.addEventListener('abort', onTourAbort, { once: true })
 
+    let cue: HTMLAudioElement | null = null
     try {
+      if (step.images?.length) {
+        clearFrames = showTourFrames(step.images)
+      }
+
+      if (step.music?.path) {
+        cue = new Audio(step.music.path)
+        cue.preload = 'auto'
+        cue.volume = Math.max(0, Math.min(1, step.music.volume ?? 0.4))
+        const stopCue = () => {
+          if (!cue) return
+          cue.pause()
+          cue.src = ''
+          cue = null
+        }
+        lineSignal.addEventListener('abort', stopCue, { once: true })
+        void cue.play().catch(() => {
+          stopCue()
+        })
+      }
+
       const drawP = step.draw
         ? drawOverlayFeature(step.draw.featureId, step.draw.durationMs, lineSignal)
         : Promise.resolve()
@@ -214,6 +249,12 @@ export function getTourPlayer(): TourPlayer {
       if (signal.aborted) return
       if (step.waitAfterMs) await sleep(step.waitAfterMs, lineSignal)
     } finally {
+      if (cue) {
+        cue.pause()
+        cue.src = ''
+        cue = null
+      }
+      disposeLineChrome()
       signal.removeEventListener('abort', onTourAbort)
       lineAbort = null
     }
@@ -226,7 +267,11 @@ export function getTourPlayer(): TourPlayer {
     if (playingId == null || !lineAbort || lineAbort.signal.aborted) return
     const target = e.target
     if (!(target instanceof Element)) return
-    if (target.closest('#tour-skip, a, button, input, textarea, select, label')) {
+    if (
+      target.closest(
+        '#tour-skip, .tour-frame, .tour-frames, a, button, input, textarea, select, label',
+      )
+    ) {
       return
     }
     e.preventDefault()
@@ -261,7 +306,7 @@ export function getTourPlayer(): TourPlayer {
       }
       stop({ keepFocus: true })
       ensureSkipButton()
-      savedVisible = [...overlayStore.getVisible()]
+      savedVisible = overlayStore.getVisible()
       playingId = tour.id
       abort = new AbortController()
       const signal = abort.signal
@@ -279,6 +324,7 @@ export function getTourPlayer(): TourPlayer {
           playingId = null
           lineAbort = null
           hideTourCaption()
+          disposeLineChrome()
           getPlaylist().setDucked(false)
           restoreOverlays()
           setTourDragging(true)

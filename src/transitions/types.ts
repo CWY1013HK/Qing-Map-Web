@@ -26,6 +26,18 @@ export type TourDrawOp = {
   durationMs?: number
 }
 
+/** Incidental underscore for a stop (anthem, etc.) — stops with the dialogue line. */
+export type TourMusicCue = {
+  path: string
+  volume?: number
+}
+
+/** Draggable white-framed stills shown for the duration of a stop. */
+export type TourFrameSpec = {
+  src: string
+  alt?: string
+}
+
 export type TourStopStep = {
   type: 'stop'
   id?: string
@@ -35,6 +47,10 @@ export type TourStopStep = {
   caption?: TourLocaleText
   /** Narration markdown heading id */
   narrate?: string
+  /** Optional underscore cue (e.g. national anthem) under the line */
+  music?: TourMusicCue
+  /** Optional framed illustrations for this line */
+  images?: TourFrameSpec[]
   waitAfterMs?: number
 }
 

@@ -475,9 +475,10 @@ html:lang(zh-Hans) .province-label--xiandai {
   transition: opacity 0.4s ease;
 }
 
-/* Keep tour transcript + skip control visible while chrome is in 淨 */
+/* Keep tour transcript + skip + frames visible while chrome is in 淨 */
 #app.focus-mode .tour-caption:not([hidden]),
-#app.focus-mode .tour-skip:not([hidden]) {
+#app.focus-mode .tour-skip:not([hidden]),
+#app.focus-mode .tour-frames {
   opacity: 1;
   visibility: visible;
 }
@@ -486,7 +487,8 @@ html:lang(zh-Hans) .province-label--xiandai {
   pointer-events: none;
 }
 
-#app.focus-mode .tour-skip:not([hidden]) {
+#app.focus-mode .tour-skip:not([hidden]),
+#app.focus-mode .tour-frame {
   pointer-events: auto;
 }
 
@@ -574,6 +576,86 @@ html:lang(zh-Hans) .province-label--xiandai {
   bottom: 1.35rem;
   width: 2.35rem;
   height: 2.35rem;
+}
+
+/* Draggable white-framed tour stills (corner scatter) */
+.tour-frames {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tour-frame {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  padding: 0.45rem 0.45rem 0.7rem;
+  max-width: min(22vw, 280px);
+  width: min(22vw, 280px);
+  background: #f7f4ee;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 8px 28px rgba(20, 12, 4, 0.38),
+    0 2px 6px rgba(20, 12, 4, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  opacity: 0;
+  transform: translateY(6px) rotate(var(--tour-frame-tilt, 0deg));
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+  user-select: none;
+}
+
+.tour-frame.is-visible {
+  opacity: 1;
+  transform: translateY(0) rotate(var(--tour-frame-tilt, 0deg));
+}
+
+.tour-frame.is-dragging {
+  cursor: grabbing;
+  z-index: 2;
+  transition: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 14px 36px rgba(20, 12, 4, 0.45);
+}
+
+.tour-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(28vh, 220px);
+  object-fit: cover;
+  pointer-events: none;
+  background: #ddd6c8;
+}
+
+.tour-frame[data-corner='tl'] {
+  --tour-frame-tilt: -2.2deg;
+}
+.tour-frame[data-corner='tr'] {
+  --tour-frame-tilt: 1.8deg;
+}
+.tour-frame[data-corner='bl'] {
+  --tour-frame-tilt: 2.4deg;
+}
+.tour-frame[data-corner='br'] {
+  --tour-frame-tilt: -1.6deg;
+}
+
+.atlab-wall .tour-frame {
+  max-width: min(18cqw, 220px);
+  width: min(18cqw, 220px);
+  padding: 0.35rem 0.35rem 0.55rem;
+}
+
+.atlab-wall .tour-frame img {
+  max-height: min(22cqh, 160px);
 }
 
 /* —— Dev: overlay vertex editor —— */

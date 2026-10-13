@@ -110,6 +110,8 @@ function applyCreditsCopy(): void {
   setText('[data-i18n="credits.trackMist"]', t('credits.trackMist'))
   setText('[data-i18n="credits.trackChao"]', t('credits.trackChao'))
   setText('[data-i18n="credits.trackJing"]', t('credits.trackJing'))
+  setText('[data-i18n="credits.trackMarseillaise"]', t('credits.trackMarseillaise'))
+  setText('[data-i18n="credits.trackSsb"]', t('credits.trackSsb'))
 
   const fontsCont = panelEl.querySelector<HTMLElement>('[data-i18n-aria="credits.fontsContAria"]')
   fontsCont?.setAttribute('aria-label', t('credits.fontsContAria'))
@@ -186,6 +188,14 @@ function ensurePanel(): HTMLElement {
           <li>
             <span class="credits-track" data-i18n="credits.trackJing"></span>
             <a href="https://www.youtube.com/watch?v=EMYsu8PvkYk" target="_blank" rel="noopener noreferrer">YouTube</a>
+          </li>
+          <li>
+            <span class="credits-track" data-i18n="credits.trackMarseillaise"></span>
+            <a href="https://commons.wikimedia.org/wiki/File:La_Marseillaise.ogg" target="_blank" rel="noopener noreferrer">Commons</a>
+          </li>
+          <li>
+            <span class="credits-track" data-i18n="credits.trackSsb"></span>
+            <a href="https://archive.org/details/national-anthem-united-states-star-spangled-banner" target="_blank" rel="noopener noreferrer">Archive</a>
           </li>
         </ul>
       </div>
