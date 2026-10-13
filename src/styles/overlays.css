@@ -475,11 +475,19 @@ html:lang(zh-Hans) .province-label--xiandai {
   transition: opacity 0.4s ease;
 }
 
-/* Keep tour transcript visible while chrome is in 淨 */
-#app.focus-mode .tour-caption:not([hidden]) {
+/* Keep tour transcript + skip control visible while chrome is in 淨 */
+#app.focus-mode .tour-caption:not([hidden]),
+#app.focus-mode .tour-skip:not([hidden]) {
   opacity: 1;
   visibility: visible;
+}
+
+#app.focus-mode .tour-caption:not([hidden]) {
   pointer-events: none;
+}
+
+#app.focus-mode .tour-skip:not([hidden]) {
+  pointer-events: auto;
 }
 
 /* Tour caption — transcript under voiceover (Manchu stays visible here) */
@@ -517,6 +525,55 @@ html:lang(zh-Hans) .province-label--xiandai {
   line-height: 1.55;
   opacity: 0.92;
   white-space: pre-wrap;
+}
+
+/* Skip current dialogue line — bottom-right (map click does the same) */
+.tour-skip {
+  position: absolute;
+  right: 1.15rem;
+  bottom: 1.25rem;
+  z-index: 9;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 1px solid rgba(243, 232, 212, 0.35);
+  border-radius: 2px;
+  background: rgba(28, 22, 16, 0.72);
+  color: #f3e8d4;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.tour-skip[hidden] {
+  display: none !important;
+}
+
+.tour-skip-glyph {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.55rem;
+  line-height: 1;
+  letter-spacing: -0.08em;
+  transform: translateY(-0.06em);
+}
+
+.tour-skip:hover {
+  background: rgba(40, 32, 24, 0.88);
+  border-color: rgba(243, 232, 212, 0.55);
+}
+
+.tour-skip:focus-visible {
+  outline: 2px solid rgba(243, 232, 212, 0.7);
+  outline-offset: 2px;
+}
+
+.atlab-wall .tour-skip {
+  right: 1.25rem;
+  bottom: 1.35rem;
+  width: 2.35rem;
+  height: 2.35rem;
 }
 
 /* —— Dev: overlay vertex editor —— */

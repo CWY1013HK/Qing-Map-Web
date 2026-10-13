@@ -51,18 +51,13 @@ export function tweenCamera(
     return Promise.resolve()
   }
 
-  viewer.setMouseNavEnabled(false)
+  /* Mouse nav is locked for the whole tour by the player — not toggled here. */
   const t0 = performance.now()
 
   return new Promise((resolve) => {
-    const finish = () => {
-      viewer.setMouseNavEnabled(true)
-      resolve()
-    }
-
     const step = (now: number) => {
       if (signal?.aborted) {
-        finish()
+        resolve()
         return
       }
       const u = Math.min(1, (now - t0) / durationMs)
@@ -74,7 +69,7 @@ export function tweenCamera(
       vp.zoomTo(z, center, true)
       vp.panTo(center, true)
       if (u < 1) requestAnimationFrame(step)
-      else finish()
+      else resolve()
     }
     requestAnimationFrame(step)
   })

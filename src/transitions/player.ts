@@ -1,5 +1,7 @@
 import type { Viewer } from 'openseadragon'
+import { applyChromeI18n } from '../i18n/applyChrome'
 import { getLocale } from '../i18n'
+import { t } from '../i18n/t'
 import { getPlaylist } from '../lib/playlist'
 import { overlayStore } from '../overlays/store'
 import labelsJson from '../../data/overlays/province-labels.json'
@@ -24,6 +26,8 @@ export type RegisterViewerOptions = {
 export type TourPlayer = {
   play: (tour: TourDefinition) => Promise<void>
   stop: () => void
+  /** Advance past the current dialogue / voiceover beat. */
+  skipLine: () => void
   isPlaying: () => boolean
   registerViewer: (viewer: Viewer, opts?: RegisterViewerOptions) => () => void
   onState: (fn: (playingId: string | null) => void) => () => void
@@ -69,9 +73,18 @@ export function getTourPlayer(): TourPlayer {
   const listeners = new Set<(playingId: string | null) => void>()
   let playingId: string | null = null
   let abort: AbortController | null = null
+  /** Aborts only the current dialogue beat (not the whole tour). */
+  let lineAbort: AbortController | null = null
   let savedVisible: string[] = []
+  let skipBtn: HTMLButtonElement | null = null
 
   const cameraViewers = () => viewers.filter((v) => v.camera).map((v) => v.viewer)
+
+  const setTourDragging = (enabled: boolean) => {
+    for (const v of cameraViewers()) {
+      v.setMouseNavEnabled(enabled)
+    }
+  }
 
   const emit = () => {
     for (const fn of listeners) fn(playingId)
@@ -81,6 +94,7 @@ export function getTourPlayer(): TourPlayer {
     window.dispatchEvent(
       new CustomEvent('qing-tour-playing', { detail: { playing } }),
     )
+    if (skipBtn) skipBtn.hidden = !playing
   }
 
   const restoreOverlays = () => {
@@ -97,7 +111,14 @@ export function getTourPlayer(): TourPlayer {
     }
   }
 
+  const skipLine = () => {
+    if (playingId == null || !lineAbort || lineAbort.signal.aborted) return
+    lineAbort.abort()
+  }
+
   const stop = (opts?: { keepFocus?: boolean }) => {
+    lineAbort?.abort()
+    lineAbort = null
     abort?.abort()
     abort = null
     const wasPlaying = playingId != null
@@ -105,8 +126,34 @@ export function getTourPlayer(): TourPlayer {
     hideTourCaption()
     getPlaylist().setDucked(false)
     restoreOverlays()
-    if (wasPlaying) emit()
-    if (wasPlaying && !opts?.keepFocus) setTourPlayingUi(false)
+    if (wasPlaying) {
+      if (!opts?.keepFocus) setTourDragging(true)
+      emit()
+      if (!opts?.keepFocus) setTourPlayingUi(false)
+    }
+  }
+
+  const ensureSkipButton = () => {
+    if (skipBtn) return skipBtn
+    const app = document.querySelector<HTMLElement>('#app')
+    if (!app) return null
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.id = 'tour-skip'
+    btn.className = 'tour-skip'
+    btn.hidden = true
+    btn.innerHTML =
+      '<span class="tour-skip-glyph" aria-hidden="true">»</span>'
+    btn.title = t('tour.skip')
+    btn.setAttribute('aria-label', t('tour.skipAria'))
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      skipLine()
+    })
+    app.appendChild(btn)
+    skipBtn = btn
+    return btn
   }
 
   const runStep = async (
@@ -146,21 +193,47 @@ export function getTourPlayer(): TourPlayer {
     }
     showTourCaption(step.caption, body || undefined)
 
-    const drawP = step.draw
-      ? drawOverlayFeature(step.draw.featureId, step.draw.durationMs, signal)
-      : Promise.resolve()
+    lineAbort = new AbortController()
+    const lineSignal = lineAbort.signal
+    const onTourAbort = () => lineAbort?.abort()
+    signal.addEventListener('abort', onTourAbort, { once: true })
 
-    let voiceP = Promise.resolve()
-    if (step.narrate) {
-      getPlaylist().setDucked(true)
-      const vo = playVoiceover(narrDir, step.narrate, body, signal)
-      voiceP = vo.done.finally(() => getPlaylist().setDucked(false))
+    try {
+      const drawP = step.draw
+        ? drawOverlayFeature(step.draw.featureId, step.draw.durationMs, lineSignal)
+        : Promise.resolve()
+
+      let voiceP = Promise.resolve()
+      if (step.narrate) {
+        getPlaylist().setDucked(true)
+        const vo = playVoiceover(narrDir, step.narrate, body, lineSignal)
+        voiceP = vo.done.finally(() => getPlaylist().setDucked(false))
+      }
+
+      await Promise.all([drawP, voiceP])
+      if (signal.aborted) return
+      if (step.waitAfterMs) await sleep(step.waitAfterMs, lineSignal)
+    } finally {
+      signal.removeEventListener('abort', onTourAbort)
+      lineAbort = null
     }
-
-    await Promise.all([drawP, voiceP])
-    if (signal.aborted) return
-    if (step.waitAfterMs) await sleep(step.waitAfterMs, signal)
   }
+
+  ensureSkipButton()
+  applyChromeI18n()
+
+  const onScreenClick = (e: MouseEvent) => {
+    if (playingId == null || !lineAbort || lineAbort.signal.aborted) return
+    const target = e.target
+    if (!(target instanceof Element)) return
+    if (target.closest('#tour-skip, a, button, input, textarea, select, label')) {
+      return
+    }
+    e.preventDefault()
+    skipLine()
+  }
+
+  document.addEventListener('click', onScreenClick, true)
 
   singleton = {
     registerViewer(viewer, opts) {
@@ -179,6 +252,7 @@ export function getTourPlayer(): TourPlayer {
     isPlaying() {
       return playingId != null
     },
+    skipLine,
     stop: () => stop(),
     async play(tour) {
       if (playingId === tour.id) {
@@ -186,10 +260,12 @@ export function getTourPlayer(): TourPlayer {
         return
       }
       stop({ keepFocus: true })
+      ensureSkipButton()
       savedVisible = [...overlayStore.getVisible()]
       playingId = tour.id
       abort = new AbortController()
       const signal = abort.signal
+      setTourDragging(false)
       setTourPlayingUi(true)
       emit()
 
@@ -201,9 +277,11 @@ export function getTourPlayer(): TourPlayer {
       } finally {
         if (playingId === tour.id) {
           playingId = null
+          lineAbort = null
           hideTourCaption()
           getPlaylist().setDucked(false)
           restoreOverlays()
+          setTourDragging(true)
           setTourPlayingUi(false)
           emit()
         }

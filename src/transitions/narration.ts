@@ -88,20 +88,54 @@ export function playVoiceover(
   let stopped = false
   let audio: HTMLAudioElement | null = null
   let timer: number | undefined
+  let settle: (() => void) | null = null
 
   const stop = () => {
+    if (stopped) return
     stopped = true
     if (timer != null) window.clearTimeout(timer)
+    timer = undefined
     if (audio) {
       audio.pause()
       audio.src = ''
       audio = null
     }
+    settle?.()
+    settle = null
   }
 
   if (signal) {
     signal.addEventListener('abort', stop, { once: true })
   }
+
+  const waitUntil = (ms: number) =>
+    new Promise<void>((resolve) => {
+      if (stopped) {
+        resolve()
+        return
+      }
+      settle = resolve
+      timer = window.setTimeout(() => {
+        timer = undefined
+        settle = null
+        resolve()
+      }, ms)
+    })
+
+  const waitAudioEnd = (el: HTMLAudioElement) =>
+    new Promise<void>((resolve) => {
+      if (stopped) {
+        resolve()
+        return
+      }
+      settle = resolve
+      const finish = () => {
+        settle = null
+        resolve()
+      }
+      el.addEventListener('ended', finish, { once: true })
+      el.addEventListener('error', finish, { once: true })
+    })
 
   const done = (async () => {
     const locale = getLocale()
@@ -114,20 +148,14 @@ export function playVoiceover(
       audio.preload = 'auto'
       try {
         await audio.play()
-        await new Promise<void>((resolve) => {
-          if (!audio) return resolve()
-          audio.addEventListener('ended', () => resolve(), { once: true })
-          audio.addEventListener('error', () => resolve(), { once: true })
-        })
+        if (!stopped && audio) await waitAudioEnd(audio)
         return
       } catch {
         /* fall through to timed hold */
       }
     }
 
-    await new Promise<void>((resolve) => {
-      timer = window.setTimeout(resolve, fallbackMs)
-    })
+    if (!stopped) await waitUntil(fallbackMs)
   })().finally(() => {
     if (!stopped) stop()
   })

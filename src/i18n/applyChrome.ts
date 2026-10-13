@@ -81,6 +81,12 @@ export function applyChromeI18n(): void {
   const intro = document.querySelector('#intro-seal')
   intro?.setAttribute('aria-label', t('intro.enter'))
 
+  const tourSkip = document.querySelector<HTMLButtonElement>('#tour-skip')
+  if (tourSkip) {
+    tourSkip.title = t('tour.skip')
+    tourSkip.setAttribute('aria-label', t('tour.skipAria'))
+  }
+
   refreshStatusMessages()
 }
 
