@@ -7,7 +7,7 @@
     "en": { "title": "Jiaqing 17 (1812)" }
   },
   "narrationDir": "jiaqing-1812",
-  "sealTitle": "世界略覽",
+  "sealTitle": "寰宇掠影",
   "steps": [
     {
       "type": "overlays",
@@ -41,9 +41,9 @@
       },
       "overlays": { "show": ["hailu"] },
       "caption": {
-        "zh-Hant": "俄羅斯 · 拿破崙東征",
-        "zh-Hans": "俄罗斯 · 拿破仑东征",
-        "en": "Russia · Napoleon’s invasion"
+        "zh-Hant": "拿破崙 · 東征與半島戰爭",
+        "zh-Hans": "拿破仑 · 东征与半岛战争",
+        "en": "Napoleon · Russia & the Peninsula"
       },
       "narrate": "russia",
       "music": {
@@ -58,6 +58,22 @@
         {
           "src": "/tours/jiaqing-1812/napoleon-1812-moscow.jpg",
           "alt": "Napoleon before burning Moscow, 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/napoleon-1812-retreat.png",
+          "alt": "Napoleon’s retreat from Moscow, 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/napoleon-1812-march.png",
+          "alt": "Grande Armée on the march, 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/napoleon-1812-third-of-may.png",
+          "alt": "Goya, The Third of May 1808"
+        },
+        {
+          "src": "/tours/jiaqing-1812/napoleon-1812-siege.png",
+          "alt": "Night assault during the Napoleonic wars"
         }
       ],
       "waitAfterMs": 400
@@ -88,6 +104,82 @@
         {
           "src": "/tours/jiaqing-1812/war-1812-naval.jpg",
           "alt": "Naval battle, War of 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/war-1812-queenston.jpg",
+          "alt": "Battle of Queenston Heights, War of 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/war-1812-chippawa.png",
+          "alt": "Battle of Chippawa, War of 1812"
+        },
+        {
+          "src": "/tours/jiaqing-1812/war-1812-washington-burning.png",
+          "alt": "Burning of Washington, 1814"
+        },
+        {
+          "src": "/tours/jiaqing-1812/war-1812-white-house.png",
+          "alt": "White House ablaze, War of 1812"
+        }
+      ],
+      "waitAfterMs": 400
+    },
+    {
+      "id": "india",
+      "type": "stop",
+      "camera": {
+        "labelId": "india",
+        "zoomFactor": 2.8,
+        "durationMs": 3400
+      },
+      "overlays": { "show": ["hailu"] },
+      "caption": {
+        "zh-Hant": "印度 · 東印度公司",
+        "zh-Hans": "印度 · 东印度公司",
+        "en": "India · East India Company"
+      },
+      "narrate": "india",
+      "music": {
+        "path": "/audio/tours/jiaqing-1812/cues/temple-of-doom-end-credits.mp3",
+        "volume": 0.42,
+        "startAt": 63
+      },
+      "images": [
+        {
+          "src": "/tours/jiaqing-1812/india-diwani-grant.jpg",
+          "alt": "Clive receiving the Grant of the Diwani"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-clive-arcot.jpg",
+          "alt": "Lord Clive and the Nawab of Arcot"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-mysore-rockets.jpg",
+          "alt": "Mysore rockets in the Anglo-Mysore Wars"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-eic-camp.png",
+          "alt": "British East India Company encampment"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-eic-courtyard.png",
+          "alt": "Company troops in an Indian courtyard"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-indigo-factory.png",
+          "alt": "Indigo factory in Company India"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-colonial-mansion.jpg",
+          "alt": "Colonial mansion in British India"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-bombay-judges.png",
+          "alt": "Native judges of the Court of the Recorder, Bombay"
+        },
+        {
+          "src": "/tours/jiaqing-1812/india-match-tender.jpg",
+          "alt": "Artilleryman tending a slow match"
         }
       ],
       "waitAfterMs": 400
@@ -106,11 +198,67 @@
       },
       "draw": { "featureId": "zhongguo", "durationMs": 4000 },
       "caption": {
-        "zh-Hant": "中屬韃靼利亞（Chinese Tartary）· 藩部與新邊",
-        "zh-Hans": "中属鞑靼利亚（Chinese Tartary）· 藩部与新边",
-        "en": "中屬韃靼利亞 (Chinese Tartary) · Outer dependencies"
+        "zh-Hant": "中屬韃靼利亞 · 藩部與新邊",
+        "zh-Hans": "中属鞑靼利亚 · 藩部与新边",
+        "en": "Chinese Tartary · Outer dependencies"
       },
       "narrate": "tartary",
+      "images": [
+        {
+          "src": "/tours/jiaqing-1812/tartary-mandarin-of-war.png",
+          "alt": "Habit of a Mandarin of War in Chinese Tartary, 1700"
+        },
+        {
+          "src": "/tours/jiaqing-1812/tartary-meritorious-officer.png",
+          "alt": "Portrait of a Qing meritorious officer"
+        },
+        {
+          "src": "/tours/jiaqing-1812/tartary-yili-taiji.jpg",
+          "alt": "Taiji of Yili and his wife"
+        },
+        {
+          "src": "/tours/jiaqing-1812/tartary-yili-zaisang.jpg",
+          "alt": "Zaisang of Yili and his wife"
+        },
+        {
+          "src": "/tours/jiaqing-1812/tartary-supply-camp.png",
+          "alt": "Qing supply camp on the Mongolian–Xinjiang steppe"
+        },
+        {
+          "src": "/tours/jiaqing-1812/tartary-camp-raid.jpg",
+          "alt": "Raid on a nomadic camp, Mongolia & Xinjiang"
+        },
+        {
+          "src": "/tours/jiaqing-1812/tartary-cavalry-battle.jpg",
+          "alt": "Cavalry battle among yurts, Mongolia & Xinjiang"
+        }
+      ],
+      "waitAfterMs": 400
+    },
+    {
+      "id": "canton",
+      "type": "stop",
+      "camera": {
+        "labelId": "guangdong",
+        "zoomFactor": 4.2,
+        "durationMs": 3200
+      },
+      "overlays": {
+        "show": ["handi-shibasheng", "hailu"],
+        "hide": ["xiandai-zhongguo"]
+      },
+      "caption": {
+        "zh-Hant": "廣州體制 · 一口通商",
+        "zh-Hans": "广州体制 · 一口通商",
+        "en": "Canton System · One port of trade"
+      },
+      "narrate": "canton",
+      "images": [
+        {
+          "src": "/tours/jiaqing-1812/canton-thirteen-factories.jpg",
+          "alt": "The Thirteen Factories at Canton"
+        }
+      ],
       "waitAfterMs": 400
     },
     {

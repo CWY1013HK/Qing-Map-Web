@@ -578,13 +578,15 @@ html:lang(zh-Hans) .province-label--xiandai {
   height: 2.35rem;
 }
 
-/* Draggable white-framed tour stills (corner scatter) */
+/**
+ * Stage matches the letterboxed map content rect (MAP_ASPECT).
+ * Frames are placed in % of this stage so ultrawide side gutters stay empty.
+ */
 .tour-frames {
   position: absolute;
-  inset: 0;
   z-index: 8;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tour-frame {
@@ -592,8 +594,8 @@ html:lang(zh-Hans) .province-label--xiandai {
   z-index: 1;
   margin: 0;
   padding: 0.45rem 0.45rem 0.7rem;
-  max-width: min(22vw, 280px);
-  width: min(22vw, 280px);
+  max-width: min(18%, 260px);
+  width: min(18%, 260px);
   background: #f7f4ee;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.85) inset,
@@ -635,27 +637,31 @@ html:lang(zh-Hans) .province-label--xiandai {
   background: #ddd6c8;
 }
 
-.tour-frame[data-corner='tl'] {
+.tour-frame[data-corner='tl'],
+.tour-frame[data-corner='tl2'] {
   --tour-frame-tilt: -2.2deg;
 }
-.tour-frame[data-corner='tr'] {
+.tour-frame[data-corner='tr'],
+.tour-frame[data-corner='tr2'] {
   --tour-frame-tilt: 1.8deg;
 }
-.tour-frame[data-corner='bl'] {
+.tour-frame[data-corner='bl'],
+.tour-frame[data-corner='bl2'] {
   --tour-frame-tilt: 2.4deg;
 }
-.tour-frame[data-corner='br'] {
+.tour-frame[data-corner='br'],
+.tour-frame[data-corner='br2'] {
   --tour-frame-tilt: -1.6deg;
 }
 
 .atlab-wall .tour-frame {
-  max-width: min(18cqw, 220px);
-  width: min(18cqw, 220px);
+  max-width: min(16%, 200px);
+  width: min(16%, 200px);
   padding: 0.35rem 0.35rem 0.55rem;
 }
 
 .atlab-wall .tour-frame img {
-  max-height: min(22cqh, 160px);
+  max-height: min(22cqh, 150px);
 }
 
 /* —— Dev: overlay vertex editor —— */
@@ -718,6 +724,10 @@ html:lang(zh-Hans) .province-label--xiandai {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem 0.75rem;
+}
+
+.vertex-editor-row[hidden] {
+  display: none;
 }
 
 .vertex-editor-row label {

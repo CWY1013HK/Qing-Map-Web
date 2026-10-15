@@ -5,7 +5,7 @@ import type { TourDefinition } from './types'
 
 /** Transparent stamp PNGs (intro-seal language), keyed by tour id. */
 const SEAL_SRC: Record<string, string> = {
-  'jiaqing-1812': '/intro/shijie-luelan-seal.png?v=2',
+  'jiaqing-1812': '/intro/huanyu-lueying-seal.png?v=24',
 }
 
 /**

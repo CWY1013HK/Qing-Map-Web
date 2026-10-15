@@ -27,8 +27,10 @@ class MapPlaylist {
   private unlockBound = false
   private started = false
   private muted = false
-  /** Soften soundtrack under tour voiceovers without stopping the timeline. */
+  /** Soften / mute soundtrack under tour voice or SFX without stopping the timeline. */
   private ducked = false
+  /** When true with ducked: full mute (anthems). Soft duck is for voiceovers. */
+  private hardDuck = false
   private readonly duckFactor = 0.28
   private readonly unlockHandler = (e: PointerEvent) => this.onUnlockPointer(e)
   private readonly onAudioEnded = () => this.onEnded()
@@ -52,19 +54,29 @@ class MapPlaylist {
     return this.muted
   }
 
-  /** Lower (or restore) soundtrack volume while a tour narrates. */
-  setDucked(ducked: boolean): void {
+  /**
+   * Lower (or restore) soundtrack volume under tour audio.
+   * `hard: true` mutes the bed entirely (e.g. La Marseillaise / anthem cues).
+   */
+  setDucked(ducked: boolean, opts?: { hard?: boolean }): void {
     this.ducked = ducked
+    this.hardDuck = ducked && !!opts?.hard
     this.applyDuckToCurrent()
   }
 
+  /** Volume to aim for given a track’s nominal level, honoring mute/duck. */
+  private effectiveVolume(base: number = AUDIO.volume): number {
+    if (this.muted) return 0
+    if (!this.ducked) return base
+    if (this.hardDuck) return 0
+    return base * this.duckFactor
+  }
+
   private applyDuckToCurrent(): void {
-    if (this.muted || this.audio.paused) return
-    const base = AUDIO.volume
-    const target = this.ducked ? base * this.duckFactor : base
+    if (this.audio.paused) return
     // Don't fight Chao Tian Zi entry spike — only duck ambient levels.
     if (this.phase === 'entry') return
-    this.audio.volume = target
+    this.audio.volume = this.effectiveVolume(AUDIO.volume)
   }
 
   private bindAudio(el: HTMLAudioElement): void {
@@ -195,7 +207,8 @@ class MapPlaylist {
 
   private async play(src: string, opts: PlayOpts): Promise<void> {
     const gen = ++this.fadeGen
-    const targetVol = opts.volume ?? AUDIO.volume
+    const nominal = opts.volume ?? AUDIO.volume
+    const targetVol = this.effectiveVolume(nominal)
 
     if (this.started && !this.audio.paused) {
       await this.fadeEl(this.audio, 0, AUDIO.fadeMs, gen)
@@ -215,13 +228,13 @@ class MapPlaylist {
       this.started = true
       this.disarmUnlock()
       if (opts.fadeIn) {
-        await this.fadeEl(this.audio, targetVol, AUDIO.fadeMs, gen)
+        await this.fadeEl(this.audio, this.effectiveVolume(nominal), AUDIO.fadeMs, gen)
       } else {
-        this.audio.volume = targetVol
+        this.audio.volume = this.effectiveVolume(nominal)
       }
     } catch {
       // Autoplay blocked — wait for a gesture (see armUnlock).
-      this.audio.volume = targetVol
+      this.audio.volume = this.effectiveVolume(nominal)
     }
   }
 

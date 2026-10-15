@@ -48,6 +48,6 @@ Planned seals (empire / China proper / maritime) can reuse this shape; Jiaqing-1
 
 ## UI
 
-A row of **square imperial seals** (`#tour-seals`) **above** the overlay tablets. One seal per tour; pressed = playing. Face text uses 小篆 ([全字庫說文解字](../assets/fonts/LICENSE-TW-Shuowen.txt)); four characters read right column top→bottom, then left (e.g. 世界略覽).
+A row of **square imperial seals** (`#tour-seals`) **above** the overlay tablets. One seal per tour; pressed = playing. Face text uses 小篆 ([全字庫說文解字](../assets/fonts/LICENSE-TW-Shuowen.txt)); four characters read right column top→bottom, then left (e.g. 寰宇掠影). Rebuild with `python3 scripts/build-tour-seal.py --text …`.
 
 Runtime: [`src/transitions/`](../src/transitions/) — `mountTourSeals` from `bootViewer`.

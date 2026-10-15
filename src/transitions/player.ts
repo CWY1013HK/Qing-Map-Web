@@ -213,6 +213,9 @@ export function getTourPlayer(): TourPlayer {
     signal.addEventListener('abort', onTourAbort, { once: true })
 
     let cue: HTMLAudioElement | null = null
+    // Tour stays soft-ducked between stops (see play()); hard-mute only under SFX/anthems.
+    const hasMusicCue = Boolean(step.music?.path)
+    if (hasMusicCue) getPlaylist().setDucked(true, { hard: true })
     try {
       if (step.images?.length) {
         clearFrames = showTourFrames(step.images)
@@ -222,6 +225,17 @@ export function getTourPlayer(): TourPlayer {
         cue = new Audio(step.music.path)
         cue.preload = 'auto'
         cue.volume = Math.max(0, Math.min(1, step.music.volume ?? 0.4))
+        const startAt = step.music.startAt ?? 0
+        const seekCue = () => {
+          if (!cue || startAt <= 0) return
+          try {
+            cue.currentTime = startAt
+          } catch {
+            /* seek may fail before metadata */
+          }
+        }
+        seekCue()
+        cue.addEventListener('loadedmetadata', seekCue, { once: true })
         const stopCue = () => {
           if (!cue) return
           cue.pause()
@@ -229,7 +243,7 @@ export function getTourPlayer(): TourPlayer {
           cue = null
         }
         lineSignal.addEventListener('abort', stopCue, { once: true })
-        void cue.play().catch(() => {
+        void cue.play().then(seekCue).catch(() => {
           stopCue()
         })
       }
@@ -240,9 +254,8 @@ export function getTourPlayer(): TourPlayer {
 
       let voiceP = Promise.resolve()
       if (step.narrate) {
-        getPlaylist().setDucked(true)
         const vo = playVoiceover(narrDir, step.narrate, body, lineSignal)
-        voiceP = vo.done.finally(() => getPlaylist().setDucked(false))
+        voiceP = vo.done
       }
 
       await Promise.all([drawP, voiceP])
@@ -254,6 +267,8 @@ export function getTourPlayer(): TourPlayer {
         cue.src = ''
         cue = null
       }
+      // Back to soft tour duck — do NOT restore full bed mid-tour (that was the loud spike).
+      if (hasMusicCue && playingId != null) getPlaylist().setDucked(true)
       disposeLineChrome()
       signal.removeEventListener('abort', onTourAbort)
       lineAbort = null
@@ -312,6 +327,8 @@ export function getTourPlayer(): TourPlayer {
       const signal = abort.signal
       setTourDragging(false)
       setTourPlayingUi(true)
+      // Soft-duck the bed for the whole tour so camera/transitions don't spike loud.
+      getPlaylist().setDucked(true)
       emit()
 
       try {

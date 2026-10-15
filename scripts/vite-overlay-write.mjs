@@ -58,9 +58,39 @@ function invalidateFile(server, filePath) {
   }
 }
 
+function fmtCoord(n) {
+  const rounded = Math.round(Number(n) * 10000) / 10000
+  if (!Number.isFinite(rounded)) throw new Error('Bad coordinate')
+  return String(rounded)
+}
+
+/** Replace one annotation's point and hit size. Leaves every other byte of the file alone. */
+function patchAnnotationBox(filePath, id, x, y, hitWidth, hitHeight) {
+  const text = fs.readFileSync(filePath, 'utf8')
+  const idToken = `"id": "${id}"`
+  const idAt = text.indexOf(idToken)
+  if (idAt < 0) throw new Error(`No annotation ${id}`)
+  const nextId = text.indexOf('\n      "id":', idAt + idToken.length)
+  const sliceEnd = nextId === -1 ? text.length : nextId
+  let region = text.slice(idAt, sliceEnd)
+  const pointRe = /"point": \{ "x": -?[0-9.]+, "y": -?[0-9.]+ \}/
+  if (!pointRe.test(region)) throw new Error(`No point for ${id}`)
+  region = region.replace(pointRe, `"point": { "x": ${fmtCoord(x)}, "y": ${fmtCoord(y)} }`)
+  if (hitWidth != null) {
+    if (!/"hitWidth": -?[0-9.]+/.test(region)) throw new Error(`No hitWidth for ${id}`)
+    region = region.replace(/"hitWidth": -?[0-9.]+/, `"hitWidth": ${fmtCoord(hitWidth)}`)
+  }
+  if (hitHeight != null) {
+    if (!/"hitHeight": -?[0-9.]+/.test(region)) throw new Error(`No hitHeight for ${id}`)
+    region = region.replace(/"hitHeight": -?[0-9.]+/, `"hitHeight": ${fmtCoord(hitHeight)}`)
+  }
+  fs.writeFileSync(filePath, text.slice(0, idAt) + region + text.slice(sliceEnd), 'utf8')
+}
+
 export function overlayWriteApi(projectRoot) {
   const overlaysDir = path.join(projectRoot, 'data', 'overlays')
   const seaLanesPath = path.join(projectRoot, 'data', 'decor', 'sea-lanes.json')
+  const annotationsPath = path.join(projectRoot, 'data', 'annotations', 'locations.json')
 
   return {
     name: 'overlay-write-api',
@@ -68,9 +98,43 @@ export function overlayWriteApi(projectRoot) {
       // Don't live-reload when the editor writes these files.
       server.watcher.unwatch(overlaysDir)
       server.watcher.unwatch(seaLanesPath)
+      server.watcher.unwatch(annotationsPath)
 
       server.middlewares.use(async (req, res, next) => {
-        if (req.method !== 'POST' || req.url?.split('?')[0] !== '/__dev/overlays/save') {
+        const urlPath = req.url?.split('?')[0]
+        if (req.method === 'POST' && urlPath === '/__dev/annotations/point') {
+          try {
+            const body = await readBody(req)
+            const id = String(body.id ?? '')
+            if (!/^[a-z0-9-]+$/i.test(id)) throw new Error('Bad annotation id')
+            patchAnnotationBox(annotationsPath, id, body.x, body.y, body.hitWidth, body.hitHeight)
+            invalidateFile(server, annotationsPath)
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+              JSON.stringify({
+                ok: true,
+                id,
+                x: fmtCoord(body.x),
+                y: fmtCoord(body.y),
+                hitWidth: body.hitWidth == null ? null : fmtCoord(body.hitWidth),
+                hitHeight: body.hitHeight == null ? null : fmtCoord(body.hitHeight),
+              }),
+            )
+          } catch (err) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+              JSON.stringify({
+                ok: false,
+                error: err instanceof Error ? err.message : String(err),
+              }),
+            )
+          }
+          return
+        }
+
+        if (req.method !== 'POST' || urlPath !== '/__dev/overlays/save') {
           next()
           return
         }

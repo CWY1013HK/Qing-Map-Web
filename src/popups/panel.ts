@@ -99,7 +99,7 @@ function fillAnnotationContent(annotation: Annotation): void {
     bodyEl.hidden = !raw.trim()
   }
   const lines = (localized.body ?? '').split('\n').filter((line) => line.trim().length > 0)
-  const unwrapped = lines.length >= 4
+  const unwrapped = lines.length >= 3
   panelEl?.classList.toggle(
     'annotation-popup--long',
     (localized.body?.trim().length ?? 0) > 180,

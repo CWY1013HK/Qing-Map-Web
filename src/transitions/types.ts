@@ -30,12 +30,16 @@ export type TourDrawOp = {
 export type TourMusicCue = {
   path: string
   volume?: number
+  /** Seek into the file before play (seconds), e.g. 63 for 1:03. */
+  startAt?: number
 }
 
 /** Draggable white-framed stills shown for the duration of a stop. */
 export type TourFrameSpec = {
   src: string
   alt?: string
+  /** CSS object-position when the frame crops (e.g. "top center") */
+  objectPosition?: string
 }
 
 export type TourStopStep = {

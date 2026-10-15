@@ -10,3 +10,10 @@ star-spangled-banner.mp3
   Title: The Star-Spangled Banner (instrumental)
   Source: Internet Archive — national-anthem-united-states-star-spangled-banner
   License: Public domain composition; instrumental recording used as PD/CC0 upload on Archive.org
+
+temple-of-doom-end-credits.mp3
+  Title: End Credits (Indiana Jones and the Temple of Doom)
+  Composer: John Williams — © Lucasfilm / Universal (NOT public domain)
+  Cue start: 1:03 (63s) via tour music.startAt
+  License: Copyrighted — do NOT commit a ripped OST. Drop in your own
+  legally obtained file at this path for local/dev use only.

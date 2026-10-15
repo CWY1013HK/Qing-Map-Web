@@ -23,6 +23,8 @@ function asCollection(raw: unknown): AnnotationCollection {
 }
 
 let lastToggleAt = 0
+/** True only while the dev editor's Annotations mode is on. */
+let annotationEditing = false
 
 function openOrToggle(annotation: Annotation): void {
   const now = performance.now()
@@ -64,11 +66,21 @@ function buildHotspotButton(annotation: Annotation): HTMLButtonElement {
     btn.textContent = localized.title
   }
 
+  const openUnlessDragged = (e?: Event) => {
+    if (annotationEditing || btn.dataset.suppressClick === '1') {
+      btn.dataset.suppressClick = ''
+      e?.preventDefault?.()
+      e?.stopPropagation?.()
+      return
+    }
+    openOrToggle(annotation)
+  }
+
   // Native click (works when the overlay sits above the OSD canvas)
   btn.addEventListener('click', (e) => {
     e.preventDefault()
     e.stopPropagation()
-    openOrToggle(annotation)
+    openUnlessDragged(e)
   })
 
   // OSD MouseTracker so pan/zoom gestures don't steal the press
@@ -78,7 +90,7 @@ function buildHotspotButton(annotation: Annotation): HTMLButtonElement {
       const orig = event.originalEvent as Event | undefined
       orig?.preventDefault?.()
       orig?.stopPropagation?.()
-      openOrToggle(annotation)
+      openUnlessDragged(orig)
     },
   })
 
@@ -150,6 +162,180 @@ function placeHotspot(
   el.style.pointerEvents = 'auto'
 }
 
+const DRAG_THRESHOLD_PX = 4
+const MIN_HIT = 0.008
+const HANDLE_EDGES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const
+type HandleEdge = (typeof HANDLE_EDGES)[number]
+type BoxEdge = HandleEdge | 'move'
+
+function roundCoord(n: number): number {
+  return Math.round(n * 10000) / 10000
+}
+
+export type AnnotationEditHandle = {
+  setEditing(on: boolean): void
+  save(): Promise<void>
+  setOnDirty(fn: (() => void) | null): void
+}
+
+let annotationEditHandle: AnnotationEditHandle | null = null
+
+export function getAnnotationEditHandle(): AnnotationEditHandle | null {
+  return annotationEditHandle
+}
+
+function ensureResizeHandles(el: HTMLButtonElement): void {
+  if (el.querySelector('.annot-handle')) return
+  for (const edge of HANDLE_EDGES) {
+    const handle = document.createElement('span')
+    handle.className = `annot-handle annot-handle--${edge}`
+    handle.dataset.edge = edge
+    el.appendChild(handle)
+  }
+}
+
+/**
+ * Dev-only geometry edits. Active only in the editor's Annotations mode.
+ * Drag the box to move it; drag an edge or corner to resize. Save writes locations.json.
+ */
+function attachAreaEdit(
+  viewer: Viewer,
+  item0: () => TiledImage | null,
+  hotspot: LabelHotspot,
+  markDirty: (id: string) => void,
+): void {
+  if (!import.meta.env.DEV) return
+  const { annotation, el } = hotspot
+  if (!isAreaHotspot(annotation)) return
+  ensureResizeHandles(el)
+
+  type Drag = {
+    pointerId: number
+    edge: BoxEdge
+    startClientX: number
+    startClientY: number
+    startImgX: number
+    startImgY: number
+    left: number
+    right: number
+    top: number
+    bottom: number
+    moved: boolean
+    navWas: boolean
+  }
+  let drag: Drag | null = null
+
+  const toImage = (e: PointerEvent) => {
+    const item = item0()
+    if (!item) return null
+    const rect = viewer.element.getBoundingClientRect()
+    return item.viewerElementToImageCoordinates(
+      new OpenSeadragon.Point(e.clientX - rect.left, e.clientY - rect.top),
+    )
+  }
+
+  el.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (!annotationEditing || e.button !== 0) return
+      if (el.classList.contains('is-hidden') || el.classList.contains('is-intro-hidden')) return
+      const img = toImage(e)
+      if (!img) return
+      const target = e.target as HTMLElement | null
+      const edge = (target?.dataset.edge as HandleEdge | undefined) ?? 'move'
+      e.preventDefault()
+      e.stopPropagation()
+      el.setPointerCapture(e.pointerId)
+      const w = annotation.hitWidth as number
+      const h = annotation.hitHeight as number
+      drag = {
+        pointerId: e.pointerId,
+        edge,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startImgX: img.x,
+        startImgY: img.y,
+        left: annotation.point.x - w / 2,
+        right: annotation.point.x + w / 2,
+        top: annotation.point.y - h / 2,
+        bottom: annotation.point.y + h / 2,
+        moved: false,
+        navWas: viewer.isMouseNavEnabled(),
+      }
+      viewer.setMouseNavEnabled(false)
+    },
+    true,
+  )
+
+  el.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return
+    if (!drag.moved) {
+      const dist = Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY)
+      if (dist < DRAG_THRESHOLD_PX) return
+      drag.moved = true
+      el.classList.add('is-dragging')
+      el.dataset.suppressClick = '1'
+    }
+    const img = toImage(e)
+    const item = item0()
+    if (!img || !item) return
+    const size = item.getContentSize()
+    const dx = (img.x - drag.startImgX) / size.x
+    const dy = (img.y - drag.startImgY) / size.y
+    let left = drag.left
+    let right = drag.right
+    let top = drag.top
+    let bottom = drag.bottom
+    const edge = drag.edge
+    if (edge === 'move') {
+      left += dx
+      right += dx
+      top += dy
+      bottom += dy
+    } else {
+      if (edge.includes('e')) right += dx
+      if (edge.includes('w')) left += dx
+      if (edge.includes('s')) bottom += dy
+      if (edge.includes('n')) top += dy
+    }
+    if (right - left < MIN_HIT) {
+      if (edge.includes('w')) left = right - MIN_HIT
+      else right = left + MIN_HIT
+    }
+    if (bottom - top < MIN_HIT) {
+      if (edge.includes('n')) top = bottom - MIN_HIT
+      else bottom = top + MIN_HIT
+    }
+    annotation.point.x = (left + right) / 2
+    annotation.point.y = (top + bottom) / 2
+    annotation.hitWidth = right - left
+    annotation.hitHeight = bottom - top
+    placeHotspot(viewer, item, hotspot)
+  })
+
+  const finish = (e: PointerEvent) => {
+    if (!drag || e.pointerId !== drag.pointerId) return
+    const moved = drag.moved
+    const navWas = drag.navWas
+    drag = null
+    el.classList.remove('is-dragging')
+    viewer.setMouseNavEnabled(navWas)
+    if (!moved) return
+    annotation.point.x = roundCoord(annotation.point.x)
+    annotation.point.y = roundCoord(annotation.point.y)
+    annotation.hitWidth = roundCoord(annotation.hitWidth as number)
+    annotation.hitHeight = roundCoord(annotation.hitHeight as number)
+    const item = item0()
+    if (item) placeHotspot(viewer, item, hotspot)
+    const title = resolveAnnotation(annotation).title
+    el.title = `${title} · ${annotation.point.x}, ${annotation.point.y} · ${annotation.hitWidth}×${annotation.hitHeight}`
+    markDirty(annotation.id)
+  }
+
+  el.addEventListener('pointerup', finish)
+  el.addEventListener('pointercancel', finish)
+}
+
 /**
  * Mount glowing location-label hotspots from annotations JSON.
  * Visibility is controlled by labelStore (誌 toolbar toggle).
@@ -162,6 +348,58 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     annotation,
     el: buildHotspotButton(annotation),
   }))
+  const dirtyIds = new Set<string>()
+  let onDirty: (() => void) | null = null
+  const setEditing = (on: boolean) => {
+      annotationEditing = on
+      document.getElementById('app')?.classList.toggle('annotation-editing', on)
+      if (on) {
+        labelStore.setVisible(true)
+        closeAnnotationPopup()
+      }
+    for (const hotspot of hotspots) {
+      if (!isAreaHotspot(hotspot.annotation)) continue
+      hotspot.el.classList.toggle('is-annot-editing', on)
+    }
+  }
+  if (import.meta.env.DEV) {
+    for (const hotspot of hotspots) {
+      attachAreaEdit(viewer, item0, hotspot, (id) => {
+        dirtyIds.add(id)
+        onDirty?.()
+      })
+    }
+    annotationEditHandle = {
+      setEditing,
+      setOnDirty(fn) {
+        onDirty = fn
+      },
+      async save() {
+        const ids = [...dirtyIds]
+        for (const id of ids) {
+          const hotspot = hotspots.find((h) => h.annotation.id === id)
+          if (!hotspot) continue
+          const { annotation } = hotspot
+          const res = await fetch('/__dev/annotations/point', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id,
+              x: annotation.point.x,
+              y: annotation.point.y,
+              hitWidth: annotation.hitWidth,
+              hitHeight: annotation.hitHeight,
+            }),
+          })
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}))
+            throw new Error(body.error ?? `Save failed (${res.status})`)
+          }
+          dirtyIds.delete(id)
+        }
+      },
+    }
+  }
 
   const syncHotspotLocale = () => {
     for (const { annotation, el } of hotspots) {
@@ -218,7 +456,11 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     const item = item0()
     if (!item) return
     const app = document.getElementById('app')
-    if (app?.classList.contains('intro-active') || app?.classList.contains('focus-mode')) {
+    if (
+      annotationEditing ||
+      app?.classList.contains('intro-active') ||
+      app?.classList.contains('focus-mode')
+    ) {
       return
     }
 
@@ -283,6 +525,10 @@ export function mountLocationLabels(viewer: Viewer): () => void {
   }
 
   return () => {
+    if (annotationEditHandle?.setEditing === setEditing) {
+      annotationEditHandle.setEditing(false)
+      annotationEditHandle = null
+    }
     unsub()
     viewer.removeHandler('open', onOpen)
     viewer.removeHandler('canvas-click', onCanvasClick)

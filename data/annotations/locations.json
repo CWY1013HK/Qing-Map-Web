@@ -145,10 +145,219 @@
           "body": "A Jiaqing-era colophon (1812) praises the empire’s unprecedented breadth, and the realms that come by ship and interpreter to offer tribute and acknowledge the throne — more than the fingers can count. It recalls Huang Qianren of Yuyao and his world map of 1767 (Qianlong dinghai): mountains, rivers, boundaries, and seats laid out like points on the palm, truly enough to behold the territorial order of a flourishing age. Jinchuan, Tibet, and the prefectures of Xinjiang had not yet been opened then, and rivers and harbors still had gaps. This engraving follows the imperially commissioned compilations and fills those in, somewhat more fully than the older plate. Each square is one hundred li. The legend marks a province with ■̅, a prefecture (fu) with □, a subprefecture (ting) with ▮, a directly administered department with ⌂, a department (zhou) with ■, a county with ●, a pass with ⏠, a garrison town with ◎, and a tusi with ▲. Where the frontier marches stretch on without end, or sea and wind leave the measure unsettled, distances in li are still given and the old bearings are kept; I have not dared to alter my own view of them in the slightest. The older map was cut in stone and awkward to carry. This screen copy has been set right for viewing on the road and in lodgings, so that learned readers may hang the whole piece and look at it — that would be a kindness.\nDated the first decade of the eighth lunar month, Jiaqing 17 (rénshēn)."
         }
       },
-      "point": { "x": 0.9365, "y": 0.651 },
-      "hitWidth": 0.103,
+      "point": { "x": 0.9421, "y": 0.656 },
+      "hitWidth": 0.0803,
       "hitHeight": 0.498,
       "tags": ["colophon", "legend", "jiaqing"]
+    },
+    {
+      "id": "bloc-korea",
+      "title": "朝鮮",
+      "body": "朝鮮古箕子國漢置元菟樂浪二郡後隋入\n高麗唐置安東都護府自後歷代朝貢\n本朝封朝鮮國王其地東西南瀕海北抵長白\n山東西二千里南北四千里由國城過鴨綠江至\n京師三千五百里京畿道領郡三府三州七縣三\n江源道領郡七府五州四縣十黃海道領郡三\n府三州五縣八全羅道領郡三府三州四縣二十三\n慶尚道領郡七府六州五縣十一忠清道領郡四\n州九縣七咸鏡道領郡三府五州八平安道領\n郡十一府九州十六縣六",
+      "i18n": {
+        "zh-Hans": {
+          "title": "朝鲜",
+          "body": "朝鲜，古箕子国。汉置元菟、乐浪二郡，后隋入高丽，唐置安东都护府，自后历代朝贡。本朝封朝鲜国王。其地东西南濒海，北抵长白山，东西二千里，南北四千里。由国城过鸭绿江至京师三千五百里。京畿道领郡三、府三、州七、县三；江源道领郡七、府五、州四、县十；黄海道领郡三、府三、州五、县八；全罗道领郡三、府三、州四、县二十三；庆尚道领郡七、府六、州五、县十一；忠清道领郡四、州九、县七；咸镜道领郡三、府五、州八；平安道领郡十一、府九、州十六、县六。"
+        },
+        "en": {
+          "title": "Korea",
+          "body": "Korea, the ancient realm of Jizi. Han established the commanderies of Xuantu and Lelang; it later passed into Goguryeo, and Tang set up the Andong Protectorate. Tribute continued under the dynasties that followed. This dynasty invests the king of Joseon. The land meets the sea on the east, west, and south, and Changbai Mountain on the north: two thousand li east to west, four thousand north to south. From the royal city across the Yalu to the capital is 3,500 li. The eight provinces and their commanderies, prefectures, departments, and counties are then listed."
+        }
+      },
+      "point": { "x": 0.8877, "y": 0.3186 },
+      "hitWidth": 0.0858,
+      "hitHeight": 0.1817,
+      "tags": ["cartouche", "korea"]
+    },
+    {
+      "id": "bloc-central",
+      "title": "阿爾坦河",
+      "body": "河出今西蕃巴顏喀拉山東名阿爾坦河東北流三百餘里合鄂敦塔拉諸泉源大小千百泓錯列如星\n滙為查靈鄂靈二海子各周三百餘里東西相去五十里折而北經蒙古托羅海山之南轉東南流千餘里\n南北受數十小水經烏蘭莽乃山下有多母打禿昆多倫河多拉昆多倫河自東南來入之自此折而\n北流三百餘里前後小水奔注不可勝計繞阿木你馬勒產母孫山之東流百五十里有齊普河呼呼\n烏蘇河自西來入之又迤東北流三百餘里會哈克圖泉係羅達諸水歷歸德堡經積石山至蘭州\n河州入中國界",
+      "i18n": {
+        "zh-Hans": {
+          "title": "阿尔坦河",
+          "body": "河出今西蕃巴颜喀拉山东名阿尔坦河东北流三百余里合鄂敦塔拉诸泉源大小千百泓错列如星\n汇为查灵鄂灵二海子各周三百余里东西相去五十里折而北经蒙古托罗海山之南转东南流千余里\n南北受数十小水经乌兰莽乃山下有多母打秃昆多伦河多拉昆多伦河自东南来入之自此折而\n北流三百余里前后小水奔注不可胜计绕阿木你马勒产母孙山之东流百五十里有齐普河呼呼\n乌苏河自西来入之又迤东北流三百余里会哈克图泉系罗达诸水历归德堡经积石山至兰州\n河州入中国界"
+        },
+        "en": {
+          "title": "Altan River",
+          "body": "The Yellow River issues east of Bayan Har, in the western fan lands, and is named the Altan. It flows northeast three hundred li and more, joining the springs of Odontala, hundreds and thousands of pools large and small strewn in rows like stars. They gather into the two lakes Zhaling and Eling; each is three hundred li and more around, fifty li from east to west. The river turns north, passes south of Mongol Tuoluhai Mountain, then southeast for a thousand li and more. It takes in several dozen lesser streams from north and south, passes below Ulan Mangnai, and is joined from the southeast by the Domodatkun Dolon and the Dolakun Dolon. From there it turns and flows north three hundred li and more. Lesser streams rush in beyond counting. It bends east of Mount Amnyemaqen, runs a hundred and fifty li, and receives the Qipu and the Huhusu from the west. It continues northeast three hundred li and more, meets the Haketu and the streams that follow, passes Guide fortress and Jishi Mountain, and at Lanzhou, at Hezhou, enters China."
+        }
+      },
+      "point": { "x": 0.0375, "y": 0.4929 },
+      "hitWidth": 0.0466,
+      "hitHeight": 0.4761,
+      "tags": ["cartouche", "yellow-river"]
+    },
+    {
+      "id": "bloc-india",
+      "title": "西天",
+      "body": "西天即漢身毒\n國按館考云西\n天即天竺在蔥\n嶺之南去月氏\n底東南數千里\n地方三萬餘里\n分東西南北中\n五印度國各有\n王地皆數千里",
+      "i18n": {
+        "zh-Hans": {
+          "title": "西天",
+          "body": "西天，即汉身毒国。按馆考云：西天即天竺，在葱岭之南，去月氏底东南数千里，地方三万余里，分东西南北中五印度国，各有王，地皆数千里。"
+        },
+        "en": {
+          "title": "India",
+          "body": "The Western Heaven is the Shendu of the Han. A gazetteer says it is Tianzhu, south of the Congling, several thousand li southeast of the Yuezhi, more than thirty thousand li across, divided into the five Indias — east, west, south, north, and center — each with its own king and a territory of several thousand li."
+        }
+      },
+      "point": { "x": 0.0888, "y": 0.6232 },
+      "hitWidth": 0.0667,
+      "hitHeight": 0.07,
+      "tags": ["cartouche", "india"]
+    },
+    {
+      "id": "bloc-heyuan",
+      "title": "河源",
+      "body": "元潘昂霄河源志曰\n吐蕃朵甘思西部有\n泉百餘泓方可七八\n十里履高下瞰燦若\n列星故名火敦腦兒\n華言星宿也宋\n思本云河源在中州\n西南直四川馬湖蠻\n部之正西三千餘里\n雲南麗江宣撫司之\n西北一千五百餘里",
+      "i18n": {
+        "zh-Hans": {
+          "title": "河源",
+          "body": "元潘昂霄《河源志》曰：吐蕃朵甘思西部有泉百余泓，方可七八十里，履高下瞰，灿若列星，故名火敦脑儿，华言星宿也。宋思本云：河源在中州西南，直四川马湖蛮部之正西三千余里，云南丽江宣抚司之西北一千五百余里。"
+        },
+        "en": {
+          "title": "Source of the Yellow River",
+          "body": "Pan Angxiao’s Yuan treatise on the river source says that in the west of Dokham in Tibet more than a hundred springs spread over seventy or eighty li. Seen from above they glitter like stars, hence Huodun Nao’er, “Starry Lake” in Chinese. Zhu Siben says the source lies southwest of the central provinces, three thousand li due west of the Mahu country in Sichuan, and 1,500 li northwest of the Lijiang pacification office in Yunnan."
+        }
+      },
+      "point": { "x": 0.0901, "y": 0.4676 },
+      "hitWidth": 0.0623,
+      "hitHeight": 0.0829,
+      "tags": ["cartouche", "qinghai", "yellow-river"]
+    },
+    {
+      "id": "bloc-vietnam",
+      "title": "安南",
+      "body": "安南國本古南交\n地秦象郡漢交趾\n九真日南三郡地\n甚廣東西相距一\n千七百里南北二\n千八百里唐曰交\n州後改為安南都\n護府宋封安南王\n明初改交趾布政\n司本朝封安南國\n王每歲朝貢入交\n有三道由廣東由\n廣西由雲南一由\n廣東之欽州一由\n廣西之思明府一\n由雲南之蒙自",
+      "i18n": {
+        "zh-Hans": {
+          "title": "安南",
+          "body": "安南国，本古南交地。秦象郡，汉交趾、九真、日南三郡。地甚广，东西相距一千七百里，南北二千八百里。唐曰交州，后改为安南都护府。宋封安南王。明初改交趾布政司。本朝封安南国王，每岁朝贡。入交有三道：由广东、由广西、由云南。一由广东之钦州，一由广西之思明府，一由云南之蒙自。"
+        },
+        "en": {
+          "title": "Annam",
+          "body": "Annam, the ancient Nanjao. Qin’s Xiang commandery; Han’s Jiaozhi, Jiuzhen, and Rinan. About 1,700 li east to west and 2,800 north to south. Tang called it Jiaozhou, later the Annan Protectorate. Song invested a king of Annam. Early Ming made it the Jiaozhi administration. This dynasty invests the king of Annam, who sends tribute every year. Three roads lead in: from Qinzhou in Guangdong, Siming in Guangxi, and Mengzi in Yunnan."
+        }
+      },
+      "point": { "x": 0.3692, "y": 0.7942 },
+      "hitWidth": 0.1464,
+      "hitHeight": 0.052,
+      "tags": ["cartouche", "vietnam"]
+    },
+    {
+      "id": "bloc-japan",
+      "title": "日本",
+      "body": "日本古倭奴國唐始改名其地\n在會稽之東近海由寧波入分五畿七道\n      三島附庸之國九百餘島",
+      "i18n": {
+        "zh-Hans": {
+          "title": "日本",
+          "body": "日本，古倭奴国，唐始改名。其地在会稽之东，近海，由宁波入。分五畿七道、三岛，附庸之国九百余岛。"
+        },
+        "en": {
+          "title": "Japan",
+          "body": "Japan, the ancient land of Wo. Tang first gave it this name. It lies east of Kuaiji, close to the sea, and is reached from Ningbo. It is divided into five capital provinces, seven circuits, and three islands, with more than nine hundred dependent islands."
+        }
+      },
+      "point": { "x": 0.8744, "y": 0.5262 },
+      "hitWidth": 0.0296,
+      "hitHeight": 0.1051,
+      "tags": ["cartouche", "japan"]
+    },
+    {
+      "id": "bloc-russia",
+      "title": "俄羅斯",
+      "body": "俄羅斯東連羅剎迤西直北俱其地界\n謹按平定羅剎方略云俄羅斯自額濟勒\n河東至大洋北至北海西至國界其國距\n京師甚遠由此陸路可直達彼處自嘉峪\n關行十三日至哈密自哈密行十二三日\n至吐魯番過土魯番五種部落即俄羅斯\n之境其國遼闊有一萬餘里",
+      "i18n": {
+        "zh-Hans": {
+          "title": "俄罗斯",
+          "body": "俄罗斯，东连罗刹，迤西直北俱其地界。谨按《平定罗刹方略》云：俄罗斯自额济勒河东至大洋，北至北海，西至国界。其国距京师甚远，由此陆路可直达彼处。自嘉峪关行十三日至哈密，自哈密行十二三日至吐鲁番。过吐鲁番五种部落，即俄罗斯之境。其国辽阔，有一万余里。"
+        },
+        "en": {
+          "title": "Russia",
+          "body": "Russia joins the Luocha on the east; west and due north are all its bounds. The Official Account of the Pacification of the Luocha says Russia runs from the Volga east to the ocean, north to the northern sea, and west to its own frontier. The country is very far from the capital, but a land road reaches it: thirteen days from Jiayu Pass to Hami, twelve or thirteen more to Turpan. Beyond Turpan’s five tribes is Russian ground. The realm is vast, more than ten thousand li across."
+        }
+      },
+      "point": { "x": 0.1963, "y": 0.0434 },
+      "hitWidth": 0.0486,
+      "hitHeight": 0.0725,
+      "tags": ["cartouche", "russia"]
+    },
+    {
+      "id": "bloc-taiwan",
+      "title": "臺灣",
+      "body": "東去俱番界人\n 跡不到\n府境南北長二千八百四十\n里東至火山番界五十里",
+      "i18n": {
+        "zh-Hans": {
+          "title": "台湾",
+          "body": "东去俱番界，人迹不到。府境南北长二千八百四十里，东至火山番界五十里。"
+        },
+        "en": {
+          "title": "Taiwan",
+          "body": "Eastward, all is indigenous territory, and no track reaches it. The prefecture runs 2,840 li from north to south. Fifty li to the east is the indigenous boundary at Huoshan."
+        }
+      },
+      "point": { "x": 0.766, "y": 0.754 },
+      "hitWidth": 0.032,
+      "hitHeight": 0.058,
+      "tags": ["cartouche", "taiwan"]
+    },
+    {
+      "id": "bloc-title",
+      "title": "大清萬年一統地理圖",
+      "body": "大清萬年一統地理圖",
+      "i18n": {
+        "zh-Hans": {
+          "title": "大清万年一统地理图",
+          "body": "大清万年一统地理图"
+        },
+        "en": {
+          "title": "Geographical Map of the Great Qing's Everlasting Unity",
+          "body": "Geographical Map of the Great Qing's Everlasting Unity"
+        }
+      },
+      "point": { "x": 0.9677, "y": 0.2176 },
+      "hitWidth": 0.028,
+      "hitHeight": 0.36,
+      "tags": ["cartouche", "title"]
+    },
+    {
+      "id": "bloc-holland",
+      "title": "荷蘭",
+      "body": "荷蘭國在西海之北謹按\n政治典訓載荷蘭國便稱\n與俄羅斯接壤言語相通",
+      "i18n": {
+        "zh-Hans": {
+          "title": "荷兰",
+          "body": "荷兰国在西海之北谨按\n政治典训载荷兰国便称\n与俄罗斯接壤言语相通"
+        },
+        "en": {
+          "title": "Holland",
+          "body": "Holland lies north of the western sea. The Zhengzhi Dianxun says that Holland borders Russia, and that their languages are mutually intelligible."
+        }
+      },
+      "point": { "x": 0.058, "y": 0.088 },
+      "hitWidth": 0.0313,
+      "hitHeight": 0.0856,
+      "tags": ["cartouche", "holland"]
+    },
+    {
+      "id": "bloc-altai",
+      "title": "阿爾泰山",
+      "body": "阿爾太\n山譯言\n金山謹\n按\n親征平定\n朔漠方\n略云西\n北金山\n距此西\n可兩月\n程古大\n宛國",
+      "i18n": {
+        "zh-Hans": {
+          "title": "阿尔泰山",
+          "body": "阿尔太\n山译言\n金山谨\n按\n亲征平定\n朔漠方\n略云西\n北金山\n距此西\n可两月\n程古大\n宛国"
+        },
+        "en": {
+          "title": "Altai Mountains",
+          "body": "The Altai: the name means Gold Mountain. The Personal Campaigns to Pacify the Desert says that the northwestern Gold Mountain lies about two months' journey to the west of here, and that it is the ancient kingdom of Dayuan."
+        }
+      },
+      "point": { "x": 0.2647, "y": 0.0763 },
+      "hitWidth": 0.0499,
+      "hitHeight": 0.0329,
+      "tags": ["cartouche", "altai"]
     }
   ]
 }

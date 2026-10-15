@@ -72,6 +72,7 @@
 
 /* Invisible selectable region over a map text block */
 .map-label-btn--area {
+  position: relative;
   background: rgba(140, 190, 255, 0.04);
   border: 1.5px solid rgba(200, 230, 255, 0.55);
   box-shadow:
@@ -92,6 +93,47 @@
   transform: none;
   background: rgba(140, 190, 255, 0.18);
 }
+
+#app.annotation-editing .map-label-btn--area.is-annot-editing {
+  cursor: grab;
+  touch-action: none;
+  overflow: visible;
+  background: rgba(140, 190, 255, 0.1);
+  border-color: rgba(255, 220, 140, 0.85);
+  animation: none;
+}
+
+#app.annotation-editing .map-label-btn--area.is-annot-editing.is-dragging {
+  cursor: grabbing;
+  background: rgba(255, 214, 120, 0.18);
+}
+
+.annot-handle {
+  display: none;
+}
+
+#app.annotation-editing .annot-handle {
+  display: block;
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -5px;
+  padding: 0;
+  background: #ffe08a;
+  border: 1px solid #3a2a10;
+  border-radius: 1px;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.annot-handle--nw { left: 0; top: 0; cursor: nwse-resize; }
+.annot-handle--ne { left: 100%; top: 0; cursor: nesw-resize; }
+.annot-handle--sw { left: 0; top: 100%; cursor: nesw-resize; }
+.annot-handle--se { left: 100%; top: 100%; cursor: nwse-resize; }
+.annot-handle--n { left: 50%; top: 0; cursor: ns-resize; }
+.annot-handle--s { left: 50%; top: 100%; cursor: ns-resize; }
+.annot-handle--w { left: 0; top: 50%; cursor: ew-resize; }
+.annot-handle--e { left: 100%; top: 50%; cursor: ew-resize; }
 
 .map-label-btn-area-fill {
   display: block;
@@ -188,14 +230,20 @@
   max-height: min(52vh, 460px);
 }
 
-/* Inscriptions broken into source lines: one visual line each, as wide as the text. */
+/* Inscriptions broken into source lines: one visual line each, as wide as the text.
+   The short-popup cap (42vh) is shorter than a column list, so the frame has to grow
+   or the last lines paint outside the border. */
+.annotation-popup--unwrapped {
+  max-height: min(92vh, 800px);
+}
+
 .annotation-popup--long.annotation-popup--unwrapped {
   --popup-w: max-content;
   max-width: 96vw;
 }
 
 .annotation-popup--unwrapped .annotation-popup-paper {
-  max-height: min(70vh, 560px);
+  max-height: min(80vh, 700px);
 }
 
 .annotation-popup--unwrapped .annotation-popup-body {
