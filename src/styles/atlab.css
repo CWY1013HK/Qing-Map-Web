@@ -78,12 +78,27 @@
 }
 
 /*
- * Map stage: laid out at scan aspect (--floor-native-h), then scaleY to fill the
- * floor band so labels read better when the floor is viewed at an angle.
+ * Preview and the pinned sea underlay fill the floor band in layout.
+ * The land image (object-fit: fill) and wave SVG (preserveAspectRatio: none)
+ * stretch to this taller box for the angled floor.
+ * scaleY is not used here: together with the fade and overflow it would
+ * promote the whole underlay into one GPU texture, which blanks on the
+ * large display.
  */
 .floor-preview,
+.atlab-floor > .sea-underlay.is-pinned {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: var(--atlab-floor-h);
+}
+
+/*
+ * OSD box stays at scan aspect. scaleY only stretches the small overlays
+ * (clouds, labels) so they meet the taller floor band.
+ */
 .floor-viewer,
-.atlab-floor > .sea-underlay.is-pinned,
 .floor-overlays {
   position: absolute;
   left: 0;
@@ -130,6 +145,15 @@
 /* Full-bleed sea (not an OSD overlay) — immune to viewport/resize redraws. */
 .atlab-floor > .sea-underlay.is-pinned {
   z-index: 1;
+}
+
+/*
+ * Once the fade finishes, drop the opacity transition and overflow clip.
+ * Those keep the underlay as one render surface; without them it paints in tiles.
+ */
+.atlab-floor > .sea-underlay.is-pinned.is-settled {
+  overflow: visible;
+  transition: none;
 }
 
 /*

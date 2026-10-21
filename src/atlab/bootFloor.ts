@@ -14,6 +14,40 @@ const PREVIEW_URL = '/map-preview-low.jpg'
 /** Fewer mist puffs than wall focus; floor is a large but static display. */
 const FLOOR_CLOUD_COUNT = 14
 
+type SizeDrawer = {
+  _calculateCanvasSize?: () => { x: number; y: number }
+}
+
+/**
+ * The floor map canvas is hidden; the visible map is the sea underlay.
+ * Keep every drawer backing store at 1×1 so a devicePixelRatio change cannot
+ * allocate a full-floor WebGL buffer (output + render + clip).
+ */
+function capDrawerBackingStore(drawer: object | null | undefined): void {
+  const sized = drawer as SizeDrawer | null | undefined
+  if (!sized || typeof sized._calculateCanvasSize !== 'function') return
+  sized._calculateCanvasSize = () => new OpenSeadragon.Point(1, 1)
+}
+
+function keepFloorDrawerTiny(viewer: OpenSeadragon.Viewer): void {
+  capDrawerBackingStore(viewer.drawer)
+  const requestDrawer = viewer.requestDrawer.bind(viewer)
+  viewer.requestDrawer = ((candidate, options) => {
+    const prev = OpenSeadragon.pixelDensityRatio
+    const size = viewer.viewport.getContainerSize()
+    const maxDim = Math.max(size.x, size.y, 1)
+    OpenSeadragon.pixelDensityRatio = 1 / maxDim
+    try {
+      const drawer = requestDrawer(candidate, options)
+      if (drawer && typeof drawer === 'object') capDrawerBackingStore(drawer)
+      return drawer
+    } finally {
+      OpenSeadragon.pixelDensityRatio = prev
+    }
+  }) as OpenSeadragon.Viewer['requestDrawer']
+  viewer.raiseEvent('resize', {})
+}
+
 /**
  * Floor map: full-bleed fitted map, no chrome / interaction.
  * Permanently runs a lite focus-mode mist. Vector overlays attach via OSD
@@ -28,41 +62,57 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
   let sea: SeaUnderlayHandle | null = null
   let previewHoldTimer = 0
 
-  const viewer = OpenSeadragon({
-    element: el,
-    prefixUrl: '/osd-images/',
-    tileSources: {
-      type: 'image',
-      url: PREVIEW_URL,
-    },
-    placeholderFillStyle: 'transparent',
-    showNavigationControl: false,
-    showNavigator: false,
-    animationTime: 0,
-    blendTime: 0,
-    immediateRender: true,
-    imageLoaderLimit: 2,
-    visibilityRatio: 1,
-    minZoomImageRatio: 1,
-    maxZoomPixelRatio: 1,
-    maxImageCacheCount: 4,
-    /** Floor OSD box is aspect-correct; CSS scaleY stretches it to the floor band. */
-    autoResize: false,
-    homeFillsViewer: false,
-    panHorizontal: false,
-    panVertical: false,
-    gestureSettingsMouse: {
-      dragToPan: false,
-      scrollToZoom: false,
-      clickToZoom: false,
-      dblClickToZoom: false,
-    },
-    gestureSettingsTouch: {
-      dragToPan: false,
-      pinchToZoom: false,
-      dblClickToZoom: false,
-    },
-  })
+  /*
+   * Construct the hidden drawer at ~1 device pixel. The viewport still uses
+   * the element's CSS size; only the canvas backing store follows this ratio.
+   * Restored immediately so the wall viewer is unchanged.
+   */
+  const layoutW = Math.max(1, el.clientWidth)
+  const layoutH = Math.max(1, el.clientHeight)
+  const prevDensity = OpenSeadragon.pixelDensityRatio
+  OpenSeadragon.pixelDensityRatio = 1 / Math.max(layoutW, layoutH)
+
+  let viewer: OpenSeadragon.Viewer
+  try {
+    viewer = OpenSeadragon({
+      element: el,
+      prefixUrl: '/osd-images/',
+      tileSources: {
+        type: 'image',
+        url: PREVIEW_URL,
+      },
+      placeholderFillStyle: 'transparent',
+      showNavigationControl: false,
+      showNavigator: false,
+      animationTime: 0,
+      blendTime: 0,
+      immediateRender: true,
+      imageLoaderLimit: 2,
+      visibilityRatio: 1,
+      minZoomImageRatio: 1,
+      maxZoomPixelRatio: 1,
+      maxImageCacheCount: 4,
+      /** Floor OSD box is aspect-correct; CSS scaleY stretches its overlays to the floor band. */
+      autoResize: false,
+      homeFillsViewer: false,
+      panHorizontal: false,
+      panVertical: false,
+      gestureSettingsMouse: {
+        dragToPan: false,
+        scrollToZoom: false,
+        clickToZoom: false,
+        dblClickToZoom: false,
+      },
+      gestureSettingsTouch: {
+        dragToPan: false,
+        pinchToZoom: false,
+        dblClickToZoom: false,
+      },
+    })
+  } finally {
+    OpenSeadragon.pixelDensityRatio = prevDensity
+  }
+  keepFloorDrawerTiny(viewer)
 
   const fitHome = () => {
     viewer.viewport.goHome(true)

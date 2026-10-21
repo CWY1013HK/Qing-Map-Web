@@ -533,6 +533,12 @@ export function startSeaUnderlay(
       unloadTimer = window.setTimeout(() => {
         if (stopping) return
         fadeWorld(0)
+        /*
+         * Floor underlay is full-bleed. Leaving the opacity transition and
+         * overflow clip in place keeps it as one GPU surface, which fails to
+         * allocate on the large display and shows the floor background.
+         */
+        if (host) root.classList.add('is-settled')
       }, FADE_MS)
     })
   })
