@@ -1,4 +1,4 @@
-import type { Annotation } from '../lib/types'
+import type { Annotation, AnnotationChgis } from '../lib/types'
 import { PROVINCE_TITLES } from './provinceTitles'
 import { getLocale } from './store'
 import type { Locale } from './types'
@@ -27,6 +27,13 @@ export function resolveAnnotation(
     body: overlay?.body ?? annotation.body,
     aka: overlay?.aka ?? annotation.aka,
   }
+}
+
+/** Gazetteer link text follows the UI language instead of staying in simplified Chinese. */
+export function resolveChgisName(chgis: AnnotationChgis, locale: Locale = getLocale()): string {
+  if (locale === 'en') return chgis.transcription?.trim() || chgis.name
+  if (locale === 'zh-Hant') return chgis.nameHant?.trim() || chgis.name
+  return chgis.name
 }
 
 export function resolveProvinceTitle(

@@ -14,6 +14,18 @@ export type AnnotationI18nOverlay = {
   aka?: string[]
 }
 
+/** Linked China Historical GIS record (TGAZ), usually the 1820 Qing time slice. */
+export type AnnotationChgis = {
+  id: string
+  uri: string
+  /** Simplified name, as TGAZ stores it. */
+  name: string
+  /** Traditional name. Omitted when it is identical to `name`. */
+  nameHant?: string
+  /** English romanization from the gazetteer. */
+  transcription?: string
+}
+
 export type Annotation = {
   id: string
   title: string
@@ -28,6 +40,10 @@ export type Annotation = {
     'zh-Hans'?: AnnotationI18nOverlay
     en?: AnnotationI18nOverlay
   }
+  /** Gazetteer record for this place. Shown as a link in the popup. */
+  chgis?: AnnotationChgis
+  /** Gazetteer record for the provincial capital (省會), beside the province link. */
+  chgisCapital?: AnnotationChgis
   /** Anchor on the map (normalized image coordinates) */
   point: MapPoint
   tags?: string[]

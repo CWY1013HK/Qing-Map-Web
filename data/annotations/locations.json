@@ -19,6 +19,8 @@
           "aka": ["Chang'an", "Xi'an", "Xianning"]
         }
       },
+      "chgis": {"id":"hvd_25009","uri":"https://chgis.hudci.org/tgaz/placename/hvd_25009","name":"陕西","nameHant":"陝西","transcription":"Shanxi"},
+      "chgisCapital": {"id":"hvd_9659","uri":"https://chgis.hudci.org/tgaz/placename/hvd_9659","name":"西安府","transcription":"Xi'an Fu"},
       "point": { "x": 0.4795, "y": 0.37258 },
       "tags": ["province", "guanzhong"],
       "labelImage": "/ui/labels/label-shaanxi.png",
@@ -41,6 +43,8 @@
           "aka": ["Shuntian", "Daxing", "Wanping"]
         }
       },
+      "chgis": {"id":"hvd_25052","uri":"https://chgis.hudci.org/tgaz/placename/hvd_25052","name":"直隶","nameHant":"直隸","transcription":"Zhili"},
+      "chgisCapital": {"id":"hvd_9513","uri":"https://chgis.hudci.org/tgaz/placename/hvd_9513","name":"顺天府","nameHant":"順天府","transcription":"Shuntian Fu"},
       "point": { "x": 0.64253, "y": 0.20436 },
       "tags": ["capital", "beijing"],
       "labelImage": "/ui/labels/label-jingshi.png?v=fullseal",
@@ -63,6 +67,8 @@
           "aka": ["Jiangning", "Shangyuan"]
         }
       },
+      "chgis": {"id":"hvd_40547","uri":"https://chgis.hudci.org/tgaz/placename/hvd_40547","name":"上元县","nameHant":"上元縣","transcription":"Shangyuan Xian"},
+      "chgisCapital": {"id":"hvd_32285","uri":"https://chgis.hudci.org/tgaz/placename/hvd_32285","name":"江宁府","nameHant":"江寧府","transcription":"Jiangning Fu"},
       "point": { "x": 0.67564, "y": 0.45542 },
       "tags": ["province", "nanjing"],
       "labelImage": "/ui/labels/label-jiangnan.png",
@@ -85,6 +91,8 @@
           "aka": ["Changsha", "Shanhua"]
         }
       },
+      "chgis": {"id":"hvd_25006","uri":"https://chgis.hudci.org/tgaz/placename/hvd_25006","name":"湖南","transcription":"Hunan"},
+      "chgisCapital": {"id":"hvd_9621","uri":"https://chgis.hudci.org/tgaz/placename/hvd_9621","name":"长沙府","nameHant":"長沙府","transcription":"Changsha Fu"},
       "point": { "x": 0.55087, "y": 0.56782 },
       "tags": ["province", "changsha"],
       "labelImage": "/ui/labels/label-hunan.png",
@@ -107,6 +115,8 @@
           "aka": ["Guangzhou", "Panyu"]
         }
       },
+      "chgis": {"id":"hvd_25054","uri":"https://chgis.hudci.org/tgaz/placename/hvd_25054","name":"广东","nameHant":"廣東","transcription":"Guangdong"},
+      "chgisCapital": {"id":"hvd_9549","uri":"https://chgis.hudci.org/tgaz/placename/hvd_9549","name":"广州府","nameHant":"廣州府","transcription":"Guangzhou Fu"},
       "point": { "x": 0.56454, "y": 0.73659 },
       "tags": ["province", "canton"],
       "labelImage": "/ui/labels/label-guangdong.png?v=canton3",
@@ -126,6 +136,7 @@
           "body": "Dihua (today's Ürümqi) was a key Qing stronghold in Xinjiang. Under the Qianlong emperor, two campaigns against the Dzungars pacified both sides of the Tianshan, expanded the northwest frontier, and established administration and military colonies here. Qianlong often spoke of \"one family within and beyond,\" folding Xinjiang into a unified imperial map of the inner lands and outer dependencies."
         }
       },
+      "chgis": {"id":"hvd_9742","uri":"https://chgis.hudci.org/tgaz/placename/hvd_9742","name":"迪化州","transcription":"Dihua Zhou"},
       "point": { "x": 0.194, "y": 0.18534 },
       "tags": ["xinjiang", "qianlong", "frontier"],
       "labelImage": "/ui/labels/label-dihua.png?v=house8",
@@ -358,6 +369,48 @@
       "hitWidth": 0.0499,
       "hitHeight": 0.0329,
       "tags": ["cartouche", "altai"]
+    },
+    {
+      "id": "shanxi-sheng",
+      "title": "山西",
+      "body": "三晉舊都，為清朝主要皇商根據地之一。",
+      "aka": [
+        "太原"
+      ],
+      "i18n": {
+        "zh-Hans": {
+          "title": "山西",
+          "body": "三晋旧都，为清朝主要皇商根据地之一。",
+          "aka": [
+            "太原"
+          ]
+        },
+        "en": {
+          "title": "Shanxi",
+          "body": "Sanjin Old Capital was one of the major emperor and merchant bases of the Qing Dynasty.",
+          "aka": [
+            "Taiyuan"
+          ]
+        }
+      },
+      "chgis": {
+        "id": "hvd_112103",
+        "uri": "https://chgis.hudci.org/tgaz/placename/hvd_112103",
+        "name": "山西省",
+        "transcription": "Shanxi Sheng"
+      },
+      "chgisCapital": {
+        "id": "hvd_94021",
+        "uri": "https://chgis.hudci.org/tgaz/placename/hvd_94021",
+        "name": "太原府",
+        "transcription": "Taiyuan Fu"
+      },
+      "point": { "x": 0.5596, "y": 0.2451 },
+      "tags": [
+        "city-capture"
+      ],
+      "labelImage": "/ui/labels/label-shanxi-sheng.png",
+      "labelWidth": 0.0062
     }
   ]
 }

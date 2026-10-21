@@ -94,7 +94,7 @@
   background: rgba(140, 190, 255, 0.18);
 }
 
-#app.annotation-editing .map-label-btn--area.is-annot-editing {
+#app.label-editing .map-label-btn--area.is-annot-editing {
   cursor: grab;
   touch-action: none;
   overflow: visible;
@@ -103,7 +103,7 @@
   animation: none;
 }
 
-#app.annotation-editing .map-label-btn--area.is-annot-editing.is-dragging {
+#app.label-editing .map-label-btn--area.is-annot-editing.is-dragging {
   cursor: grabbing;
   background: rgba(255, 214, 120, 0.18);
 }
@@ -112,7 +112,7 @@
   display: none;
 }
 
-#app.annotation-editing .annot-handle {
+#app.label-editing .annot-handle {
   display: block;
   position: absolute;
   width: 9px;
@@ -203,7 +203,7 @@
   top: 50%;
   z-index: 8;
   width: var(--popup-w);
-  max-height: min(42vh, 360px);
+  max-height: min(88vh, 860px);
   padding: 16px 16px 14px;
   transform: translate(-50%, -50%);
   transform-origin: center center;
@@ -223,18 +223,17 @@
 
 .annotation-popup--long {
   --popup-w: min(420px, 86vw);
-  max-height: min(62vh, 520px);
+  max-height: min(92vh, 960px);
 }
 
 .annotation-popup--long .annotation-popup-paper {
-  max-height: min(52vh, 460px);
+  max-height: min(84vh, 880px);
 }
 
 /* Inscriptions broken into source lines: one visual line each, as wide as the text.
-   The short-popup cap (42vh) is shorter than a column list, so the frame has to grow
-   or the last lines paint outside the border. */
+   The frame grows with the text up to the viewport, so the lines stay inside the border. */
 .annotation-popup--unwrapped {
-  max-height: min(92vh, 800px);
+  max-height: min(94vh, 1040px);
 }
 
 .annotation-popup--long.annotation-popup--unwrapped {
@@ -243,7 +242,7 @@
 }
 
 .annotation-popup--unwrapped .annotation-popup-paper {
-  max-height: min(80vh, 700px);
+  max-height: min(86vh, 960px);
 }
 
 .annotation-popup--unwrapped .annotation-popup-body {
@@ -373,7 +372,7 @@
 .annotation-popup-paper {
   position: relative;
   z-index: 2;
-  max-height: min(34vh, 300px);
+  max-height: min(80vh, 780px);
   overflow: auto;
   padding: 0.85rem 0.95rem 1rem;
   border: 1px solid var(--minimap-well-border);
@@ -414,7 +413,8 @@
 }
 
 .annotation-popup-table th {
-  width: 3.2em;
+  width: auto;
+  min-width: 3.2em;
   padding-right: 0.65rem;
   font-weight: 400;
   letter-spacing: 0.12em;
@@ -424,6 +424,16 @@
 
 .annotation-popup-table td {
   letter-spacing: 0.06em;
+}
+
+.annotation-popup-chgis {
+  color: #1e3a5f;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.annotation-popup-chgis:hover {
+  color: #0e2444;
 }
 
 .annotation-popup-body {
@@ -533,4 +543,191 @@
   opacity: 0 !important;
   pointer-events: none !important;
   visibility: hidden;
+}
+
+.annotation-capture-band {
+  position: fixed;
+  z-index: 40;
+  box-sizing: border-box;
+  border: 1.5px solid rgba(255, 220, 140, 0.95);
+  background: rgba(255, 214, 120, 0.18);
+  pointer-events: none;
+}
+
+.city-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(20, 16, 10, 0.28);
+}
+
+.city-editor-panel {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid rgba(60, 50, 30, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 252, 245, 0.97);
+  box-shadow: 0 10px 32px rgba(20, 15, 5, 0.28);
+  color: #1a1a1a;
+  font: 13px/1.4 var(--font-kaiti);
+}
+
+.city-editor-heading {
+  margin: 0 0 0.6rem;
+  font: inherit;
+  font-size: 1.15rem;
+  letter-spacing: 0.12em;
+  font-weight: 400;
+}
+
+.city-editor-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 120px;
+  margin: 0 0 0.7rem;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.city-editor-locale,
+.city-editor-chgis {
+  margin: 0.55rem 0 0;
+  padding: 0.45rem 0.6rem 0.6rem;
+  border: 1px solid rgba(60, 50, 30, 0.16);
+  border-radius: 4px;
+}
+
+.city-editor-locale legend,
+.city-editor-chgis legend {
+  padding: 0 0.3rem;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.city-editor-field {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 0.35rem;
+  align-items: start;
+  margin-top: 0.35rem;
+}
+
+.city-editor-label {
+  padding-top: 0.28rem;
+  opacity: 0.7;
+}
+
+.city-editor-panel input,
+.city-editor-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 0.28rem 0.4rem;
+  border: 1px solid rgba(60, 50, 30, 0.22);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+}
+
+.city-editor-panel textarea {
+  resize: vertical;
+}
+
+.city-editor-chgis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  max-height: 9.5rem;
+  overflow: auto;
+}
+
+.city-editor-choice {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.city-editor-choice input {
+  width: auto;
+  margin-top: 0.2rem;
+}
+
+.city-editor-hint,
+.city-editor-status {
+  margin: 0.4rem 0 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.city-editor-status[data-kind='ok'] {
+  color: #0a6b4a;
+  opacity: 1;
+}
+
+.city-editor-status[data-kind='err'] {
+  color: #a01a1a;
+  opacity: 1;
+}
+
+.city-editor-status[data-kind='busy'] {
+  color: #176a8a;
+  opacity: 1;
+}
+
+.city-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.city-editor-actions button {
+  font: inherit;
+  padding: 0.28rem 0.75rem;
+  border: 1px solid rgba(60, 50, 30, 0.3);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.city-editor-save {
+  background: #1a6b7a;
+  color: #fff;
+  border-color: #1a6b7a;
+}
+
+.city-editor-delete {
+  color: #a01a1a;
+}
+
+.city-editor-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.city-editor-confirm {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  gap: 0.35rem;
+  padding: 1.2rem;
+  background: rgba(255, 252, 245, 0.97);
+}
+
+.city-editor-confirm[hidden] {
+  display: none;
+}
+
+.city-editor-confirm-title {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
 }

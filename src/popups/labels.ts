@@ -8,6 +8,7 @@ import {
   isAnnotationPopupOpen,
   openAnnotationPopup,
 } from './panel'
+import { openCityEditor, type CityEditorSave } from './cityEditor'
 
 const DEFAULT_LABEL_WIDTH = 0.03
 /** Hit radius as fraction of image width for canvas-click fallback. */
@@ -23,8 +24,10 @@ function asCollection(raw: unknown): AnnotationCollection {
 }
 
 let lastToggleAt = 0
-/** True only while the dev editor's Annotations mode is on. */
-let annotationEditing = false
+/** Dev editor: move and resize location-label boxes. */
+let labelEditing = false
+/** Dev editor: capture a city and edit entry text. */
+let contentEditing = false
 
 function openOrToggle(annotation: Annotation): void {
   const now = performance.now()
@@ -41,7 +44,32 @@ function isAreaHotspot(annotation: Annotation): boolean {
   return annotation.hitWidth != null && annotation.hitHeight != null
 }
 
-function buildHotspotButton(annotation: Annotation): HTMLButtonElement {
+const ANNOTATION_FIELDS = [
+  'title',
+  'body',
+  'aka',
+  'i18n',
+  'chgis',
+  'chgisCapital',
+  'point',
+  'tags',
+  'labelImage',
+  'labelWidth',
+  'hitWidth',
+  'hitHeight',
+] as const
+
+function applyAnnotation(target: Annotation, next: Annotation): void {
+  for (const key of ANNOTATION_FIELDS) {
+    if (next[key] === undefined) delete target[key]
+    else target[key] = next[key] as never
+  }
+}
+
+function buildHotspotButton(
+  annotation: Annotation,
+  onEdit?: (annotation: Annotation) => void,
+): HTMLButtonElement {
   const btn = document.createElement('button')
   btn.type = 'button'
   btn.className = 'map-label-btn'
@@ -67,12 +95,19 @@ function buildHotspotButton(annotation: Annotation): HTMLButtonElement {
   }
 
   const openUnlessDragged = (e?: Event) => {
-    if (annotationEditing || btn.dataset.suppressClick === '1') {
+    if (btn.dataset.suppressClick === '1') {
       btn.dataset.suppressClick = ''
       e?.preventDefault?.()
       e?.stopPropagation?.()
       return
     }
+    if (contentEditing && onEdit) {
+      e?.preventDefault?.()
+      e?.stopPropagation?.()
+      onEdit(annotation)
+      return
+    }
+    if (labelEditing || contentEditing) return
     openOrToggle(annotation)
   }
 
@@ -172,8 +207,10 @@ function roundCoord(n: number): number {
   return Math.round(n * 10000) / 10000
 }
 
+export type AnnotationEditMode = 'off' | 'labels' | 'annotations'
+
 export type AnnotationEditHandle = {
-  setEditing(on: boolean): void
+  setEditing(mode: AnnotationEditMode): void
   save(): Promise<void>
   setOnDirty(fn: (() => void) | null): void
 }
@@ -195,7 +232,7 @@ function ensureResizeHandles(el: HTMLButtonElement): void {
 }
 
 /**
- * Dev-only geometry edits. Active only in the editor's Annotations mode.
+ * Dev-only geometry edits. Active only in the editor's Location labels mode.
  * Drag the box to move it; drag an edge or corner to resize. Save writes locations.json.
  */
 function attachAreaEdit(
@@ -237,7 +274,7 @@ function attachAreaEdit(
   el.addEventListener(
     'pointerdown',
     (e) => {
-      if (!annotationEditing || e.button !== 0) return
+      if (!labelEditing || e.button !== 0) return
       if (el.classList.contains('is-hidden') || el.classList.contains('is-intro-hidden')) return
       const img = toImage(e)
       if (!img) return
@@ -344,31 +381,281 @@ export function mountLocationLabels(viewer: Viewer): () => void {
   const collection = asCollection(locationsJson)
   const item0 = () => viewer.world.getItemAt(0) as TiledImage | null
 
-  const hotspots: LabelHotspot[] = collection.annotations.map((annotation) => ({
-    annotation,
-    el: buildHotspotButton(annotation),
-  }))
+  let editorOpen = false
+  let lastEditAt = 0
+  let detachCapture: (() => void) | null = null
   const dirtyIds = new Set<string>()
   let onDirty: (() => void) | null = null
-  const setEditing = (on: boolean) => {
-      annotationEditing = on
-      document.getElementById('app')?.classList.toggle('annotation-editing', on)
-      if (on) {
-        labelStore.setVisible(true)
-        closeAnnotationPopup()
-      }
-    for (const hotspot of hotspots) {
-      if (!isAreaHotspot(hotspot.annotation)) continue
-      hotspot.el.classList.toggle('is-annot-editing', on)
+
+  const setVertexStatus = (message: string, kind: 'ok' | 'err' | 'busy' | 'idle') => {
+    const statusEl = document.getElementById('vertex-edit-status')
+    if (!statusEl) return
+    statusEl.textContent = message
+    statusEl.dataset.kind = kind
+  }
+
+  async function postEntry(mode: 'insert' | 'update', payload: CityEditorSave) {
+    const res = await fetch('/__dev/annotations/entry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, ...payload }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.ok) throw new Error(data.error ?? `Save failed (${res.status})`)
+    return {
+      annotation: data.annotation as Annotation,
+      warning: (data.warning as string | null) ?? null,
     }
   }
-  if (import.meta.env.DEV) {
-    for (const hotspot of hotspots) {
+
+  const hotspots: LabelHotspot[] = []
+
+  function placeOne(hotspot: LabelHotspot) {
+    const item = item0()
+    if (!item) return
+    const img = hotspot.el.querySelector<HTMLImageElement>('img')
+    if (img && !img.complete) {
+      img.addEventListener('load', () => placeHotspot(viewer, item, hotspot), { once: true })
+    }
+    placeHotspot(viewer, item, hotspot)
+  }
+
+  function syncOneVisibility(el: HTMLButtonElement) {
+    const on = labelStore.isVisible()
+    el.classList.toggle('is-hidden', !on)
+    el.tabIndex = on ? 0 : -1
+    el.setAttribute('aria-hidden', on ? 'false' : 'true')
+    const wrap = el.parentElement
+    if (wrap?.classList.contains('map-label-overlay')) {
+      wrap.style.pointerEvents = on ? 'auto' : 'none'
+    }
+  }
+
+  function refreshHotspot(hotspot: LabelHotspot) {
+    const localized = resolveAnnotation(hotspot.annotation)
+    hotspot.el.title = localized.title
+    hotspot.el.setAttribute('aria-label', localized.title)
+    if (hotspot.el.classList.contains('map-label-btn--text')) {
+      hotspot.el.textContent = localized.title
+    }
+    placeOne(hotspot)
+  }
+
+  function addHotspot(annotation: Annotation) {
+    const hotspot: LabelHotspot = {
+      annotation,
+      el: buildHotspotButton(annotation, requestEdit),
+    }
+    hotspots.push(hotspot)
+    if (import.meta.env.DEV) {
       attachAreaEdit(viewer, item0, hotspot, (id) => {
         dirtyIds.add(id)
         onDirty?.()
       })
     }
+    if (labelEditing && isAreaHotspot(annotation)) {
+      hotspot.el.classList.add('is-annot-editing')
+    }
+    if (document.getElementById('app')?.classList.contains('intro-active')) {
+      hotspot.el.classList.add('is-intro-hidden')
+    }
+    placeOne(hotspot)
+    syncOneVisibility(hotspot.el)
+  }
+
+  function removeHotspot(id: string) {
+    const index = hotspots.findIndex((hotspot) => hotspot.annotation.id === id)
+    if (index < 0) return
+    const { el } = hotspots[index]
+    try {
+      viewer.removeOverlay(el)
+    } catch {
+      /* already gone */
+    }
+    el.remove()
+    hotspots.splice(index, 1)
+    dirtyIds.delete(id)
+    if (isAnnotationPopupOpen(id)) closeAnnotationPopup()
+  }
+
+  async function editAnnotation(annotation: Annotation) {
+    if (!import.meta.env.DEV || editorOpen) return
+    editorOpen = true
+    try {
+      const result = await openCityEditor({
+        mode: 'update',
+        annotation,
+        onSave: (payload) => postEntry('update', payload),
+        onDelete: async () => {
+          const res = await fetch('/__dev/annotations/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: annotation.id }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok || !data.ok) throw new Error(data.error ?? `Delete failed (${res.status})`)
+        },
+      })
+      if (result.action === 'saved') {
+        applyAnnotation(annotation, result.annotation)
+        const hotspot = hotspots.find((item) => item.annotation.id === annotation.id)
+        if (hotspot) refreshHotspot(hotspot)
+        setVertexStatus(
+          result.warning ? `Saved. Translation failed: ${result.warning}` : `Saved ${annotation.id}`,
+          result.warning ? 'err' : 'ok',
+        )
+      } else if (result.action === 'deleted') {
+        removeHotspot(annotation.id)
+        setVertexStatus(`Deleted ${annotation.id}`, 'ok')
+      }
+    } finally {
+      editorOpen = false
+    }
+  }
+
+  function requestEdit(annotation: Annotation) {
+    const now = performance.now()
+    if (now - lastEditAt < 280) return
+    lastEditAt = now
+    void editAnnotation(annotation)
+  }
+
+  function clientToNorm(clientX: number, clientY: number) {
+    const item = item0()
+    if (!item) return null
+    const rect = viewer.element.getBoundingClientRect()
+    const img = item.viewerElementToImageCoordinates(
+      new OpenSeadragon.Point(clientX - rect.left, clientY - rect.top),
+    )
+    const size = item.getContentSize()
+    return {
+      x: Math.min(1, Math.max(0, img.x / size.x)),
+      y: Math.min(1, Math.max(0, img.y / size.y)),
+    }
+  }
+
+  async function captureRect(ax: number, ay: number, bx: number, by: number) {
+    if (editorOpen) return
+    const p0 = clientToNorm(Math.min(ax, bx), Math.min(ay, by))
+    const p1 = clientToNorm(Math.max(ax, bx), Math.max(ay, by))
+    if (!p0 || !p1) return
+    editorOpen = true
+    setVertexStatus('Cropping highest-resolution tiles…', 'busy')
+    try {
+      const res = await fetch('/__dev/annotations/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x0: p0.x, y0: p0.y, x1: p1.x, y1: p1.y }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) throw new Error(data.error ?? `Crop failed (${res.status})`)
+      setVertexStatus('Crop ready. Fill in the city and insert.', 'ok')
+      const draft: Annotation = {
+        id: '',
+        title: '',
+        point: {
+          x: roundCoord((p0.x + p1.x) / 2),
+          y: roundCoord((p0.y + p1.y) / 2),
+        },
+        labelWidth: roundCoord(Math.abs(p1.x - p0.x)),
+        tags: ['city-capture'],
+      }
+      const result = await openCityEditor({
+        mode: 'insert',
+        annotation: draft,
+        pngBase64: data.pngBase64 as string,
+        onSave: (payload) => postEntry('insert', payload),
+      })
+      if (result.action === 'saved') {
+        addHotspot(result.annotation)
+        setVertexStatus(
+          result.warning
+            ? `Inserted. Translation failed: ${result.warning}`
+            : `Inserted ${result.annotation.id}`,
+          result.warning ? 'err' : 'ok',
+        )
+      } else {
+        setVertexStatus('Capture cancelled', 'idle')
+      }
+    } catch (err) {
+      setVertexStatus(err instanceof Error ? err.message : String(err), 'err')
+    } finally {
+      editorOpen = false
+    }
+  }
+
+  function attachCapture(): () => void {
+    const band = document.createElement('div')
+    band.className = 'annotation-capture-band'
+    band.hidden = true
+    document.body.appendChild(band)
+    const canvas = viewer.canvas as unknown as HTMLElement
+    let drag: { pointerId: number; x0: number; y0: number; x1: number; y1: number } | null = null
+
+    const onDown = (event: PointerEvent) => {
+      if (!contentEditing || editorOpen || event.button !== 0) return
+      if (!canvas.contains(event.target as Node)) return
+      drag = {
+        pointerId: event.pointerId,
+        x0: event.clientX,
+        y0: event.clientY,
+        x1: event.clientX,
+        y1: event.clientY,
+      }
+      canvas.setPointerCapture(event.pointerId)
+    }
+    const onMove = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.pointerId) return
+      drag.x1 = event.clientX
+      drag.y1 = event.clientY
+      const left = Math.min(drag.x0, drag.x1)
+      const top = Math.min(drag.y0, drag.y1)
+      band.hidden = false
+      band.style.left = `${left}px`
+      band.style.top = `${top}px`
+      band.style.width = `${Math.abs(drag.x1 - drag.x0)}px`
+      band.style.height = `${Math.abs(drag.y1 - drag.y0)}px`
+    }
+    const finish = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.pointerId) return
+      const box = drag
+      drag = null
+      band.hidden = true
+      if (Math.abs(box.x1 - box.x0) < 12 || Math.abs(box.y1 - box.y0) < 12) return
+      void captureRect(box.x0, box.y0, box.x1, box.y1)
+    }
+    canvas.addEventListener('pointerdown', onDown)
+    canvas.addEventListener('pointermove', onMove)
+    canvas.addEventListener('pointerup', finish)
+    canvas.addEventListener('pointercancel', finish)
+    return () => {
+      canvas.removeEventListener('pointerdown', onDown)
+      canvas.removeEventListener('pointermove', onMove)
+      canvas.removeEventListener('pointerup', finish)
+      canvas.removeEventListener('pointercancel', finish)
+      band.remove()
+    }
+  }
+
+  for (const annotation of collection.annotations) addHotspot(annotation)
+
+  const setEditing = (mode: AnnotationEditMode) => {
+    labelEditing = mode === 'labels'
+    contentEditing = mode === 'annotations'
+    const app = document.getElementById('app')
+    app?.classList.toggle('label-editing', labelEditing)
+    app?.classList.toggle('annotation-editing', contentEditing)
+    if (labelEditing || contentEditing) {
+      labelStore.setVisible(true)
+      closeAnnotationPopup()
+    }
+    for (const hotspot of hotspots) {
+      if (!isAreaHotspot(hotspot.annotation)) continue
+      hotspot.el.classList.toggle('is-annot-editing', labelEditing)
+    }
+  }
+  if (import.meta.env.DEV) {
+    detachCapture = attachCapture()
     annotationEditHandle = {
       setEditing,
       setOnDirty(fn) {
@@ -457,7 +744,8 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     if (!item) return
     const app = document.getElementById('app')
     if (
-      annotationEditing ||
+      labelEditing ||
+      contentEditing ||
       app?.classList.contains('intro-active') ||
       app?.classList.contains('focus-mode')
     ) {
@@ -526,9 +814,10 @@ export function mountLocationLabels(viewer: Viewer): () => void {
 
   return () => {
     if (annotationEditHandle?.setEditing === setEditing) {
-      annotationEditHandle.setEditing(false)
+      annotationEditHandle.setEditing('off')
       annotationEditHandle = null
     }
+    detachCapture?.()
     unsub()
     viewer.removeHandler('open', onOpen)
     viewer.removeHandler('canvas-click', onCanvasClick)

@@ -1,5 +1,5 @@
-import { registerLocaleRefresh, resolveAnnotation, t } from '../i18n'
-import type { Annotation } from '../lib/types'
+import { registerLocaleRefresh, resolveAnnotation, resolveChgisName, t } from '../i18n'
+import type { Annotation, AnnotationChgis } from '../lib/types'
 
 let openId: string | null = null
 let openAnnotation: Annotation | null = null
@@ -66,33 +66,52 @@ function applyPopupChrome(): void {
   closeBtn?.setAttribute('aria-label', t('popup.closeAria'))
 }
 
-function renderAkaTable(aka: string[] | undefined): void {
+function appendChgisRow(tbody: HTMLElement, chgis: AnnotationChgis | undefined, label: string): void {
+  if (!chgis?.uri) return
+  const row = document.createElement('tr')
+  const th = document.createElement('th')
+  th.scope = 'row'
+  th.textContent = label
+  const td = document.createElement('td')
+  const link = document.createElement('a')
+  link.className = 'annotation-popup-chgis'
+  link.href = chgis.uri
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  link.textContent = resolveChgisName(chgis) || chgis.id
+  td.appendChild(link)
+  row.append(th, td)
+  tbody.appendChild(row)
+}
+
+function renderMetaTable(annotation: Annotation): void {
   if (!tableEl) return
   const tbody = tableEl.querySelector('tbody')
   if (!tbody) return
   tbody.replaceChildren()
 
-  const names = aka?.filter((n) => n.trim()) ?? []
-  if (names.length === 0) {
-    tableEl.hidden = true
-    return
+  const names = resolveAnnotation(annotation).aka?.filter((n) => n.trim()) ?? []
+  if (names.length > 0) {
+    const row = document.createElement('tr')
+    const th = document.createElement('th')
+    th.scope = 'row'
+    th.textContent = t('popup.aka')
+    const td = document.createElement('td')
+    td.textContent = names.join('、')
+    row.append(th, td)
+    tbody.appendChild(row)
   }
 
-  const row = document.createElement('tr')
-  const th = document.createElement('th')
-  th.scope = 'row'
-  th.textContent = t('popup.aka')
-  const td = document.createElement('td')
-  td.textContent = names.join('、')
-  row.append(th, td)
-  tbody.appendChild(row)
-  tableEl.hidden = false
+  appendChgisRow(tbody, annotation.chgisCapital, t('popup.chgisCapital'))
+  appendChgisRow(tbody, annotation.chgis, names.length > 0 ? t('popup.chgisProvince') : t('popup.chgis'))
+
+  tableEl.hidden = tbody.childElementCount === 0
 }
 
 function fillAnnotationContent(annotation: Annotation): void {
   const localized = resolveAnnotation(annotation)
   if (titleEl) titleEl.textContent = localized.title
-  renderAkaTable(localized.aka)
+  renderMetaTable(annotation)
   if (bodyEl) {
     const raw = localized.body ?? ''
     bodyEl.textContent = raw.replace(/[ \t\n]+$/, '')

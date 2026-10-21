@@ -97,8 +97,9 @@ export function mountOverlayVertexEditor(
       <label>Mode
         <select id="vertex-edit-mode">
           <option value="vertices">Vertices</option>
-          <option value="provinces">Province labels</option>
-          <option value="annotations">Annotations</option>
+          <option value="overlays">Overlays</option>
+          <option value="labels">Annotations</option>
+          <option value="annotations">Location labels</option>
         </select>
       </label>
       <span class="vertex-editor-hint" id="vertex-edit-hint">E edit · hold D erase · Alt-click delete · dblclick insert</span>
@@ -116,8 +117,11 @@ export function mountOverlayVertexEditor(
     <div class="vertex-editor-row" id="vertex-edit-province-row" hidden>
       <span class="vertex-editor-hint">Drag label to move · scroll to scale · linked 漢地/中國 share one position · 現代中國 labels are separate (pink Kai) · 海路 labels are cyan</span>
     </div>
+    <div class="vertex-editor-row" id="vertex-edit-label-row" hidden>
+      <span class="vertex-editor-hint">Drag a box to move it · edges to resize · Save writes the position</span>
+    </div>
     <div class="vertex-editor-row" id="vertex-edit-annotation-row" hidden>
-      <span class="vertex-editor-hint">Drag a box to move it · drag an edge or corner to resize · Save writes locations.json</span>
+      <span class="vertex-editor-hint">Drag empty map to capture a city · click an entry to edit</span>
     </div>
     <div class="vertex-editor-row">
       <span class="vertex-editor-hint" id="vertex-edit-erase-hint">Hold <kbd>D</kbd> + drag to box-erase (vertices mode)</span>
@@ -135,6 +139,7 @@ export function mountOverlayVertexEditor(
   const hintEl = panel.querySelector<HTMLElement>('#vertex-edit-hint')!
   const outlineRow = panel.querySelector<HTMLElement>('#vertex-edit-outline-row')!
   const provinceRow = panel.querySelector<HTMLElement>('#vertex-edit-province-row')!
+  const labelRow = panel.querySelector<HTMLElement>('#vertex-edit-label-row')!
   const annotationRow = panel.querySelector<HTMLElement>('#vertex-edit-annotation-row')!
   const eraseHint = panel.querySelector<HTMLElement>('#vertex-edit-erase-hint')!
   const targetEl = panel.querySelector<HTMLSelectElement>('#vertex-edit-target')!
@@ -143,7 +148,8 @@ export function mountOverlayVertexEditor(
   const statusEl = panel.querySelector<HTMLElement>('#vertex-edit-status')!
 
   const editMode = () => modeEl.value
-  const isProvinceMode = () => editMode() === 'provinces'
+  const isOverlayMode = () => editMode() === 'overlays'
+  const isLabelMode = () => editMode() === 'labels'
   const isAnnotationMode = () => editMode() === 'annotations'
   const isVertexMode = () => editMode() === 'vertices'
 
@@ -404,15 +410,18 @@ export function mountOverlayVertexEditor(
   const syncModeUi = () => {
     const mode = editMode()
     outlineRow.hidden = mode !== 'vertices'
-    provinceRow.hidden = mode !== 'provinces'
+    provinceRow.hidden = mode !== 'overlays'
+    labelRow.hidden = mode !== 'labels'
     annotationRow.hidden = mode !== 'annotations'
     eraseHint.hidden = mode !== 'vertices'
     hintEl.textContent =
-      mode === 'provinces'
+      mode === 'overlays'
         ? 'E edit · drag move · scroll scale · linked 漢地/中國 stay together'
-        : mode === 'annotations'
-          ? 'E edit · drag a box to move · drag an edge or corner to resize'
-          : 'E edit · hold D erase · Alt-click delete · dblclick insert'
+        : mode === 'labels'
+          ? 'E edit · drag a box to move · edges to resize'
+          : mode === 'annotations'
+            ? 'E edit · drag empty map to capture a city · click an entry to edit'
+            : 'E edit · hold D erase · Alt-click delete · dblclick insert'
     handleRoot.hidden = !enabledEl.checked || mode !== 'vertices'
   }
 
@@ -462,7 +471,7 @@ export function mountOverlayVertexEditor(
   }
 
   const onProvincePointerDown = (e: PointerEvent) => {
-    if (!enabledEl.checked || !isProvinceMode() || !provinceLabels) return
+    if (!enabledEl.checked || !isOverlayMode() || !provinceLabels) return
     const t = e.target as Element | null
     if (!t?.classList.contains('province-label-hit')) return
     const labelId = (t as SVGRectElement).dataset.labelId
@@ -596,7 +605,7 @@ export function mountOverlayVertexEditor(
   }
 
   const onProvinceWheel = (e: WheelEvent) => {
-    if (!enabledEl.checked || !isProvinceMode()) return
+    if (!enabledEl.checked || !isOverlayMode()) return
     const t = e.target as Element | null
     if (!t?.classList.contains('province-label-hit')) return
     const labelId = (t as SVGRectElement).dataset.labelId
@@ -630,15 +639,16 @@ export function mountOverlayVertexEditor(
 
   const syncEnabled = () => {
     const on = enabledEl.checked
-    const prov = isProvinceMode()
+    const overlay = isOverlayMode()
+    const labels = isLabelMode()
     const annot = isAnnotationMode()
     syncModeUi()
     handleRoot.hidden = !on || !isVertexMode()
     handleRoot.classList.toggle('is-enabled', on && isVertexMode())
     panel.classList.toggle('is-editing', on)
-    provinceLabels?.setEditing(on && prov)
+    provinceLabels?.setEditing(on && overlay)
     getAnnotationEditHandle()?.setOnDirty(() => markDirty(LOCATIONS_FILE_KEY))
-    getAnnotationEditHandle()?.setEditing(on && annot)
+    getAnnotationEditHandle()?.setEditing(!on ? 'off' : labels ? 'labels' : annot ? 'annotations' : 'off')
 
     if (!on) {
       dHeld = false
@@ -649,7 +659,7 @@ export function mountOverlayVertexEditor(
       provinceLabels?.setSelectedId(null)
       viewer.setMouseNavEnabled(true)
       setStatus(dirtyKeys.size ? 'Unsaved changes' : 'Idle', dirtyKeys.size ? 'busy' : 'idle')
-    } else if (prov) {
+    } else if (overlay) {
       overlayStore.setGroupVisible(manager.idsForGroup(HANDI_GROUP_ID), true)
       overlayStore.setGroupVisible(manager.idsForGroup(ZHONGGUO_GROUP_ID), true)
       overlayStore.setGroupVisible(manager.idsForGroup(XIANDAI_GROUP_ID), true)
@@ -658,12 +668,17 @@ export function mountOverlayVertexEditor(
       // Pan off so the province hit layer can receive pointer events reliably.
       viewer.setMouseNavEnabled(false)
       if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
-      else setStatus('Editing province labels — drag cyan boxes · scroll to scale · uncheck Edit to pan', 'idle')
+      else setStatus('Editing overlays — drag to move, scroll to scale · uncheck Edit to pan', 'idle')
+    } else if (labels) {
+      handleGroup.replaceChildren()
+      viewer.setMouseNavEnabled(false)
+      if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
+      else setStatus('Editing annotations — drag a box to move, edges to resize', 'idle')
     } else if (annot) {
       handleGroup.replaceChildren()
       viewer.setMouseNavEnabled(false)
       if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
-      else setStatus('Editing annotations — drag to move, edges to resize · uncheck Edit to pan', 'idle')
+      else setStatus('Editing location labels — drag empty map to capture a city · click an entry to edit', 'idle')
     } else {
       const meta = FILE_KEYS.find((f) => f.key === targetEl.value)
       if (meta) {
@@ -737,11 +752,13 @@ export function mountOverlayVertexEditor(
     rebuildHandles()
     if (enabledEl.checked && dirtyKeys.size === 0) {
       setStatus(
-        isProvinceMode()
-          ? 'Editing province labels — drag to move, scroll to scale'
-          : isAnnotationMode()
-            ? 'Editing annotations — drag to move, edges to resize'
-            : 'Editing — hold D to erase, Save when ready',
+        isOverlayMode()
+          ? 'Editing overlays — drag to move, scroll to scale'
+          : isLabelMode()
+            ? 'Editing annotations — drag a box to move, edges to resize'
+            : isAnnotationMode()
+              ? 'Editing location labels — drag empty map to capture a city · click an entry to edit'
+              : 'Editing — hold D to erase, Save when ready',
         'idle',
       )
     } else if (dirtyKeys.size) {
@@ -797,7 +814,7 @@ export function mountOverlayVertexEditor(
     unsubChrome()
     markVertexEditorAvailable(false)
     provinceLabels?.setEditing(false)
-    getAnnotationEditHandle()?.setEditing(false)
+    getAnnotationEditHandle()?.setEditing('off')
     provinceLabels?.setSelectedId(null)
     provinceHitLayer?.removeEventListener('pointerdown', onProvincePointerDown)
     provinceHitLayer?.removeEventListener('wheel', onProvinceWheel)

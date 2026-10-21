@@ -11,6 +11,7 @@ export { t } from './t'
 export type { MessageKey } from './messages'
 export {
   resolveAnnotation,
+  resolveChgisName,
   resolveProvinceTitle,
   type LocalizedAnnotationFields,
 } from './content'
