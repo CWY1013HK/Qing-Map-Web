@@ -111,6 +111,14 @@ function buildHotspotButton(
     openOrToggle(annotation)
   }
 
+  // Keep the capture gesture from taking this press. The viewer canvas
+  // contains these overlays, and capturing the pointer there retargets the
+  // click away from the label so the editor never opens.
+  btn.addEventListener('pointerdown', (e) => {
+    if (!contentEditing || e.button !== 0) return
+    e.stopPropagation()
+  })
+
   // Native click (works when the overlay sits above the OSD canvas)
   btn.addEventListener('click', (e) => {
     e.preventDefault()
@@ -441,10 +449,14 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     placeOne(hotspot)
   }
 
-  function addHotspot(annotation: Annotation) {
+  function addHotspot(annotation: Annotation, previewSrc?: string) {
     const hotspot: LabelHotspot = {
       annotation,
       el: buildHotspotButton(annotation, requestEdit),
+    }
+    if (previewSrc) {
+      const img = hotspot.el.querySelector<HTMLImageElement>('img')
+      if (img) img.src = previewSrc
     }
     hotspots.push(hotspot)
     if (import.meta.env.DEV) {
@@ -461,6 +473,7 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     }
     placeOne(hotspot)
     syncOneVisibility(hotspot.el)
+    viewer.forceRedraw()
   }
 
   function removeHotspot(id: string) {
@@ -567,7 +580,10 @@ export function mountLocationLabels(viewer: Viewer): () => void {
         onSave: (payload) => postEntry('insert', payload),
       })
       if (result.action === 'saved') {
-        addHotspot(result.annotation)
+        const preview = data.pngBase64
+          ? `data:image/png;base64,${data.pngBase64 as string}`
+          : undefined
+        addHotspot(result.annotation, preview)
         setVertexStatus(
           result.warning
             ? `Inserted. Translation failed: ${result.warning}`
@@ -594,7 +610,9 @@ export function mountLocationLabels(viewer: Viewer): () => void {
 
     const onDown = (event: PointerEvent) => {
       if (!contentEditing || editorOpen || event.button !== 0) return
-      if (!canvas.contains(event.target as Node)) return
+      const target = event.target
+      if (target instanceof Element && target.closest('.map-label-btn, .map-label-overlay')) return
+      if (!canvas.contains(target as Node)) return
       drag = {
         pointerId: event.pointerId,
         x0: event.clientX,
@@ -736,26 +754,8 @@ export function mountLocationLabels(viewer: Viewer): () => void {
 
   viewer.world.addHandler('add-item', placeAll)
 
-  // Canvas-click fallback: hit-test annotation points in image space
-  const onCanvasClick = (event: OpenSeadragon.CanvasClickEvent) => {
-    if (!labelStore.isVisible()) return
-    if (!event.quick) return
-    const item = item0()
-    if (!item) return
-    const app = document.getElementById('app')
-    if (
-      labelEditing ||
-      contentEditing ||
-      app?.classList.contains('intro-active') ||
-      app?.classList.contains('focus-mode')
-    ) {
-      return
-    }
-
-    const imgPt = item.viewerElementToImageCoordinates(event.position)
-    const size = item.getContentSize()
+  function hitTestAnnotation(imgPt: OpenSeadragon.Point, size: OpenSeadragon.Point): Annotation | null {
     const hitR = size.x * CLICK_HIT_FRAC
-
     let best: { annotation: Annotation; dist: number } | null = null
     for (const { annotation, el } of hotspots) {
       if (el.classList.contains('is-hidden') || el.classList.contains('is-intro-hidden')) {
@@ -780,14 +780,39 @@ export function mountLocationLabels(viewer: Viewer): () => void {
       const dx = imgPt.x - ax
       const dy = imgPt.y - ay
       const dist = Math.hypot(dx, dy)
-      if (dist <= hitR && (!best || dist < best.dist)) {
+      const fracW = annotation.labelWidth ?? DEFAULT_LABEL_WIDTH
+      const half = Math.max(hitR, (size.x * fracW) / 2)
+      if (dist <= half && (!best || dist < best.dist)) {
         best = { annotation, dist }
       }
     }
-    if (best) {
-      event.preventDefaultAction = true
-      openOrToggle(best.annotation)
+    return best?.annotation ?? null
+  }
+
+  // Canvas-click fallback: hit-test annotation points in image space.
+  // In location-label editing this also opens the entry, so a click that
+  // lands on the map instead of the seal button still reaches the editor.
+  const onCanvasClick = (event: OpenSeadragon.CanvasClickEvent) => {
+    if (!labelStore.isVisible()) return
+    if (!event.quick) return
+    if (editorOpen) return
+    const item = item0()
+    if (!item) return
+    const app = document.getElementById('app')
+    if (
+      labelEditing ||
+      app?.classList.contains('intro-active') ||
+      app?.classList.contains('focus-mode')
+    ) {
+      return
     }
+
+    const imgPt = item.viewerElementToImageCoordinates(event.position)
+    const best = hitTestAnnotation(imgPt, item.getContentSize())
+    if (!best) return
+    event.preventDefaultAction = true
+    if (contentEditing) requestEdit(best)
+    else openOrToggle(best)
   }
   viewer.addHandler('canvas-click', onCanvasClick)
 

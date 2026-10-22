@@ -190,6 +190,22 @@ export function overlayWriteApi(projectRoot) {
         const urlPath = req.url?.split('?')[0]
         const query = new URL(req.url ?? '/', 'http://localhost').searchParams
 
+        // Vite only serves public files it saw at startup. A capture writes a
+        // new PNG after that, so read the label directory from disk instead.
+        if (req.method === 'GET' && urlPath?.startsWith('/ui/labels/')) {
+          const name = path.basename(urlPath)
+          if (/^label-[A-Za-z0-9-]+\.png$/.test(name)) {
+            const filePath = path.join(labelsDir, name)
+            if (fs.existsSync(filePath)) {
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'image/png')
+              res.setHeader('Cache-Control', 'no-cache')
+              fs.createReadStream(filePath).pipe(res)
+              return
+            }
+          }
+        }
+
         if (req.method === 'GET' && urlPath === '/__dev/annotations/chgis') {
           try {
             const names = [query.get('n') ?? '', ...(query.get('aka') ?? '').split(',')]

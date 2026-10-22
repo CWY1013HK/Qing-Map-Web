@@ -694,10 +694,11 @@
   border: 1px solid rgba(60, 50, 30, 0.3);
   border-radius: 4px;
   background: #fff;
+  color: #1a1a1a;
   cursor: pointer;
 }
 
-.city-editor-save {
+.city-editor-actions button.city-editor-save {
   background: #1a6b7a;
   color: #fff;
   border-color: #1a6b7a;
