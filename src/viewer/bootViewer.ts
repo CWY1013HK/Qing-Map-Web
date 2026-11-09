@@ -11,6 +11,7 @@ import { focusIntroRegion, mountIntro } from './intro'
 import { mountFocusMode } from './focusMode'
 import { mountMusicToggle } from './musicToggle'
 import { clearHighResTileCache } from './seaUnderlay'
+import { bindWallTilt, prepareWallTilt } from './wallTilt'
 import { mountTourSeals } from '../transitions/seals'
 
 /** Permanent OSD underlayer — pans/zooms with DZI; shows through unloaded tiles. */
@@ -88,6 +89,8 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   viewerEl.hidden = false
   viewerEl.setAttribute('aria-hidden', 'true')
 
+  prepareWallTilt()
+
   const viewer = OpenSeadragon({
     element: viewerEl,
     prefixUrl: '/osd-images/',
@@ -122,6 +125,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     },
   })
 
+  bindWallTilt(viewer)
   mountChrome(viewer)
   mountFocusMode(viewer)
   // Warm the land plate so 淨 mode does not wait on an 8MB fetch.

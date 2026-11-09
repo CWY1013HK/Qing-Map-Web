@@ -1,4 +1,5 @@
 import { CREDITS_SHOW_DEV_TOOLS } from '../config'
+import { isWallRotationEnabled, setWallRotationEnabled } from '../viewer/wallTilt'
 import {
   getLocale,
   LOCALES,
@@ -21,6 +22,7 @@ const FOLD_MS = 450
 let panelEl: HTMLElement | null = null
 let closeBtn: HTMLButtonElement | null = null
 let edgeEditBtn: HTMLButtonElement | null = null
+let rotateBtn: HTMLButtonElement | null = null
 let open = false
 let animating = false
 
@@ -80,6 +82,12 @@ function toolsRowHtml(): string {
           <button type="button" class="credits-lang-btn" data-locale="zh-Hans" aria-pressed="false"></button>
           <button type="button" class="credits-lang-btn" data-locale="en" aria-pressed="false"></button>
         </div>
+        <button
+          type="button"
+          class="credits-popup-tool-btn"
+          id="credits-toggle-rotation"
+          aria-pressed="false"
+        ></button>
         ${edgeBtn}
       </div>
   `
@@ -130,6 +138,15 @@ function applyCreditsCopy(): void {
   }
 
   syncEdgeEditButton()
+  syncRotateButton()
+}
+
+function syncRotateButton(): void {
+  if (!rotateBtn) return
+  const on = isWallRotationEnabled()
+  rotateBtn.setAttribute('aria-pressed', on ? 'true' : 'false')
+  rotateBtn.title = on ? t('credits.rotateHide') : t('credits.rotateShow')
+  rotateBtn.textContent = on ? t('credits.rotateOn') : t('credits.rotateOff')
 }
 
 function ensurePanel(): HTMLElement {
@@ -207,6 +224,7 @@ function ensurePanel(): HTMLElement {
   panelEl = panel
   closeBtn = panel.querySelector('#credits-popup-close')
   edgeEditBtn = panel.querySelector('#credits-toggle-edge-edit')
+  rotateBtn = panel.querySelector('#credits-toggle-rotation')
 
   closeBtn?.addEventListener('click', () => {
     void closeCreditsPopup()
@@ -215,6 +233,11 @@ function ensurePanel(): HTMLElement {
   edgeEditBtn?.addEventListener('click', () => {
     toggleVertexEditorPanel()
     syncEdgeEditButton()
+  })
+
+  rotateBtn?.addEventListener('click', () => {
+    setWallRotationEnabled(!isWallRotationEnabled())
+    syncRotateButton()
   })
 
   panel.querySelector('#credits-lang')?.addEventListener('click', (e) => {

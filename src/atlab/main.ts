@@ -13,6 +13,8 @@ import { bootFloorViewer } from './bootFloor'
  * Always scale to fit the browser so both wall + floor are visible
  * (native 1:1 when the window is at least that large).
  * Pass ?nofit=1 to scroll the raw pixel canvas instead.
+ * Pass ?wallTilt=1 to start turned, or switch it on from 功. Two fingers, or the
+ * metal sphere beside 淨 and 功, turn the sheet. The floor stays flat.
  */
 function layoutAtlabFrame(): void {
   const root = document.getElementById('atlab')

@@ -1,4 +1,5 @@
 import OpenSeadragon, { type Viewer } from 'openseadragon'
+import { wallObjectZoom } from '../viewer/wallTilt'
 import type { TourCameraTarget } from './types'
 
 function easeInOutCubic(t: number): number {
@@ -21,7 +22,7 @@ export function tweenCamera(
   const item = viewer.world.getItemAt(0)
   if (!item) return Promise.resolve()
 
-  const startZoom = vp.getZoom(true)
+  const startZoom = wallObjectZoom(viewer) ?? vp.getZoom(true)
   const startCenter = vp.getCenter(true)
   const homeZoom = vp.getHomeZoom()
 

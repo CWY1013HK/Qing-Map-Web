@@ -70,6 +70,13 @@ export function applyChromeI18n(): void {
     creditsBtn.title = on ? t('toolbar.creditsHide') : t('toolbar.creditsShow')
   }
 
+  const turn = document.querySelector<HTMLElement>('#wall-tilt-orb')
+  if (turn) {
+    const label = t('toolbar.turn')
+    turn.title = label
+    turn.setAttribute('aria-label', label)
+  }
+
   const seals = document.querySelector('#overlay-seals')
   seals?.setAttribute('aria-label', t('seals.aria'))
 

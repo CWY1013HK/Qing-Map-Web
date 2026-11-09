@@ -9,6 +9,7 @@ import {
   openAnnotationPopup,
 } from './panel'
 import { openCityEditor, type CityEditorSave } from './cityEditor'
+import { viewerPixelFromClient } from '../viewer/wallTilt'
 
 const DEFAULT_LABEL_WIDTH = 0.03
 /** Hit radius as fraction of image width for canvas-click fallback. */
@@ -215,6 +216,13 @@ function roundCoord(n: number): number {
   return Math.round(n * 10000) / 10000
 }
 
+function clientToViewerPixel(viewer: Viewer, clientX: number, clientY: number): OpenSeadragon.Point {
+  const mapped = viewerPixelFromClient(clientX, clientY)
+  if (mapped) return new OpenSeadragon.Point(mapped.x, mapped.y)
+  const rect = viewer.element.getBoundingClientRect()
+  return new OpenSeadragon.Point(clientX - rect.left, clientY - rect.top)
+}
+
 export type AnnotationEditMode = 'off' | 'labels' | 'annotations'
 
 export type AnnotationEditHandle = {
@@ -273,9 +281,8 @@ function attachAreaEdit(
   const toImage = (e: PointerEvent) => {
     const item = item0()
     if (!item) return null
-    const rect = viewer.element.getBoundingClientRect()
     return item.viewerElementToImageCoordinates(
-      new OpenSeadragon.Point(e.clientX - rect.left, e.clientY - rect.top),
+      clientToViewerPixel(viewer, e.clientX, e.clientY),
     )
   }
 
@@ -536,9 +543,8 @@ export function mountLocationLabels(viewer: Viewer): () => void {
   function clientToNorm(clientX: number, clientY: number) {
     const item = item0()
     if (!item) return null
-    const rect = viewer.element.getBoundingClientRect()
     const img = item.viewerElementToImageCoordinates(
-      new OpenSeadragon.Point(clientX - rect.left, clientY - rect.top),
+      clientToViewerPixel(viewer, clientX, clientY),
     )
     const size = item.getContentSize()
     return {

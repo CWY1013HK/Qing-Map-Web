@@ -234,6 +234,169 @@ body {
 #btn-credits[aria-pressed='true'] {
   filter: drop-shadow(0 2px 4px var(--badge-shadow)) brightness(1.08);
 }
+
+/*
+ * Map rotation, toggled from 功. Works in the regular viewer and on the ATLab wall.
+ * Chrome stays outside #viewer. The floor is never tilted.
+ * Zoom grows the sheet. Tilt and yaw stop short of 90°.
+ */
+#app.is-wall-tilt #viewer {
+  perspective: var(--wall-perspective, 2400px);
+  perspective-origin: 50% 100%;
+  overflow: hidden;
+}
+
+#app.is-wall-tilt #viewer .openseadragon-container {
+  transform: rotateX(var(--wall-tilt, 32deg)) rotateY(var(--wall-yaw, 0deg))
+    translateY(calc((var(--wall-object-scale, 1) - 1) * 50%))
+    scale(var(--wall-object-scale, 1));
+  transform-origin: 50% 100%;
+  backface-visibility: hidden;
+}
+
+.wall-tilt-orb {
+  display: none;
+}
+
+#app.is-wall-tilt .wall-tilt-orb {
+  display: block;
+  position: absolute;
+  left: calc(100% + 1.85rem);
+  top: auto;
+  bottom: calc(25px + 0.225rem);
+  width: 54px;
+  height: 54px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  animation: wall-orb-float 3.8s ease-in-out infinite;
+  background: none;
+  box-shadow: none;
+}
+
+/* The pearl covers the middle, so the rings only show past its edge. */
+#app.is-wall-tilt .wall-tilt-orb-halo,
+#app.is-wall-tilt .wall-tilt-orb-pearl {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+#app.is-wall-tilt .wall-tilt-orb-halo {
+  z-index: 0;
+}
+
+#app.is-wall-tilt .wall-tilt-orb-halo::before,
+#app.is-wall-tilt .wall-tilt-orb-halo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: wall-orb-radiate 2.8s ease-out infinite;
+}
+
+#app.is-wall-tilt .wall-tilt-orb-halo::after {
+  animation-delay: 1.4s;
+}
+
+#app.is-wall-tilt .wall-tilt-orb-pearl {
+  z-index: 1;
+  animation: wall-orb-shade 2.6s ease-in-out infinite;
+  background:
+    radial-gradient(
+      circle at var(--orb-hx, 32%) var(--orb-hy, 26%),
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.28) 14%,
+      transparent 36%
+    ),
+    radial-gradient(circle at 74% 80%, rgba(12, 16, 20, 0.55) 0%, transparent 46%),
+    radial-gradient(circle at 40% 36%, #f8fafc 0%, #d5dee8 20%, #8e9dad 46%, #465462 74%, #1a222a 100%);
+}
+
+#app.is-wall-tilt .wall-tilt-orb.is-grabbing,
+#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-pearl,
+#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::before,
+#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::after {
+  animation-play-state: paused;
+}
+
+.wall-tilt-orb.is-grabbing {
+  cursor: grabbing;
+}
+
+.wall-tilt-orb:focus-visible {
+  outline: none;
+}
+
+.wall-tilt-orb:focus-visible .wall-tilt-orb-pearl {
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: 3px;
+}
+
+@keyframes wall-orb-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes wall-orb-shade {
+  0%,
+  100% {
+    box-shadow:
+      inset 1px 2px 2px rgba(255, 255, 255, 0.7),
+      inset -7px -12px 16px rgba(0, 0, 0, 0.46),
+      inset 7px 9px 12px rgba(255, 244, 220, 0.05),
+      0 3px 6px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    box-shadow:
+      inset 2px 3px 4px rgba(255, 255, 255, 0.92),
+      inset -6px -11px 14px rgba(0, 0, 0, 0.34),
+      inset 8px 10px 16px rgba(255, 236, 200, 0.32),
+      0 3px 6px rgba(0, 0, 0, 0.35);
+  }
+}
+
+@keyframes wall-orb-radiate {
+  0% {
+    opacity: 0.9;
+    box-shadow:
+      0 0 0 0 rgba(255, 244, 220, 0.8),
+      0 0 8px 0 rgba(255, 220, 170, 0.35);
+  }
+  100% {
+    opacity: 0;
+    box-shadow:
+      0 0 0 18px rgba(255, 214, 160, 0),
+      0 0 20px 6px rgba(255, 196, 130, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app.is-wall-tilt .wall-tilt-orb,
+  #app.is-wall-tilt .wall-tilt-orb-pearl,
+  #app.is-wall-tilt .wall-tilt-orb-halo::before,
+  #app.is-wall-tilt .wall-tilt-orb-halo::after {
+    animation: none;
+  }
+
+  #app.is-wall-tilt .wall-tilt-orb-pearl {
+    box-shadow:
+      inset 1px 2px 2px rgba(255, 255, 255, 0.75),
+      inset -7px -12px 16px rgba(0, 0, 0, 0.42),
+      0 3px 6px rgba(0, 0, 0, 0.35);
+  }
+}
 #btn-music {
   background-image: var(--badge-yin);
 }

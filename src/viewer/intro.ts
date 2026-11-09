@@ -2,6 +2,7 @@ import OpenSeadragon from 'openseadragon'
 import { INTRO_FOCUS } from '../config'
 import { pickCloudSrc, rand } from '../lib/clouds'
 import { getPlaylist } from '../lib/playlist'
+import { wallObjectZoom } from './wallTilt'
 
 type Viewer = OpenSeadragon.Viewer
 
@@ -16,7 +17,7 @@ function easeInOutCubic(t: number): number {
 
 function smoothZoomHome(viewer: Viewer, durationMs: number): void {
   const vp = viewer.viewport
-  const startZoom = vp.getZoom(true)
+  const startZoom = wallObjectZoom(viewer) ?? vp.getZoom(true)
   const startCenter = vp.getCenter(true)
   const endZoom = vp.getHomeZoom()
   const endCenter = vp.getHomeBounds().getCenter()

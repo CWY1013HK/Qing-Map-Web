@@ -1,4 +1,5 @@
 import OpenSeadragon from 'openseadragon'
+import { viewerPixelFromClient, wallObjectZoom } from './wallTilt'
 import {
   flipXForDrift,
   pickCloudAsset,
@@ -234,13 +235,26 @@ export function startFocusClouds(
 
     const size = item.getContentSize()
     const homeZoom = viewer.viewport.getHomeZoom()
-    const zoom = viewer.viewport.getZoom(true)
+    const objectZoom = wallObjectZoom(viewer)
+    const zoom = objectZoom ?? viewer.viewport.getZoom(true)
     const deepZoom = !lockedHome && zoom >= homeZoom * VIEWPORT_AVOID_ZOOM
     const speedScale = preferReducedMotion ? 0.2 : 1
 
     const bounds = viewer.viewport.getBounds(true)
-    const vtl = item.viewportToImageCoordinates(bounds.getTopLeft())
-    const vbr = item.viewportToImageCoordinates(bounds.getBottomRight())
+    let viewTopLeft = bounds.getTopLeft()
+    let viewBottomRight = bounds.getBottomRight()
+    if (objectZoom && homeZoom > 0) {
+      const sheetScale = objectZoom / homeZoom
+      if (sheetScale > 1.001) {
+        const c = bounds.getCenter()
+        const halfW = bounds.width / (2 * sheetScale)
+        const halfH = bounds.height / (2 * sheetScale)
+        viewTopLeft = new OpenSeadragon.Point(c.x - halfW, c.y - halfH)
+        viewBottomRight = new OpenSeadragon.Point(c.x + halfW, c.y + halfH)
+      }
+    }
+    const vtl = item.viewportToImageCoordinates(viewTopLeft)
+    const vbr = item.viewportToImageCoordinates(viewBottomRight)
     // Evade radius in image px must track the *visible* viewport, not the
     // full map — otherwise the on-screen avoid zone balloons when zoomed in.
     const viewW = Math.abs(vbr.x - vtl.x)
@@ -324,14 +338,20 @@ export function startFocusClouds(
   const pointerToImage = (e: PointerEvent): { x: number; y: number } | null => {
     const item = viewer.world.getItemAt(0)
     if (!item) return null
-    const el = viewer.container as HTMLElement
-    const rect = el.getBoundingClientRect()
-    const sx = rect.width / Math.max(1, el.clientWidth)
-    const sy = rect.height / Math.max(1, el.clientHeight)
-    const pixel = new OpenSeadragon.Point(
-      (e.clientX - rect.left) / sx,
-      (e.clientY - rect.top) / sy,
-    )
+    const tilted = viewerPixelFromClient(e.clientX, e.clientY)
+    let pixel: OpenSeadragon.Point
+    if (tilted) {
+      pixel = new OpenSeadragon.Point(tilted.x, tilted.y)
+    } else {
+      const el = viewer.container as HTMLElement
+      const rect = el.getBoundingClientRect()
+      const sx = rect.width / Math.max(1, el.clientWidth)
+      const sy = rect.height / Math.max(1, el.clientHeight)
+      pixel = new OpenSeadragon.Point(
+        (e.clientX - rect.left) / sx,
+        (e.clientY - rect.top) / sy,
+      )
+    }
     const img = item.viewerElementToImageCoordinates(pixel)
     return { x: img.x, y: img.y }
   }

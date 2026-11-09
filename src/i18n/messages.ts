@@ -21,6 +21,7 @@ const zhHant = {
   'toolbar.focus': '淨 — Focus mode',
   'toolbar.creditsShow': '功 — Show credits',
   'toolbar.creditsHide': '功 — Hide credits',
+  'toolbar.turn': '天旋地轉 — 拖曳以轉動地圖',
   'status.loadingPreview': 'Loading preview…',
   'status.loadingTiles': 'Loading high-res tiles…',
   'status.previewLoadError': 'Could not load /map-preview.jpg',
@@ -71,6 +72,10 @@ const zhHant = {
   'credits.edgeHide': '隱藏編輯器',
   'credits.edgeOff': '編輯 · 關',
   'credits.edgeOn': '編輯 · 開',
+  'credits.rotateOff': '天旋地轉 · 關',
+  'credits.rotateOn': '天旋地轉 · 開',
+  'credits.rotateShow': '天旋地轉 — 開啟',
+  'credits.rotateHide': '天旋地轉 — 關閉',
 } as const
 
 const zhHans: Record<MessageKey, string> = {
@@ -92,6 +97,7 @@ const zhHans: Record<MessageKey, string> = {
   'toolbar.focus': '净 — 专注模式',
   'toolbar.creditsShow': '功 — 显示致谢',
   'toolbar.creditsHide': '功 — 隐藏致谢',
+  'toolbar.turn': '天旋地转 — 拖动以转动地图',
   'status.loadingPreview': '正在加载预览…',
   'status.loadingTiles': '正在加载高清图块…',
   'status.previewLoadError': '无法加载 /map-preview.jpg',
@@ -142,6 +148,10 @@ const zhHans: Record<MessageKey, string> = {
   'credits.edgeHide': '隐藏编辑器',
   'credits.edgeOff': '编辑 · 关',
   'credits.edgeOn': '编辑 · 开',
+  'credits.rotateOff': '天旋地转 · 关',
+  'credits.rotateOn': '天旋地转 · 开',
+  'credits.rotateShow': '天旋地转 — 开启',
+  'credits.rotateHide': '天旋地转 — 关闭',
 }
 
 const en: Record<MessageKey, string> = {
@@ -163,6 +173,7 @@ const en: Record<MessageKey, string> = {
   'toolbar.focus': '淨 — Focus mode',
   'toolbar.creditsShow': '功 — Show credits',
   'toolbar.creditsHide': '功 — Hide credits',
+  'toolbar.turn': '天旋地轉 — Drag to turn the map',
   'status.loadingPreview': 'Loading preview…',
   'status.loadingTiles': 'Loading high-res tiles…',
   'status.previewLoadError': 'Could not load /map-preview.jpg',
@@ -213,6 +224,10 @@ const en: Record<MessageKey, string> = {
   'credits.edgeHide': 'Hide editor',
   'credits.edgeOff': 'Edit · Off',
   'credits.edgeOn': 'Edit · On',
+  'credits.rotateOff': '天旋地轉 · Off',
+  'credits.rotateOn': '天旋地轉 · On',
+  'credits.rotateShow': '天旋地轉 — On',
+  'credits.rotateHide': '天旋地轉 — Off',
 }
 
 export const MESSAGES: Record<Locale, Record<MessageKey, string>> = {
