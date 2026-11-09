@@ -38,6 +38,14 @@ function fitMapRect(
 function layoutMapStage(stage: HTMLElement): void {
   const parent = stage.parentElement
   if (!parent) return
+  // The ATLab wall fills its width (vertical crop), so the stage is the wall itself.
+  if (parent.closest('.atlab-wall')) {
+    stage.style.left = '0'
+    stage.style.top = '0'
+    stage.style.width = '100%'
+    stage.style.height = '100%'
+    return
+  }
   const { x, y, w, h } = fitMapRect(parent.clientWidth, parent.clientHeight)
   stage.style.left = `${x}px`
   stage.style.top = `${y}px`

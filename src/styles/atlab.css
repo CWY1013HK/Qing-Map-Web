@@ -35,6 +35,12 @@
   height: 100%;
 }
 
+/* Same width-fit crop as the wall viewer, so the placeholder matches the scan. */
+.atlab-wall .preview {
+  object-fit: cover;
+  object-position: center;
+}
+
 /* Ultra-wide wall: larger clouds relative to wall, seal ~half wall height */
 .atlab-wall .intro-veil-cloud {
   width: min(20cqw, 70cqh);
@@ -148,6 +154,22 @@
 }
 
 /*
+ * Floor waves are a small WebGL bitmap. CSS stretches it to this box;
+ * the bitmap size is capped in floorSea.ts. Do not set the canvas
+ * width/height attributes from clientWidth (that is the 3536px layout box).
+ */
+.atlab-floor > .sea-underlay.is-pinned .sea-underlay-waves-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  image-rendering: auto;
+}
+
+/*
  * Once the fade finishes, drop the opacity transition and overflow clip.
  * Those keep the underlay as one render surface; without them it paints in tiles.
  */
@@ -172,7 +194,8 @@
   opacity: 0.85;
 }
 
-.atlab.floor-debug .atlab-floor > .sea-underlay.is-pinned .sea-underlay-waves-svg {
+.atlab.floor-debug .atlab-floor > .sea-underlay.is-pinned .sea-underlay-waves-svg,
+.atlab.floor-debug .atlab-floor > .sea-underlay.is-pinned .sea-underlay-waves-canvas {
   filter: sepia(1) saturate(12) hue-rotate(-20deg) brightness(1.1) !important;
 }
 

@@ -3,11 +3,8 @@ import { FLOOR_DECOR_COUNTS } from '../lib/mapDecor'
 import { mountOverlaysOnViewer } from '../overlays/manager'
 import { mountProvinceLabels } from '../overlays/provinceLabels'
 import { startFocusClouds, type FocusCloudsHandle } from '../viewer/focusMode'
-import {
-  SEA_UNDERLAY_FADE_MS,
-  startSeaUnderlay,
-  type SeaUnderlayHandle,
-} from '../viewer/seaUnderlay'
+import { SEA_UNDERLAY_FADE_MS, type SeaUnderlayHandle } from '../viewer/seaUnderlay'
+import { startFloorSea } from './floorSea'
 
 /** Floor stays at home zoom — low-res single image is enough (no DZI). */
 const PREVIEW_URL = '/map-preview-low.jpg'
@@ -140,8 +137,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
     if (!sea) {
       const floorHost =
         document.querySelector<HTMLElement>('#atlab-floor') ?? el
-      sea = startSeaUnderlay(viewer, {
-        lite: true,
+      sea = startFloorSea(viewer, {
         host: floorHost,
         onReady: releasePreviewAfterMask,
       })
