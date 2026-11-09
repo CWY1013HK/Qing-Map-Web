@@ -237,8 +237,9 @@ function ensurePanel(): HTMLElement {
 
   rotateBtn?.addEventListener('click', () => {
     setWallRotationEnabled(!isWallRotationEnabled())
-    syncRotateButton()
   })
+
+  document.addEventListener('qing-rotation-change', () => syncRotateButton())
 
   panel.querySelector('#credits-lang')?.addEventListener('click', (e) => {
     const target = e.target

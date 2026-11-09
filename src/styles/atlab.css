@@ -29,16 +29,36 @@
   container-type: size;
 }
 
-/* Wall hosts the standard #app chrome at wall dimensions */
+/* Wall hosts the standard #app chrome at wall dimensions.
+ * Controls sit in the side gutters, just outside the letterboxed scan. */
 .atlab-wall #app {
   width: 100%;
   height: 100%;
+  --wall-badge-left: 1rem;
+  --wall-badge-top: 1rem;
+  --wall-seal-right: calc(100% - 10rem);
+  --wall-seal-bottom: 1.25rem;
+  --wall-stamp-right: calc(100% - 10rem);
+  --wall-stamp-bottom: 1.25rem;
+  --wall-minimap-right: 1.25rem;
+  --wall-minimap-bottom: 1.25rem;
+  --wall-skip-right: 1.25rem;
+  --wall-skip-bottom: 1.35rem;
 }
 
-/* Same width-fit crop as the wall viewer, so the placeholder matches the scan. */
-.atlab-wall .preview {
-  object-fit: cover;
-  object-position: center;
+.atlab-wall .toolbar {
+  left: var(--wall-badge-left);
+  top: var(--wall-badge-top);
+}
+
+/* Pearl stays left of the badges until that side meets the wall, then eases across. */
+.atlab-wall .wall-tilt-orb {
+  left: calc(-54px - 1.85rem);
+  right: auto;
+}
+
+.atlab-wall #app.is-pearl-inward .wall-tilt-orb {
+  left: calc(100% + 1.85rem);
 }
 
 /* Ultra-wide wall: larger clouds relative to wall, seal ~half wall height */
@@ -52,10 +72,32 @@
   height: min(29cqh, 210px);
 }
 
+/* Plaques track the tilted sheet. The stamp tracks the upright one. */
 .atlab-wall .map-seal-stack {
-  left: 1.25rem;
-  bottom: 1.25rem;
-  gap: 0.75rem;
+  display: contents;
+}
+
+.atlab-wall .overlay-seals {
+  position: absolute;
+  left: auto;
+  right: var(--wall-seal-right);
+  bottom: var(--wall-seal-bottom);
+  z-index: 7;
+  justify-content: flex-end;
+}
+
+.atlab-wall .tour-seals {
+  position: absolute;
+  left: auto;
+  right: var(--wall-stamp-right);
+  bottom: var(--wall-stamp-bottom);
+  z-index: 7;
+  justify-content: flex-end;
+}
+
+.atlab-wall .minimap-panel {
+  right: var(--wall-minimap-right);
+  bottom: var(--wall-minimap-bottom);
 }
 
 .atlab-wall .tour-seal {

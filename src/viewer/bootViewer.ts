@@ -21,13 +21,6 @@ const TILE_SOURCE = '/tiles/map.dzi'
 export type BootInteractiveOptions = {
   /** When false, skip intro curtain (useful for kiosk tests). Default true. */
   intro?: boolean
-  /**
-   * Fit the scan to the viewer width and crop top and bottom.
-   * The ATLab wall is much wider than the map. Filling that width keeps the
-   * same horizontal scale as the full-width floor. The normal viewer shows
-   * the whole scan.
-   */
-  fillWidth?: boolean
 }
 
 /**
@@ -36,7 +29,6 @@ export type BootInteractiveOptions = {
  */
 export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSeadragon.Viewer {
   const withIntro = opts.intro !== false
-  const fillWidth = opts.fillWidth === true
 
   mountI18n()
 
@@ -122,8 +114,6 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     constrainDuringPan: true,
     visibilityRatio: 1,
     minZoomImageRatio: 1,
-    /** Wall: width-fit so resting x matches the floor. Elsewhere: show the whole scan. */
-    homeFillsViewer: fillWidth,
     /** Cap overzoom so level-15 tiles are not over-fetched. */
     maxZoomPixelRatio: 1.5,
     /** Prefer true pixel density — fewer oversampled high-LOD tiles. */

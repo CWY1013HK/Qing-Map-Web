@@ -9,8 +9,7 @@ import { bootFloorViewer } from './bootFloor'
 
 /**
  * Fixed ATLab pixel frame (wall + floor band).
- * The wall fills its width (top and bottom of the scan are cropped) so a place
- * on the wall sits on the same x as that place on the floor.
+ * The wall shows the whole scan, letterboxed in the short strip.
  * Floor map is laid out at scan aspect then vertically stretched to fill the floor.
  * Always scale to fit the browser so both wall + floor are visible
  * (native 1:1 when the window is at least that large).
@@ -58,7 +57,7 @@ if (new URLSearchParams(window.location.search).has('floorDebug')) {
   )
 }
 
-bootInteractiveViewer({ fillWidth: true })
+bootInteractiveViewer()
 bootFloorViewer()
 
 /* After first paint / scale, force OSD to remeasure both displays */

@@ -572,8 +572,8 @@ html:lang(zh-Hans) .province-label--xiandai {
 }
 
 .atlab-wall .tour-skip {
-  right: 1.25rem;
-  bottom: 1.35rem;
+  right: var(--wall-skip-right, 1.25rem);
+  bottom: var(--wall-skip-bottom, 1.35rem);
   width: 2.35rem;
   height: 2.35rem;
 }
