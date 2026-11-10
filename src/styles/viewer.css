@@ -306,7 +306,10 @@ body {
 #app.is-wall-tilt-settle #viewer {
   perspective: var(--wall-perspective, 2400px);
   perspective-origin: 50% 100%;
-  overflow: hidden;
+  /* A raised or turned sheet keeps painting past the top and sides. Only the
+     bottom edge — the floor seam on the wall — clips it. */
+  overflow: visible;
+  clip-path: inset(-400% -400% 0 -400%);
 }
 
 #app.is-wall-tilt #viewer .openseadragon-container,

@@ -31,3 +31,7 @@ The vertical and lateral axes stay locked. Dragging down leans the sheet (tilt),
 ## 6. Spin around the visible centre
 
 Every rotation turns around the geometric centre of the visible map, not the container’s edge. That centre moves as the map is zoomed and panned, and the pivot moves with it.
+
+## 7. Never cut the painting
+
+A raised or turned sheet keeps painting past the wall’s top and sides. The wall does not cut its edges away. Only the floor seam — the wall’s bottom edge — clips it, so the sheet never paints over the floor.

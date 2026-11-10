@@ -24,7 +24,9 @@
   position: relative;
   width: 100%;
   height: var(--atlab-wall-h);
-  overflow: hidden;
+  /* The tilted sheet keeps painting past the top and sides; the floor seam still clips it. */
+  overflow: visible;
+  clip-path: inset(-400% -400% 0 -400%);
   z-index: 2;
   container-type: size;
 }
