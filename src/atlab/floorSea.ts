@@ -426,6 +426,15 @@ export function startFloorSea(
   viewer.world.addHandler('add-item', onAdd)
   window.addEventListener('resize', onLayout)
   window.addEventListener('qing-atlab-layout', onLayout)
+  window.addEventListener(
+    'qing-map-intro-done',
+    () => {
+      if (stopped || svgFallback || quads.length < 1) return
+      if (!applyBufferSize()) return
+      draw(cyclesAt(performance.now()))
+    },
+    { once: true },
+  )
   listening = true
 
   const stopGpu = () => {
@@ -512,19 +521,33 @@ export function startFloorSea(
           canvas.width = MAX_BUFFER_W
           canvas.height = MAX_BUFFER_H
         }
-        draw(0)
-        console.info(`[atlab floor] wave buffer ${canvas.width}×${canvas.height}`)
-        root.classList.add('is-visible')
-        try {
-          onReady?.()
-        } catch {
-          /* caller errors must not break the underlay */
+        const showUnderlay = () => {
+          if (stopped || svgFallback) return
+          draw(0)
+          console.info(`[atlab floor] wave buffer ${canvas.width}×${canvas.height}`)
+          root.classList.add('is-visible', 'is-settled')
+          requestAnimationFrame(() => {
+            if (stopped || svgFallback) return
+            draw(cyclesAt(performance.now()))
+            requestAnimationFrame(() => {
+              if (stopped || svgFallback) return
+              try {
+                onReady?.()
+              } catch {
+                /* caller errors must not break the underlay */
+              }
+            })
+          })
+        }
+        if (introBusy()) {
+          window.addEventListener('qing-map-intro-done', showUnderlay, { once: true })
+        } else {
+          showUnderlay()
         }
         window.clearTimeout(unloadTimer)
         unloadTimer = window.setTimeout(() => {
           if (stopped) return
           fadeWorld(0)
-          root.classList.add('is-settled')
         }, SEA_UNDERLAY_FADE_MS)
       }
 

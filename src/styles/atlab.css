@@ -180,7 +180,7 @@
 }
 
 .floor-preview {
-  z-index: 0;
+  z-index: 3;
   object-fit: fill;
   object-position: center;
   display: block;
@@ -214,7 +214,11 @@
 
 /* Full-bleed sea (not an OSD overlay) — immune to viewport/resize redraws. */
 .atlab-floor > .sea-underlay.is-pinned {
-  z-index: 1;
+  z-index: 2;
+  /* Do not opacity-fade the whole stack: that promotes one giant GPU layer
+     that paints in tiles and shows the wave pattern between gaps. */
+  transition: none;
+  overflow: visible;
 }
 
 /*
@@ -233,12 +237,8 @@
   image-rendering: auto;
 }
 
-/*
- * Once the fade finishes, drop the opacity transition and overflow clip.
- * Those keep the underlay as one render surface; without them it paints in tiles.
- */
-.atlab-floor > .sea-underlay.is-pinned.is-settled {
-  overflow: visible;
+.atlab-floor > .sea-underlay.is-pinned .sea-underlay-land {
+  opacity: 1;
   transition: none;
 }
 

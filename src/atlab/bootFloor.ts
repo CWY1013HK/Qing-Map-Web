@@ -69,6 +69,8 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
   let mist: FocusCloudsHandle | null = null
   let sea: SeaUnderlayHandle | null = null
   let previewHoldTimer = 0
+  let seaMaskReady = false
+  let introDismissed = !document.getElementById('app')?.classList.contains('intro-active')
 
   /*
    * Construct the hidden drawer at ~1 device pixel. The viewport still uses
@@ -131,10 +133,30 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
    * alpha-mask (map-land.webp) has faded in — otherwise seas flash the floor
    * background through holes in an unready mask.
    */
-  const releasePreviewAfterMask = () => {
+  const releasePreviewIfReady = () => {
+    if (!seaMaskReady || !introDismissed) return
     window.clearTimeout(previewHoldTimer)
-    previewHoldTimer = window.setTimeout(hidePreview, SEA_UNDERLAY_FADE_MS)
+    previewHoldTimer = window.setTimeout(() => {
+      hidePreview()
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('qing-atlab-layout'))
+      })
+    }, SEA_UNDERLAY_FADE_MS)
   }
+
+  const onSeaMaskReady = () => {
+    seaMaskReady = true
+    releasePreviewIfReady()
+  }
+
+  window.addEventListener(
+    'qing-map-intro-done',
+    () => {
+      introDismissed = true
+      releasePreviewIfReady()
+    },
+    { once: true },
+  )
 
   const ensureMist = () => {
     if (!viewer.world.getItemAt(0)) return
@@ -143,7 +165,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
         document.querySelector<HTMLElement>('#atlab-floor') ?? el
       sea = startFloorSea(viewer, {
         host: floorHost,
-        onReady: releasePreviewAfterMask,
+        onReady: onSeaMaskReady,
       })
     }
     if (!mist) {

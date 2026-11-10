@@ -260,6 +260,18 @@ body {
   initial-value: 0deg;
 }
 
+@property --wall-origin-x {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 50%;
+}
+
+@property --wall-origin-y {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 100%;
+}
+
 @property --wall-object-scale {
   syntax: '<number>';
   inherits: true;
@@ -302,7 +314,8 @@ body {
   transform: translateY(var(--wall-object-lift, 0px)) rotateX(var(--wall-tilt, 0deg))
     rotateY(var(--wall-yaw, 0deg)) rotateZ(var(--wall-roll, 0deg))
     translateY(calc((var(--wall-object-scale, 1) - 1) * 50%)) scale(var(--wall-object-scale, 1));
-  transform-origin: 50% 100%;
+  /* The visible map's own geometric centre, in container pixels. */
+  transform-origin: var(--wall-origin-x, 50%) var(--wall-origin-y, 100%);
   backface-visibility: hidden;
   transform-style: preserve-3d;
   /* Keep the redrawing canvas on this sheet. A flat copy otherwise stays behind when the map is dragged. */
@@ -315,6 +328,12 @@ body {
 #app.is-wall-tilt-settle #viewer canvas {
   transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+/* Flat 2D spin. Rotation off still turns the painting in its own plane. */
+#viewer.is-wall-roll-2d .openseadragon-container {
+  transform: rotateZ(var(--wall-roll, 0deg));
+  transform-origin: var(--wall-origin-x, 50%) var(--wall-origin-y, 50%);
 }
 
 .wall-tilt-orb {

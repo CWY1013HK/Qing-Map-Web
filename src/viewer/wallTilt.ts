@@ -6,10 +6,11 @@ import { t } from '../i18n'
  * Starts on with `?wallTilt=1` (32°) or `?wallTilt=28` (degrees). Otherwise
  * the pearl beside 淨 and 功, or the 功 settings row, turns it on.
  * Optional `?wallPerspective=2400`.
- * A tap on the pearl toggles rotation. A drag on it turns and leans the sheet.
- * Shift-drag, or a two-finger twist, spins it in its own plane with no stop,
- * so it can turn upside down. Tilt and yaw stay inside ±89° so the back
- * never faces the room.
+ * A tap on the pearl toggles the 3D lean. A drag on it turns and leans the
+ * sheet. Shift-drag, or a two-finger twist, spins the map in its own plane
+ * with no stop — that flat spin also works while the 3D lean is off.
+ * Tilt and yaw stay inside ±89° so the back never faces the room.
+ * Everything spins around the geometric centre of the visible map.
  * The floor viewer is never tilted.
  */
 
@@ -126,7 +127,7 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
       const root = tiltRoot()
       root?.style.setProperty('--wall-tilt', '0deg')
       root?.style.setProperty('--wall-yaw', '0deg')
-      root?.style.setProperty('--wall-roll', '0deg')
+      // The in-plane spin carries over. A flat turn stays visible as the lean arrives.
       if (root) armSettle(root)
       cancelAnimationFrame(orientFrame)
       orientFrame = requestAnimationFrame(() => {
@@ -146,7 +147,7 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
   const center = viewport.getCenter(true)
   rotationEnabled = false
   objectScale = 1
-  rollDeg = 0
+  // The flat spin survives the lean leaving. A twist is not a 3D pose.
   cancelAnimationFrame(orientFrame)
   orientFrame = 0
   const root = tiltRoot()
@@ -159,14 +160,12 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
     armSettle(root)
     root.style.setProperty('--wall-tilt', '0deg')
     root.style.setProperty('--wall-yaw', '0deg')
-    root.style.setProperty('--wall-roll', '0deg')
     root.style.setProperty('--wall-object-lift', '0px')
     if (!belowHome) root.style.setProperty('--wall-object-scale', '1')
   } else {
     root?.style.setProperty('--wall-object-scale', '1')
     root?.style.setProperty('--wall-tilt', '0deg')
     root?.style.setProperty('--wall-yaw', '0deg')
-    root?.style.setProperty('--wall-roll', '0deg')
     root?.style.setProperty('--wall-object-lift', '0px')
   }
   objectLift = 0
@@ -184,6 +183,7 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
   // Pan and min-zoom ease back into the flat limits while the sheet settles.
   viewport.applyConstraints(!ease)
   boundViewer.navigator?.update(viewport)
+  syncFlatRoll()
   notifyRotation()
   return false
 }
@@ -365,7 +365,6 @@ export function bindWallTilt(viewer: Viewer): void {
   viewer.addHandler(
     'canvas-pinch',
     (event) => {
-      if (!rotationEnabled) return
       const pts = event.gesturePoints
       if (pts.length < 2) return
       const p0 = pts[0]!
@@ -377,7 +376,9 @@ export function bindWallTilt(viewer: Viewer): void {
       const zooming = distLast > 12 && Math.abs(distNow / distLast - 1) > 0.05
       const twist = fingerTwist(p0.lastPos, p1.lastPos, p0.currentPos, p1.currentPos)
       if (Math.abs(twist) > 0.2) rollDeg += twist
-      if (!zooming) {
+      if (!rotationEnabled) {
+        if (Math.abs(twist) > 0.2) applyOrientation()
+      } else if (!zooming) {
         event.preventDefaultPanAction = true
         event.preventDefaultZoomAction = true
         if (midDx !== 0 || midDy !== 0) nudgeRotation(midDx, midDy)
@@ -425,6 +426,11 @@ export function bindWallTilt(viewer: Viewer): void {
 
   viewer.addHandler('open', checkCorners)
   viewer.addHandler('resize', checkCorners)
+  const repin = () => syncWallOrigin()
+  viewer.addHandler('open', repin)
+  viewer.addHandler('resize', repin)
+  viewer.addHandler('animation', repin)
+  viewer.addHandler('pan', repin)
 }
 
 /**
@@ -728,9 +734,9 @@ function clampFace(deg: number): number {
   return Math.min(MAX_FACE_DEG, Math.max(-MAX_FACE_DEG, deg))
 }
 
-/** Drag right turns the sheet; drag down leans it back. Both stop before the back shows. Shift-drag spins the sheet in its plane, with no stop. */
+/** Drag right turns the sheet; drag down leans it back. Both stop before the back shows. Shift-drag spins the map in its plane, with no stop — that works while the 3D lean is off too. */
 function nudgeRotation(dx: number, dy: number, spin = false): void {
-  if (!rotationEnabled) return
+  if (!rotationEnabled && !spin) return
   if (spin) rollDeg += dx * DEG_PER_PX
   else yawDeg = clampFace(yawDeg + dx * DEG_PER_PX)
   tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
@@ -743,6 +749,7 @@ function applyOrientation(): void {
   root.style.setProperty('--wall-tilt', `${tiltDeg.toFixed(2)}deg`)
   root.style.setProperty('--wall-yaw', `${yawDeg.toFixed(2)}deg`)
   root.style.setProperty('--wall-roll', `${rollDeg.toFixed(2)}deg`)
+  syncFlatRoll()
   const orb = document.getElementById('wall-tilt-orb')
   if (!orb) return
   const hx = Math.min(68, Math.max(12, 32 - yawDeg * 0.28))
@@ -751,6 +758,45 @@ function applyOrientation(): void {
   orb.style.setProperty('--orb-hy', `${hy}%`)
   orb.setAttribute('aria-valuetext', `${Math.round(tiltDeg)}° / ${Math.round(yawDeg)}° / ${Math.round(rollDeg)}°`)
   scheduleWallChrome()
+}
+
+/** Geometric centre of the visible map, in container pixels. Every spin pivots there. */
+function visibleMapCenter(): Pt | null {
+  const viewer = boundViewer
+  if (!viewer || viewer.world.getItemCount() < 1) return null
+  const item = viewer.world.getItemAt(0)
+  if (!item) return null
+  const el = viewer.element
+  const width = el.clientWidth
+  const height = el.clientHeight
+  if (width < 2 || height < 2) return null
+  const b = item.getBounds()
+  const tl = viewer.viewport.pixelFromPoint(new OpenSeadragon.Point(b.x, b.y), true)
+  const br = viewer.viewport.pixelFromPoint(new OpenSeadragon.Point(b.x + b.width, b.y + b.height), true)
+  const left = Math.max(0, Math.min(tl.x, br.x))
+  const right = Math.min(width, Math.max(tl.x, br.x))
+  const top = Math.max(0, Math.min(tl.y, br.y))
+  const bottom = Math.min(height, Math.max(tl.y, br.y))
+  if (!(right > left) || !(bottom > top)) return { x: width / 2, y: height / 2 }
+  return { x: (left + right) / 2, y: (top + bottom) / 2 }
+}
+
+/** Pin the transform origin to the visible map centre so zoom and pan keep the pivot. */
+function syncWallOrigin(): void {
+  const app = tiltRoot()
+  if (!app) return
+  const c = visibleMapCenter()
+  if (!c) return
+  app.style.setProperty('--wall-origin-x', `${c.x.toFixed(1)}px`)
+  app.style.setProperty('--wall-origin-y', `${c.y.toFixed(1)}px`)
+}
+
+/** Keep the 2D flat spin on its own class so it survives the 3D lean toggling off. */
+function syncFlatRoll(): void {
+  const viewer = document.getElementById('viewer')
+  if (!viewer) return
+  viewer.classList.toggle('is-wall-roll-2d', !rotationEnabled && Math.abs(rollDeg) > 0.001)
+  syncWallOrigin()
 }
 
 function mountTurnOrb(): void {
@@ -798,11 +844,11 @@ function mountTurnOrb(): void {
     if (!drag.moved) {
       if (Math.hypot(dx, dy) < TAP_PX) return
       drag.moved = true
-      if (!rotationEnabled) return
+      if (!rotationEnabled && !event.shiftKey) return
       orb.classList.add('is-grabbing')
       releaseSettle()
     }
-    if (!rotationEnabled) return
+    if (!rotationEnabled && !event.shiftKey) return
     nudgeRotation(dx, dy, event.shiftKey)
     drag = { id: drag.id, x: event.clientX, y: event.clientY, moved: true }
   })
