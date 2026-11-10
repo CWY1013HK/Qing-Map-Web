@@ -164,6 +164,7 @@ export function bindOverlayUpright(viewer: Viewer): () => void {
       provincePool.forEach((h) => h.root.remove())
       provincePool.clear()
       clearWallBillboardChrome(viewer)
+      document.getElementById('app')?.classList.remove('is-province-upright')
       return
     }
 

@@ -151,7 +151,6 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
   const center = viewport.getCenter(true)
   rotationEnabled = false
   objectScale = 1
-  clearWallBillboardChrome(boundViewer)
   // The flat spin survives the lean leaving. A twist is not a 3D pose.
   cancelAnimationFrame(orientFrame)
   orientFrame = 0
@@ -172,6 +171,7 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
     root?.style.setProperty('--wall-tilt', '0deg')
     root?.style.setProperty('--wall-yaw', '0deg')
     root?.style.setProperty('--wall-object-lift', '0px')
+    if (boundViewer) clearWallBillboardChrome(boundViewer)
   }
   objectLift = 0
   markTiltRoot(false)
@@ -528,6 +528,8 @@ function armSettle(root: HTMLElement): void {
   settleTimer = window.setTimeout(() => {
     root.classList.remove('is-wall-tilt-settle')
     root.classList.remove('is-wall-scale-settle')
+    if (boundViewer && !rotationEnabled) clearWallBillboardChrome(boundViewer)
+    notifyRotation()
     scheduleWallChrome()
   }, SETTLE_MS)
 }
@@ -638,6 +640,11 @@ function maxObjectLower(): number {
 /** True while province / decor use the upright wall billboard (3D lean or flat spin). */
 export function isWallLabelBillboardMode(): boolean {
   if (rotationEnabled) return true
+  const app = document.getElementById('app')
+  // 3D→2D ease-out: sheet still perspective-transformed until settle ends.
+  if (app?.classList.contains('is-wall-tilt-settle') && !app.classList.contains('is-wall-tilt')) {
+    return true
+  }
   return !!document.getElementById('viewer')?.classList.contains('is-wall-roll-2d')
 }
 
