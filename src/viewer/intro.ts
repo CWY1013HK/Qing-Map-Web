@@ -1,6 +1,8 @@
 import OpenSeadragon from 'openseadragon'
 import { INTRO_FOCUS } from '../config'
 import { pickCloudSrc, rand } from '../lib/clouds'
+import { getOverlayManager, HANDI_GROUP_ID } from '../overlays/manager'
+import { overlayStore } from '../overlays/store'
 import { getPlaylist } from '../lib/playlist'
 import { wallObjectZoom } from './wallTilt'
 
@@ -10,6 +12,10 @@ const SCATTER_MS = 10000
 const INTRO_ZOOM_OUT_MS = 8500
 /** Default (non-ATLab) veil budget; ATLab uses its own denser grid. */
 const VEIL_CLOUD_COUNT = 40
+
+function clearHandiVectorOutline(): void {
+  overlayStore.setGroupVisible(getOverlayManager().idsForGroup(HANDI_GROUP_ID), false)
+}
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -76,6 +82,7 @@ export function mountIntro(viewer: Viewer): void {
 
   spawnVeilClouds(veilRoot)
   app.classList.add('intro-active')
+  clearHandiVectorOutline()
   intro.hidden = false
   focusIntroRegion(viewer, true)
   getPlaylist().startIntro()
@@ -85,6 +92,7 @@ export function mountIntro(viewer: Viewer): void {
     if (started) return
     started = true
     seal.disabled = true
+    clearHandiVectorOutline()
     intro.classList.add('is-scattering')
     getPlaylist().enterFromSeal()
 

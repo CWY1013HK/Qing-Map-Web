@@ -8,10 +8,11 @@ import { mountCreditsToggle } from '../popups/credits'
 import { mountLabelToggle, mountLocationLabels } from '../popups/labels'
 import { mountChrome } from './chrome'
 import { focusIntroRegion, mountIntro } from './intro'
-import { mountNorthSeaBand } from './northSeaBand'
+import { mountLabelBillboard } from './labelBillboard'
 import { mountFocusMode } from './focusMode'
 import { mountMusicToggle } from './musicToggle'
 import { clearHighResTileCache } from './seaUnderlay'
+import { bindOverlayUpright } from './overlayUpright'
 import { bindWallTilt, prepareWallTilt } from './wallTilt'
 import { mountTourSeals } from '../transitions/seals'
 
@@ -127,7 +128,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   })
 
   bindWallTilt(viewer)
-  mountNorthSeaBand(viewer)
+  const labelBillboard = mountLabelBillboard(viewer)
   mountChrome(viewer)
   mountFocusMode(viewer)
   // Warm the land plate so 淨 mode does not wait on an 8MB fetch.
@@ -138,12 +139,13 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   mountOverlaySealControls()
   mountTourSeals(viewer)
   const provinceLabels = mountProvinceLabels(viewer)
+  bindOverlayUpright(viewer)
   if (import.meta.env.DEV) {
     void import('../overlays/vertexEditor').then(({ mountOverlayVertexEditor }) => {
       mountOverlayVertexEditor(viewer, { provinceLabels })
     })
   }
-  mountLocationLabels(viewer)
+  mountLocationLabels(viewer, labelBillboard)
   mountLabelToggle()
   mountMusicToggle()
   mountCreditsToggle()
@@ -201,10 +203,13 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   viewer.addHandler('open', () => {
     showViewer()
     lockMinZoomToHome()
-    stackHighResOnUnderlay()
     if (withIntro) {
       mountIntro(viewer)
+      window.addEventListener('qing-map-intro-done', () => stackHighResOnUnderlay(), {
+        once: true,
+      })
     } else {
+      stackHighResOnUnderlay()
       getPlaylist().startAmbientLoop()
     }
     window.dispatchEvent(new Event('resize'))

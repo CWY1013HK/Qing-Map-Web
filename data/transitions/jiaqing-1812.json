@@ -193,8 +193,8 @@
         "durationMs": 3400
       },
       "overlays": {
-        "show": ["zhongguo", "handi-shibasheng"],
-        "hide": ["hailu"]
+        "show": ["zhongguo"],
+        "hide": ["hailu", "handi-shibasheng"]
       },
       "draw": { "featureId": "zhongguo", "durationMs": 4000 },
       "caption": {

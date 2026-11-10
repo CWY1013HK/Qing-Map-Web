@@ -106,6 +106,25 @@ body {
   background: transparent !important;
 }
 
+/*
+ * Wall-space label layer (src/viewer/labelBillboard.ts). 誌 dots anchor to
+ * the same flat space as the badges, seals, and minimap — upright, tracking
+ * their projected map anchors, never riding the tilted sheet.
+ */
+.wall-label-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: visible;
+  pointer-events: none;
+  /* Clip-path set in JS while the sheet is tilted — matches projected map quad. */
+}
+
+.wall-label-layer .map-label-btn {
+  position: absolute;
+  pointer-events: auto;
+}
+
 .preview {
   position: absolute;
   inset: 0;
@@ -330,34 +349,6 @@ body {
   overflow: visible;
   transform: rotateZ(var(--wall-roll, 0deg));
   transform-origin: var(--wall-origin-x, 50%) var(--wall-origin-y, 50%);
-}
-
-/*
- * North sea band (src/viewer/northSeaBand.ts): a mirrored top strip of the
- * map hung above the sheet's north edge, so a lifted or turned sheet's top
- * edge dissolves into the wall instead of slicing the painting. Shown only
- * while rotated; the upright map keeps its flush top edge.
- */
-.wall-north-sea {
-  pointer-events: none !important;
-  opacity: 0;
-  transition: opacity 0.42s ease;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
-}
-
-#app.is-wall-tilt .wall-north-sea,
-#app.is-wall-tilt-settle .wall-north-sea,
-#viewer.is-wall-roll-2d .wall-north-sea {
-  opacity: 1;
-}
-
-.wall-north-sea-mirror {
-  width: 100%;
-  height: 100%;
-  background-repeat: no-repeat;
-  background-position: center top;
-  transform: scaleY(-1);
 }
 
 .wall-tilt-orb {

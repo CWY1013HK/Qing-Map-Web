@@ -10,6 +10,7 @@ import {
 } from './panel'
 import { openCityEditor, type CityEditorSave } from './cityEditor'
 import { viewerPixelFromClient } from '../viewer/wallTilt'
+import type { LabelBillboard } from '../viewer/labelBillboard'
 
 const DEFAULT_LABEL_WIDTH = 0.03
 /** Hit radius as fraction of image width for canvas-click fallback. */
@@ -18,6 +19,8 @@ const CLICK_HIT_FRAC = 0.016
 type LabelHotspot = {
   annotation: Annotation
   el: HTMLButtonElement
+  /** Latest viewport-coords rect — the billboard reads this every frame. */
+  loc: OpenSeadragon.Rect | null
 }
 
 function asCollection(raw: unknown): AnnotationCollection {
@@ -29,6 +32,8 @@ let lastToggleAt = 0
 let labelEditing = false
 /** Dev editor: capture a city and edit entry text. */
 let contentEditing = false
+/** Wall-space label placement — set by mountLocationLabels. */
+let billboard: LabelBillboard | null = null
 
 function openOrToggle(annotation: Annotation): void {
   const now = performance.now()
@@ -185,6 +190,17 @@ function placeHotspot(
     bottomRight.x - topLeft.x,
     bottomRight.y - topLeft.y,
   )
+
+  hotspot.loc = loc
+
+  if (!isAreaHotspot(annotation) && billboard) {
+    /* Point labels anchor to wall space via the billboard — upright like the
+       badges and seals, tracking the projected anchor, never riding the
+       tilted sheet. */
+    billboard.add(el, () => hotspot.loc)
+    el.style.pointerEvents = 'auto'
+    return
+  }
 
   if (el.dataset.osdAttached === '1') {
     viewer.updateOverlay(el, loc)
@@ -392,7 +408,8 @@ function attachAreaEdit(
  * Mount glowing location-label hotspots from annotations JSON.
  * Visibility is controlled by labelStore (誌 toolbar toggle).
  */
-export function mountLocationLabels(viewer: Viewer): () => void {
+export function mountLocationLabels(viewer: Viewer, labelBillboard?: LabelBillboard): () => void {
+  billboard = labelBillboard ?? null
   const collection = asCollection(locationsJson)
   const item0 = () => viewer.world.getItemAt(0) as TiledImage | null
 
@@ -460,6 +477,7 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     const hotspot: LabelHotspot = {
       annotation,
       el: buildHotspotButton(annotation, requestEdit),
+      loc: null,
     }
     if (previewSrc) {
       const img = hotspot.el.querySelector<HTMLImageElement>('img')
@@ -487,6 +505,7 @@ export function mountLocationLabels(viewer: Viewer): () => void {
     const index = hotspots.findIndex((hotspot) => hotspot.annotation.id === id)
     if (index < 0) return
     const { el } = hotspots[index]
+    billboard?.remove(el)
     try {
       viewer.removeOverlay(el)
     } catch {

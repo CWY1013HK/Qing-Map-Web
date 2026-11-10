@@ -175,6 +175,32 @@
   overflow: visible;
 }
 
+/* Skewed on-map text under the upright clone (3D only, while clones are live). */
+#app.is-province-upright .province-labels-layer .province-label {
+  opacity: 0 !important;
+}
+
+#app.is-province-upright .focus-decor.is-visible {
+  opacity: 0 !important;
+}
+
+.province-label-billboard-host {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.wall-label-layer.is-wall-billboard {
+  z-index: 8;
+}
+
+.focus-decor-billboard {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  background: center / 100% 100% no-repeat;
+}
+
 .province-labels-layer-wrap {
   /* Above ink (3) and 誌 (1); below mist clouds (6) when idle. */
   z-index: 6 !important;
@@ -466,6 +492,13 @@ html:lang(zh-Hans) .province-label--xiandai {
   visibility: hidden;
 }
 
+/* Vector overlays off for the whole intro + scatter (OSD wrapper + layer). */
+#app.intro-active .map-overlay-layer,
+#app.intro-active .map-overlay-layer-wrap {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 #app.focus-mode .map-seal-stack,
 #app.focus-mode .overlay-seals,
 #app.focus-mode .tour-seals {
@@ -572,8 +605,10 @@ html:lang(zh-Hans) .province-label--xiandai {
 }
 
 .atlab-wall .tour-skip {
-  right: var(--wall-skip-right, 1.25rem);
-  bottom: var(--wall-skip-bottom, 1.35rem);
+  /* Pinned to the wall's bottom-right corner, same as regular mode.
+     It does not track the sheet or the zoom frame. */
+  right: 1.15rem;
+  bottom: 1.25rem;
   width: 2.35rem;
   height: 2.35rem;
 }

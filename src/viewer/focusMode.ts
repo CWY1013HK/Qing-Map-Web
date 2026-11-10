@@ -148,7 +148,6 @@ export function startFocusClouds(
     el.style.display = 'block'
     el.style.width = `${w}px`
     el.style.height = `${h}px`
-    el.style.transform = ''
   }
 
   const syncOverlay = (sprite: DriftSprite, item: TiledImage) => {

@@ -3,6 +3,7 @@ import { applyChromeI18n } from '../i18n/applyChrome'
 import { getLocale } from '../i18n'
 import { t } from '../i18n/t'
 import { getPlaylist } from '../lib/playlist'
+import { getOverlayManager } from '../overlays/manager'
 import { overlayStore } from '../overlays/store'
 import labelsJson from '../../data/overlays/province-labels.json'
 import { tweenCameras, type LabelPointLookup } from './camera'
@@ -49,9 +50,14 @@ const labelPoints = new Map(
 
 const resolveLabel: LabelPointLookup = (id) => labelPoints.get(id) ?? null
 
+function resolveOverlayGroupIds(groupIds: readonly string[]): string[] {
+  const manager = getOverlayManager()
+  return groupIds.flatMap((g) => manager.idsForGroup(g))
+}
+
 function applyOverlays(op: { show?: string[]; hide?: string[] }): void {
-  if (op.hide?.length) overlayStore.setGroupVisible(op.hide, false)
-  if (op.show?.length) overlayStore.setGroupVisible(op.show, true)
+  if (op.hide?.length) overlayStore.setGroupVisible(resolveOverlayGroupIds(op.hide), false)
+  if (op.show?.length) overlayStore.setGroupVisible(resolveOverlayGroupIds(op.show), true)
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -325,6 +331,8 @@ export function getTourPlayer(): TourPlayer {
       playingId = tour.id
       abort = new AbortController()
       const signal = abort.signal
+      const first = tour.steps[0]
+      if (first?.type === 'overlays') applyOverlays(first)
       setTourDragging(false)
       setTourPlayingUi(true)
       // Soft-duck the bed for the whole tour so camera/transitions don't spike loud.

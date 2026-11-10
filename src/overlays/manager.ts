@@ -4,6 +4,7 @@ import handiCollection from '../../data/overlays/handi-shibasheng.json'
 import zhongguoCollection from '../../data/overlays/zhongguo.json'
 import xiandaiCollection from '../../data/overlays/xiandai-zhongguo.json'
 import hailuCollection from '../../data/overlays/hailu.json'
+import { isIntroSequence } from '../viewer/introSequence'
 import { overlayStore } from './store'
 import { attachSvgOverlayLayer, type SvgOverlayLayer } from './svgLayer'
 
@@ -82,11 +83,27 @@ export function getOverlayManager(): OverlayManager {
   const layers: SvgOverlayLayer[] = []
   const unsubs: Array<() => void> = []
 
+  const handiFeatureIds = () => groupMap.get(HANDI_GROUP_ID) ?? [HANDI_GROUP_ID]
+
+  /** Vector Handi stays off during the intro curtain (painting ink is already visible). */
+  const effectiveVisible = (visible: ReadonlySet<string>): ReadonlySet<string> => {
+    if (!isIntroSequence()) {
+      return visible
+    }
+    const next = new Set(visible)
+    for (const id of handiFeatureIds()) next.delete(id)
+    return next
+  }
+
   const sync = (visible: ReadonlySet<string>) => {
-    for (const layer of layers) layer.setActiveIds(visible)
+    const ids = effectiveVisible(visible)
+    for (const layer of layers) layer.setActiveIds(ids)
   }
 
   unsubs.push(overlayStore.subscribe(sync))
+  const onIntroDone = () => sync(overlayStore.getVisible())
+  window.addEventListener('qing-map-intro-done', onIntroDone)
+  unsubs.push(() => window.removeEventListener('qing-map-intro-done', onIntroDone))
 
   singleton = {
     collection,
@@ -116,7 +133,7 @@ export function getOverlayManager(): OverlayManager {
     attach(viewer: Viewer, opts?: { lite?: boolean }) {
       const layer = attachSvgOverlayLayer(viewer, collection, opts)
       layers.push(layer)
-      layer.setActiveIds(overlayStore.getVisible())
+      layer.setActiveIds(effectiveVisible(overlayStore.getVisible()))
       return () => {
         const i = layers.indexOf(layer)
         if (i >= 0) layers.splice(i, 1)

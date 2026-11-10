@@ -1,5 +1,6 @@
 import OpenSeadragon, { type Viewer } from 'openseadragon'
 import { t } from '../i18n'
+import { clearWallBillboardChrome } from './wallBillboardReset'
 
 /**
  * Map rotation for the interactive viewer (regular mode and the ATLab wall).
@@ -150,6 +151,7 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
   const center = viewport.getCenter(true)
   rotationEnabled = false
   objectScale = 1
+  clearWallBillboardChrome(boundViewer)
   // The flat spin survives the lean leaving. A twist is not a 3D pose.
   cancelAnimationFrame(orientFrame)
   orientFrame = 0
@@ -633,20 +635,39 @@ function maxObjectLower(): number {
   return Math.max(0, h - Math.max(bottomL, bottomR))
 }
 
+/** True while province / decor use the upright wall billboard (3D lean or flat spin). */
+export function isWallLabelBillboardMode(): boolean {
+  if (rotationEnabled) return true
+  return !!document.getElementById('viewer')?.classList.contains('is-wall-roll-2d')
+}
+
+/** Sheet angles driving the wall CSS transform (3D lean and/or flat in-plane spin). */
+export function readWallSheetPose(): { tilt: number; yaw: number; roll: number } | null {
+  const root = tiltRoot()
+  if (!root) return null
+  const wall3d =
+    root.classList.contains('is-wall-tilt') || root.classList.contains('is-wall-tilt-settle')
+  const roll2d = !!document.getElementById('viewer')?.classList.contains('is-wall-roll-2d')
+  if (!wall3d && !roll2d) return null
+  const style = getComputedStyle(root)
+  const tilt = parseFloat(style.getPropertyValue('--wall-tilt'))
+  const yaw = parseFloat(style.getPropertyValue('--wall-yaw'))
+  const roll = parseFloat(style.getPropertyValue('--wall-roll'))
+  const rollVal = Number.isFinite(roll) ? roll : rollDeg
+  if (!wall3d) return { tilt: 0, yaw: 0, roll: rollVal }
+  return {
+    tilt: Number.isFinite(tilt) ? tilt : tiltDeg,
+    yaw: Number.isFinite(yaw) ? yaw : yawDeg,
+    roll: rollVal,
+  }
+}
+
 function readSheetPose(): { tilt: number; yaw: number; roll: number } | null {
   const root = tiltRoot()
   if (!root) return null
   const active = root.classList.contains('is-wall-tilt') || root.classList.contains('is-wall-tilt-settle')
   if (!active) return null
-  const style = getComputedStyle(root)
-  const tilt = parseFloat(style.getPropertyValue('--wall-tilt'))
-  const yaw = parseFloat(style.getPropertyValue('--wall-yaw'))
-  const roll = parseFloat(style.getPropertyValue('--wall-roll'))
-  return {
-    tilt: Number.isFinite(tilt) ? tilt : tiltDeg,
-    yaw: Number.isFinite(yaw) ? yaw : yawDeg,
-    roll: Number.isFinite(roll) ? roll : rollDeg,
-  }
+  return readWallSheetPose()
 }
 
 /**
@@ -662,6 +683,8 @@ function projectOnWall(
   tilt: number,
   yaw: number,
   roll = 0,
+  /** Lift along the sheet’s outward normal before perspective (layout-px scale). */
+  zOffset = 0,
 ): Pt {
   const ox = wallOrigin?.x ?? width / 2
   const oy = wallOrigin?.y ?? height
@@ -675,7 +698,7 @@ function projectOnWall(
   const yr = px * sr + py * cr
   px = xr
   py = yr
-  let pz = 0
+  let pz = zOffset * scale
   const yawR = (yaw * Math.PI) / 180
   const tiltR = (tilt * Math.PI) / 180
   const cy = Math.cos(yawR)
@@ -689,6 +712,81 @@ function projectOnWall(
   const denom = perspectivePx - z2
   const f = Math.abs(denom) < 1e-3 ? 1 : perspectivePx / denom
   return { x: ox + x1 * f, y: oy + y2 * f }
+}
+
+/**
+ * Container pixel → wall-space pixel for the sheet's CURRENT pose, read from
+ * the live CSS variables so mid-transition frames project correctly. Identity
+ * when the sheet is flat. UI that anchors to wall space (label billboard)
+ * projects through this every frame.
+ *
+ * @param zOffset Lift along local +Z before perspective (same 3D path as CSS).
+ */
+export function projectSheetPoint(x: number, y: number, zOffset = 0): Pt | null {
+  const el = boundViewer?.element
+  const root = tiltRoot()
+  if (!el || !root) return null
+  const w = el.clientWidth
+  const h = el.clientHeight
+  if (w < 2 || h < 2) return null
+  const tilted =
+    root.classList.contains('is-wall-tilt') || root.classList.contains('is-wall-tilt-settle')
+  const flatRoll = document.getElementById('viewer')?.classList.contains('is-wall-roll-2d') ?? false
+  if (!tilted && !flatRoll) return zOffset === 0 ? { x, y } : { x, y }
+  const style = getComputedStyle(root)
+  const num = (name: string, fallback: number): number => {
+    const v = parseFloat(style.getPropertyValue(name))
+    return Number.isFinite(v) ? v : fallback
+  }
+  const roll = num('--wall-roll', rollDeg)
+  if (!tilted) return projectOnWall(x, y, w, h, 1, 0, 0, roll, zOffset)
+  const p = projectOnWall(
+    x,
+    y,
+    w,
+    h,
+    num('--wall-object-scale', objectScale),
+    num('--wall-tilt', tiltDeg),
+    num('--wall-yaw', yawDeg),
+    roll,
+    zOffset,
+  )
+  p.y += num('--wall-object-lift', objectLift)
+  return p
+}
+
+/** Fixed hover distance for upright labels, along the projected plane normal. */
+export const SHEET_LABEL_NORMAL_OFFSET = 14
+
+/** Local +Z probe used to measure the sheet normal in wall space. */
+const NORMAL_PROBE_Z = 1
+
+/** How one step along the sheet normal moves on the wall (varies with tilt). */
+export function sheetNormalWallDelta(containerX: number, containerY: number): Pt | null {
+  const p0 = projectSheetPoint(containerX, containerY, 0)
+  const p1 = projectSheetPoint(containerX, containerY, NORMAL_PROBE_Z)
+  if (!p0 || !p1) return null
+  return { x: p1.x - p0.x, y: p1.y - p0.y }
+}
+
+/**
+ * Map anchor on the plane, lifted along the true surface normal (flat → toward
+ * the room; tilted → increasingly upward on the wall). At near-flat poses the
+ * wall offset is ~0 so plates match the 2D map.
+ */
+export function liftAlongSheetNormal(
+  containerX: number,
+  containerY: number,
+  distance = SHEET_LABEL_NORMAL_OFFSET,
+): Pt | null {
+  const plane = projectSheetPoint(containerX, containerY, 0)
+  const delta = sheetNormalWallDelta(containerX, containerY)
+  if (!plane) return null
+  if (!delta) return plane
+  const probeLen = Math.hypot(delta.x, delta.y)
+  if (probeLen < 1e-6) return plane
+  const s = distance / probeLen
+  return { x: plane.x + delta.x * s, y: plane.y + delta.y * s }
 }
 
 /** Layout pixels on the wall for one screen pixel. Ignores the sheet transform. */
@@ -1255,12 +1353,10 @@ function placeAtlabWallChrome(): void {
 
   const minimap = document.getElementById('minimap-panel')
   let miniBottom = 1.25 * rem
-  let miniH = 0
   if (minimap && !minimap.classList.contains('is-dragging')) {
     const gap = 1.25 * rem
     const elW = minimap.offsetWidth
     const elH = minimap.offsetHeight
-    miniH = elH
     miniBottom = clamp(height - br.y + gap, 0, Math.max(0, height - elH))
     const elTop = height - miniBottom - elH
     const edge = outerX(elTop, elTop + Math.max(elH, 1), tr, br)
@@ -1271,21 +1367,8 @@ function placeAtlabWallChrome(): void {
     app.style.setProperty('--wall-minimap-bottom', `${miniBottom.toFixed(1)}px`)
   }
 
-  const skip = document.getElementById('tour-skip')
-  if (skip) {
-    const gap = 1.25 * rem
-    const elW = Math.max(skip.offsetWidth, rem * 2.35)
-    const elH = Math.max(skip.offsetHeight, rem * 2.35)
-    const aboveMini = miniH > 0 ? miniBottom + miniH + 0.4 * rem : 1.35 * rem
-    const bottom = clamp(aboveMini, 0, Math.max(0, height - elH))
-    const elTop = height - bottom - elH
-    const edge = outerX(elTop, elTop + elH, tr, br)
-    const outward = edge >= centerX ? 1 : -1
-    const face = edge + outward * gap
-    const left = clamp(outward > 0 ? face : face - elW, 0, Math.max(0, width - elW))
-    app.style.setProperty('--wall-skip-right', `${(width - left - elW).toFixed(1)}px`)
-    app.style.setProperty('--wall-skip-bottom', `${bottom.toFixed(1)}px`)
-  }
+  /* Tour skip is pinned to the wall's bottom-right corner (overlays.css);
+     it does not track the frame. */
 }
 
 function bindWallChrome(viewer: Viewer): void {
