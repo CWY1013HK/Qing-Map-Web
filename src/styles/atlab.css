@@ -72,7 +72,7 @@
   height: min(29cqh, 210px);
 }
 
-/* Plaques track the tilted sheet. The stamp tracks the upright one. */
+/* Plaques and the stamp follow the zoomed sheet. Tilt only pulls them inward horizontally. */
 .atlab-wall .map-seal-stack {
   display: contents;
 }

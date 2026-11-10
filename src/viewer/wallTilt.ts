@@ -497,7 +497,7 @@ function armSettle(root: HTMLElement): void {
   }, SETTLE_MS)
 }
 
-/** Keep badges and the stamp on the sheet while a shrink eases back to home. */
+/** Move the frame with the sheet while a zoom eases. */
 function followScaleSettle(root: HTMLElement): void {
   const step = () => {
     if (!root.classList.contains('is-wall-scale-settle')) return
@@ -653,7 +653,6 @@ function applyOrientation(): void {
   if (!root) return
   root.style.setProperty('--wall-tilt', `${tiltDeg.toFixed(2)}deg`)
   root.style.setProperty('--wall-yaw', `${yawDeg.toFixed(2)}deg`)
-  scheduleWallChrome()
   const orb = document.getElementById('wall-tilt-orb')
   if (!orb) return
   const hx = Math.min(68, Math.max(12, 32 - yawDeg * 0.28))
@@ -661,6 +660,7 @@ function applyOrientation(): void {
   orb.style.setProperty('--orb-hx', `${hx}%`)
   orb.style.setProperty('--orb-hy', `${hy}%`)
   orb.setAttribute('aria-valuetext', `${Math.round(tiltDeg)}° / ${Math.round(yawDeg)}°`)
+  scheduleWallChrome()
 }
 
 function mountTurnOrb(): void {
@@ -749,11 +749,9 @@ function mountTurnOrb(): void {
 
 /**
  * On the ATLab wall, float chrome in the gutters just outside the scan.
- * Badges and the tour stamp follow the upright sheet as it grows, and ignore
- * the tilt. Plaques, the minimap, and tour-skip follow the tilted sheet.
- * A shrink below full size moves only the map; the chrome stays on the full-size frame.
- * The pearl stays left of the badges until it meets the wall, then crosses
- * to their right. Normal mode never sets these.
+ * Rules are in docs/ui-zoom-frame.md: 2D zoom still expands the frame, and
+ * tilt may only contract its width. The pearl stays left of the badges until
+ * it meets the wall, then crosses to their right. Normal mode never sets these.
  */
 let chromeFrame = 0
 
@@ -767,132 +765,209 @@ function scheduleWallChrome(): void {
 
 type SheetQuad = { tl: Pt; tr: Pt; br: Pt; bl: Pt }
 
-/** Interpolated sheet scale while a shrink is easing back to the flat home size. */
-function readSettlingScale(app: HTMLElement): number | null {
-  if (!app.classList.contains('is-wall-scale-settle')) return null
-  const n = parseFloat(getComputedStyle(app).getPropertyValue('--wall-object-scale'))
-  return Number.isFinite(n) ? n : null
-}
-
 /**
- * Grow the upright sheet the way wall zoom does, without the tilt.
- * Scale is around the bottom center, then the same vertical shift as the CSS.
- * Below 1 that shift lifts the sheet off the bottom edge.
+ * While zooming in, remember a horizontal contraction so a later step cannot
+ * spread the frame wider than that again. Height is never stored here.
  */
-function spreadUpright(quad: SheetQuad, scale: number, width: number, height: number): SheetQuad {
-  if (Math.abs(scale - 1) < 0.001) return quad
-  const ox = width / 2
-  const oy = height
-  const ty = ((scale - 1) * height) / 2
-  const apply = (p: Pt): Pt => ({
-    x: ox + (p.x - ox) * scale,
-    y: oy + (p.y - oy) * scale + ty,
-  })
-  return {
-    tl: apply(quad.tl),
-    tr: apply(quad.tr),
-    br: apply(quad.br),
-    bl: apply(quad.bl),
+let chromeWidthHold: { scale: number; width: number; floor: number; narrowing: boolean; tilt: number; yaw: number } | null = null
+
+function chromeScale(app: HTMLElement): number {
+  if (app.classList.contains('is-wall-scale-settle')) {
+    const n = parseFloat(getComputedStyle(app).getPropertyValue('--wall-object-scale'))
+    if (Number.isFinite(n) && n > 0) return n
   }
+  return rotationEnabled ? objectScale : 1
+}
+
+/** Viewer layout pixel → #app layout pixel, ignoring the sheet's CSS tilt. */
+function viewerPointToApp(el: HTMLElement, app: HTMLElement, x: number, y: number): Pt {
+  let px = x
+  let py = y
+  let node: HTMLElement | null = el
+  while (node && node !== app) {
+    px += node.offsetLeft
+    py += node.offsetTop
+    node = node.offsetParent instanceof HTMLElement ? node.offsetParent : null
+  }
+  return { x: px, y: py }
 }
 
 /**
- * Scan corners in #app layout pixels.
- * `upright` is the sheet before wall tilt. `tilted` includes the rotation.
+ * Home-size scan corners in #app layout pixels, before zoom and tilt.
  */
-function sheetCorners(
-  app: HTMLElement,
-  visualScale = 1,
-): { upright: SheetQuad; tilted: SheetQuad } | null {
+function sheetCorners(app: HTMLElement): SheetQuad | null {
   const viewer = boundViewer
-  if (!viewer || !probes || probes.length !== 4 || viewer.world.getItemCount() < 1) return null
+  if (!viewer || viewer.world.getItemCount() < 1) return null
   const item = viewer.world.getItemAt(0)
   if (!item) return null
   const el = viewer.element
-  const cw = el.clientWidth
-  const ch = el.clientHeight
-  if (cw < 2 || ch < 2) return null
+  const width = el.clientWidth
+  const height = el.clientHeight
+  if (width < 2 || height < 2 || app.clientWidth < 2 || app.clientHeight < 2) return null
 
-  const bounds = item.getBounds()
-  const topLeft = viewer.viewport.pixelFromPoint(bounds.getTopLeft(), true)
-  const bottomRight = viewer.viewport.pixelFromPoint(bounds.getBottomRight(), true)
-  if (!isViewportPoint(topLeft) || !isViewportPoint(bottomRight)) return null
-
-  const upright: SheetQuad = {
-    tl: { x: topLeft.x, y: topLeft.y },
-    tr: { x: bottomRight.x, y: topLeft.y },
-    br: { x: bottomRight.x, y: bottomRight.y },
-    bl: { x: topLeft.x, y: bottomRight.y },
-  }
-
-  // Ignore shrink and lift: controls stay on the full resting sheet.
-  const pose = readSheetPose()
-  if (pose) {
-    const scale = Math.max(visualScale, 1)
-    const project = (x: number, y: number) => projectOnWall(x, y, cw, ch, scale, pose.tilt, pose.yaw)
-    return {
-      upright,
-      tilted: {
-        tl: project(topLeft.x, topLeft.y),
-        tr: project(bottomRight.x, topLeft.y),
-        br: project(bottomRight.x, bottomRight.y),
-        bl: project(topLeft.x, bottomRight.y),
-      },
-    }
-  }
-
-  const screen = probes.map((probe) => {
-    const r = probe.getBoundingClientRect()
-    return { x: r.left, y: r.top }
+  const image = item.getBounds()
+  const home = viewer.viewport.getHomeBounds()
+  if (!(home.width > 0) || !(home.height > 0)) return null
+  const toPixel = (x: number, y: number): Pt => ({
+    x: ((x - home.x) / home.width) * width,
+    y: ((y - home.y) / home.height) * height,
   })
-  const toScreen = homography(
-    [
-      { x: 0, y: 0 },
-      { x: cw, y: 0 },
-      { x: cw, y: ch },
-      { x: 0, y: ch },
-    ],
-    screen,
-  )
-  if (!toScreen) return null
-  const projected = [
-    toScreen(topLeft.x, topLeft.y),
-    toScreen(bottomRight.x, topLeft.y),
-    toScreen(bottomRight.x, bottomRight.y),
-    toScreen(topLeft.x, bottomRight.y),
-  ]
-  if (projected.some((p) => !p)) return null
-
-  const box = app.getBoundingClientRect()
-  const width = app.clientWidth
-  const height = app.clientHeight
-  if (box.width < 2 || box.height < 2 || width < 2 || height < 2) return null
-  const toLocal = (p: Pt): Pt => ({
-    x: ((p.x - box.left) / box.width) * width,
-    y: ((p.y - box.top) / box.height) * height,
-  })
+  const tl = toPixel(image.x, image.y)
+  const br = toPixel(image.x + image.width, image.y + image.height)
   return {
-    upright,
-    tilted: {
-      tl: toLocal(projected[0]!),
-      tr: toLocal(projected[1]!),
-      br: toLocal(projected[2]!),
-      bl: toLocal(projected[3]!),
-    },
+    tl,
+    tr: { x: br.x, y: tl.y },
+    br,
+    bl: { x: tl.x, y: br.y },
   }
+}
+
+/** Flat map rectangle at the current viewport zoom, in #app layout pixels. */
+function flatViewportFrame(app: HTMLElement): SheetQuad | null {
+  const viewer = boundViewer
+  if (!viewer || viewer.world.getItemCount() < 1) return null
+  const item = viewer.world.getItemAt(0)
+  if (!item) return null
+  const image = item.getBounds()
+  const toApp = (vx: number, vy: number): Pt => {
+    const px = viewer.viewport.pixelFromPoint(new OpenSeadragon.Point(vx, vy), true)
+    return viewerPointToApp(viewer.element, app, px.x, px.y)
+  }
+  const tl = toApp(image.x, image.y)
+  const br = toApp(image.x + image.width, image.y + image.height)
+  if (![tl.x, tl.y, br.x, br.y].every(Number.isFinite)) return null
+  return {
+    tl,
+    tr: { x: br.x, y: tl.y },
+    br,
+    bl: { x: tl.x, y: br.y },
+  }
+}
+
+/** Upright sheet at `scale`, before tilt. This is the 2D zoom frame. */
+function uprightScaledFrame(home: SheetQuad, app: HTMLElement, scale: number): SheetQuad {
+  const w = app.clientWidth
+  const h = app.clientHeight
+  const p = (pt: Pt) => projectOnWall(pt.x, pt.y, w, h, scale, 0, 0)
+  return { tl: p(home.tl), tr: p(home.tr), br: p(home.br), bl: p(home.bl) }
+}
+
+/**
+ * Pull the upright frame's left and right edges inward to the tilted sheet.
+ * Top and bottom stay on the upright zoom frame. The result is never wider
+ * than that frame, and a zoom-in that already narrowed it does not spread it.
+ */
+function contractHorizontally(
+  app: HTMLElement,
+  home: SheetQuad,
+  upright: SheetQuad,
+  scale: number,
+  pose: { tilt: number; yaw: number },
+): SheetQuad {
+  const w = app.clientWidth
+  const h = app.clientHeight
+  const top = Math.min(upright.tl.y, upright.bl.y)
+  const bottom = Math.max(upright.br.y, upright.tr.y)
+  const uL = Math.min(upright.tl.x, upright.bl.x)
+  const uR = Math.max(upright.tr.x, upright.br.x)
+  const uprightWidth = uR - uL
+  const full: SheetQuad = {
+    tl: { x: uL, y: top },
+    tr: { x: uR, y: top },
+    br: { x: uR, y: bottom },
+    bl: { x: uL, y: bottom },
+  }
+  if (!(uprightWidth > 1)) return full
+
+  let minX = Infinity
+  let maxX = -Infinity
+  for (const p of [home.tl, home.tr, home.br, home.bl]) {
+    const q = projectOnWall(p.x, p.y, w, h, scale, pose.tilt, pose.yaw)
+    if (!Number.isFinite(q.x)) continue
+    minX = Math.min(minX, q.x)
+    maxX = Math.max(maxX, q.x)
+  }
+  let left = Number.isFinite(minX) ? Math.max(minX, uL) : uL
+  let right = Number.isFinite(maxX) ? Math.min(maxX, uR) : uR
+  if (right - left < 1) {
+    left = uL
+    right = uR
+  }
+
+  const rawWidth = right - left
+  const prev = chromeWidthHold
+  const zoomingIn = prev != null && scale > prev.scale + 0.001
+  const zoomingOut = prev != null && scale < prev.scale - 0.001
+  const poseChanged =
+    prev != null && (Math.abs(pose.tilt - prev.tilt) > 0.4 || Math.abs(pose.yaw - prev.yaw) > 0.4)
+  let narrowing = !poseChanged && (prev?.narrowing ?? false)
+  let floor = prev?.floor ?? rawWidth
+  let width = rawWidth
+  if (!prev || zoomingOut || poseChanged) {
+    narrowing = false
+    floor = rawWidth
+  } else if (zoomingIn) {
+    if (rawWidth <= prev.width + 1) {
+      narrowing = true
+      floor = rawWidth
+    } else if (narrowing && rawWidth > floor) {
+      width = floor
+    } else {
+      floor = rawWidth
+    }
+  } else if (narrowing && rawWidth > floor) {
+    width = floor
+  } else {
+    floor = Math.min(floor, rawWidth)
+  }
+  width = Math.min(width, uprightWidth)
+  chromeWidthHold = { scale, width, floor, narrowing, tilt: pose.tilt, yaw: pose.yaw }
+
+  const mid = (left + right) / 2
+  let heldLeft = mid - width / 2
+  let heldRight = mid + width / 2
+  if (heldRight - heldLeft > uprightWidth) {
+    heldLeft = uL
+    heldRight = uR
+  } else if (heldLeft < uL) {
+    heldRight += uL - heldLeft
+    heldLeft = uL
+  } else if (heldRight > uR) {
+    heldLeft -= heldRight - uR
+    heldRight = uR
+  }
+  return {
+    tl: { x: heldLeft, y: top },
+    tr: { x: heldRight, y: top },
+    br: { x: heldRight, y: bottom },
+    bl: { x: heldLeft, y: bottom },
+  }
+}
+
+/**
+ * 2D: the live map rectangle, so zoom expands and contracts the controls.
+ * Rotated: that same upright zoom frame, with only the width pulled inward.
+ */
+function zoomFrame(app: HTMLElement): SheetQuad | null {
+  const home = sheetCorners(app)
+  if (!home) return null
+  const pose = readSheetPose()
+  if (!pose) {
+    chromeWidthHold = null
+    return flatViewportFrame(app) ?? home
+  }
+  const scale = chromeScale(app)
+  return contractHorizontally(app, home, uprightScaledFrame(home, app, scale), scale, pose)
 }
 
 function placeAtlabWallChrome(): void {
   const app = document.getElementById('app')
   if (!app?.closest('.atlab-wall')) return
-  const settlingScale = readSettlingScale(app)
-  const visualScale = settlingScale ?? (rotationEnabled ? objectScale : 1)
-  const frames = sheetCorners(app, visualScale)
-  if (!frames) return
-  const { tl, tr, br, bl } = frames.tilted
-  const upright = frames.upright
+  const frame = zoomFrame(app)
+  if (!frame) return
   const width = app.clientWidth
   const height = app.clientHeight
+  const { tl, tr, br, bl } = frame
   const centerX = (tl.x + tr.x + br.x + bl.x) / 4
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
 
@@ -908,18 +983,14 @@ function placeAtlabWallChrome(): void {
     return Math.abs(x0 - centerX) >= Math.abs(x1 - centerX) ? x0 : x1
   }
 
-  const chromeScale = Math.max(visualScale, 1)
-  const grown =
-    chromeScale > 1.001 ? spreadUpright(upright, chromeScale, width, height) : upright
-
   const toolbar = document.getElementById('toolbar')
   if (toolbar) {
     const barH = toolbar.offsetHeight
     const barW = Math.max(toolbar.offsetWidth, 52)
     const pearlReserve = 54 + 1.85 * rem
-    const barTop = clamp(Math.max(grown.tl.y, 0) + rem, 0, Math.max(0, height - barH))
-    const edge = outerX(barTop, barTop + barH, grown.tl, grown.bl)
-    const outward = edge <= (grown.tl.x + grown.br.x) / 2 ? -1 : 1
+    const barTop = clamp(Math.max(tl.y, 0) + rem, 0, Math.max(0, height - barH))
+    const edge = outerX(barTop, barTop + barH, tl, bl)
+    const outward = edge <= (tl.x + br.x) / 2 ? -1 : 1
     const face = edge + outward * rem
     const rawLeft = outward < 0 ? face - barW : face
     let inward = app.classList.contains('is-pearl-inward')
@@ -961,11 +1032,11 @@ function placeAtlabWallChrome(): void {
     const gap = 1.25 * rem
     const stampW = stamp.offsetWidth
     const stampH = stamp.offsetHeight
-    const abovePlaques = plaqueH > 0 ? plaqueBottom + plaqueH + 0.75 * rem : height - grown.bl.y + gap
+    const abovePlaques = plaqueH > 0 ? plaqueBottom + plaqueH + 0.75 * rem : height - bl.y + gap
     const bottom = clamp(abovePlaques, gap, Math.max(gap, height - stampH))
     const stampTop = height - bottom - Math.max(stampH, 1)
-    const edge = outerX(stampTop, stampTop + Math.max(stampH, 1), grown.tl, grown.bl)
-    const outward = edge <= (grown.tl.x + grown.br.x) / 2 ? -1 : 1
+    const edge = outerX(stampTop, stampTop + Math.max(stampH, 1), tl, bl)
+    const outward = edge <= (tl.x + br.x) / 2 ? -1 : 1
     let face = edge + outward * gap
     if (stampW > 0 && outward < 0) face = Math.max(face, gap + stampW)
     let cssRight = width - face

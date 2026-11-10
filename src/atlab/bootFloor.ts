@@ -26,21 +26,32 @@ function capDrawerBackingStore(drawer: object | null | undefined): void {
   sized._calculateCanvasSize = () => new OpenSeadragon.Point(1, 1)
 }
 
+/**
+ * The published types mark this const. The runtime value is what sizes drawer
+ * buffers, so the floor sets it briefly and always puts the previous value back.
+ */
+function withPixelDensityRatio<T>(ratio: number, run: () => T): T {
+  const osd = OpenSeadragon as unknown as { pixelDensityRatio: number }
+  const prev = osd.pixelDensityRatio
+  osd.pixelDensityRatio = ratio
+  try {
+    return run()
+  } finally {
+    osd.pixelDensityRatio = prev
+  }
+}
+
 function keepFloorDrawerTiny(viewer: OpenSeadragon.Viewer): void {
   capDrawerBackingStore(viewer.drawer)
   const requestDrawer = viewer.requestDrawer.bind(viewer)
   viewer.requestDrawer = ((candidate, options) => {
-    const prev = OpenSeadragon.pixelDensityRatio
     const size = viewer.viewport.getContainerSize()
     const maxDim = Math.max(size.x, size.y, 1)
-    OpenSeadragon.pixelDensityRatio = 1 / maxDim
-    try {
+    return withPixelDensityRatio(1 / maxDim, () => {
       const drawer = requestDrawer(candidate, options)
       if (drawer && typeof drawer === 'object') capDrawerBackingStore(drawer)
       return drawer
-    } finally {
-      OpenSeadragon.pixelDensityRatio = prev
-    }
+    })
   }) as OpenSeadragon.Viewer['requestDrawer']
   viewer.raiseEvent('resize', {})
 }
@@ -66,12 +77,8 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
    */
   const layoutW = Math.max(1, el.clientWidth)
   const layoutH = Math.max(1, el.clientHeight)
-  const prevDensity = OpenSeadragon.pixelDensityRatio
-  OpenSeadragon.pixelDensityRatio = 1 / Math.max(layoutW, layoutH)
 
-  let viewer: OpenSeadragon.Viewer
-  try {
-    viewer = OpenSeadragon({
+  const viewer = withPixelDensityRatio(1 / Math.max(layoutW, layoutH), () => OpenSeadragon({
       element: el,
       prefixUrl: '/osd-images/',
       tileSources: {
@@ -105,10 +112,7 @@ export function bootFloorViewer(): OpenSeadragon.Viewer {
         pinchToZoom: false,
         dblClickToZoom: false,
       },
-    })
-  } finally {
-    OpenSeadragon.pixelDensityRatio = prevDensity
-  }
+    }))
   keepFloorDrawerTiny(viewer)
 
   const fitHome = () => {
