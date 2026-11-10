@@ -6,18 +6,19 @@ import { t } from '../i18n'
  * Starts on with `?wallTilt=1` (32°) or `?wallTilt=28` (degrees). Otherwise
  * the pearl beside 淨 and 功, or the 功 settings row, turns it on.
  * Optional `?wallPerspective=2400`.
- * A tap on the pearl toggles the 3D lean. A drag on it turns and leans the
- * sheet. Shift-drag, or a two-finger twist, spins the map in its own plane
- * with no stop — that flat spin also works while the 3D lean is off.
- * Tilt and yaw stay inside ±89° so the back never faces the room.
+ * A tap on the pearl toggles the 3D lean. Dragging it sideways spins the map
+ * flat, in its own plane, with no stop — across 360° and upside down, even
+ * while the 3D lean is off. Dragging down leans it back. Shift-drag turns it
+ * laterally. Lean and the lateral turn stay inside ±76.5°, so the back never
+ * faces the room. A two-finger twist on the map also spins it flat.
  * Everything spins around the geometric centre of the visible map.
  * The floor viewer is never tilted.
  */
 
 const DEFAULT_DEGREES = 32
 const DEFAULT_PERSPECTIVE_PX = 2400
-/** Short of 90° so the sheet cannot flip onto its back. */
-const MAX_FACE_DEG = 89
+/** 85% of 90° — far enough to feel edge-on, near enough that the sheet stays visible from the sides. */
+const MAX_FACE_DEG = 90 * 0.85
 const MIN_PERSPECTIVE_PX = 400
 /** Screen pixels of a drag that equal one degree. */
 const DEG_PER_PX = 0.32
@@ -50,7 +51,7 @@ let boundViewer: Viewer | null = null
 let objectScale = 1
 /** Screen-space lift of the whole sheet, in layout pixels. Negative raises it. */
 let objectLift = 0
-/** Lean (rotateX) and turn (rotateY) stay inside ±89°. In-plane spin (rotateZ) does not. */
+/** Lean (rotateX) and turn (rotateY) stay inside ±76.5°. In-plane spin (rotateZ) does not. */
 let tiltDeg = 0
 let yawDeg = 0
 let rollDeg = 0
@@ -383,7 +384,7 @@ export function bindWallTilt(viewer: Viewer): void {
       } else if (!zooming) {
         event.preventDefaultPanAction = true
         event.preventDefaultZoomAction = true
-        if (midDx !== 0 || midDy !== 0) nudgeRotation(midDx, midDy)
+        if (midDx !== 0 || midDy !== 0) nudgeRotation(midDx, midDy, true)
         else if (Math.abs(twist) > 0.2) applyOrientation()
       } else if (Math.abs(twist) > 0.2) {
         applyOrientation()
@@ -748,12 +749,21 @@ function clampFace(deg: number): number {
   return Math.min(MAX_FACE_DEG, Math.max(-MAX_FACE_DEG, deg))
 }
 
-/** Drag right turns the sheet; drag down leans it back. Both stop before the back shows. Shift-drag spins the map in its plane, with no stop — that works while the 3D lean is off too. */
-function nudgeRotation(dx: number, dy: number, spin = false): void {
-  if (!rotationEnabled && !spin) return
-  if (spin) rollDeg += dx * DEG_PER_PX
-  else yawDeg = clampFace(yawDeg + dx * DEG_PER_PX)
-  tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
+/**
+ * Drag right spins the map flat, in its own plane. That spin has no stop, so
+ * the map turns across 360° and upside down. Drag down leans it back, and
+ * Shift-drag turns it laterally. Lean and the lateral turn stop at ±76.5°, so
+ * the back never faces the room. The flat spin also works while the 3D lean is off.
+ */
+function nudgeRotation(dx: number, dy: number, lateral = false): void {
+  if (lateral) {
+    if (!rotationEnabled) return
+    yawDeg = clampFace(yawDeg + dx * DEG_PER_PX)
+    tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
+  } else {
+    rollDeg += dx * DEG_PER_PX
+    if (rotationEnabled) tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
+  }
   applyOrientation()
 }
 
@@ -859,11 +869,11 @@ function mountTurnOrb(): void {
     if (!drag.moved) {
       if (Math.hypot(dx, dy) < TAP_PX) return
       drag.moved = true
-      if (!rotationEnabled && !event.shiftKey) return
+      if (!rotationEnabled && event.shiftKey) return
       orb.classList.add('is-grabbing')
       releaseSettle()
     }
-    if (!rotationEnabled && !event.shiftKey) return
+    if (!rotationEnabled && event.shiftKey) return
     nudgeRotation(dx, dy, event.shiftKey)
     drag = { id: drag.id, x: event.clientX, y: event.clientY, moved: true }
   })
@@ -884,13 +894,14 @@ function mountTurnOrb(): void {
       event.preventDefault()
       return
     }
-    if (!rotationEnabled) return
+    const lateral = event.shiftKey
+    if (!rotationEnabled && (lateral || event.key === 'ArrowUp' || event.key === 'ArrowDown')) return
     const step = event.shiftKey ? 8 : 3
     const px = step / DEG_PER_PX
-    if (event.key === 'ArrowLeft') nudgeRotation(-px, 0)
-    else if (event.key === 'ArrowRight') nudgeRotation(px, 0)
-    else if (event.key === 'ArrowUp') nudgeRotation(0, -px)
-    else if (event.key === 'ArrowDown') nudgeRotation(0, px)
+    if (event.key === 'ArrowLeft') nudgeRotation(-px, 0, lateral)
+    else if (event.key === 'ArrowRight') nudgeRotation(px, 0, lateral)
+    else if (event.key === 'ArrowUp') nudgeRotation(0, -px, lateral)
+    else if (event.key === 'ArrowDown') nudgeRotation(0, px, lateral)
     else return
     event.preventDefault()
   })

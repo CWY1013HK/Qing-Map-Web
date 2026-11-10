@@ -24,7 +24,9 @@ Dragging the map moves it along the screen, horizontally across the display. It 
 
 ## 5. Upside down is allowed. The back is not.
 
-The in-plane spin has no limit, so the sheet can turn upside down and keep going. Lean (tilt) and turn (yaw) stay inside ±89°, so the back of the sheet never faces the room. Twist two fingers, or Shift-drag the pearl sideways, to spin it in its plane. The spin also works while 3D rotation is off: the map turns in its own flat plane.
+The flat, in-plane spin has no limit. Dragging the pearl sideways spins the map across 360° and upside down, and it keeps going. This spin also works while 3D rotation is off: the map turns in its own flat plane.
+
+The vertical and lateral axes stay locked. Dragging down leans the sheet (tilt), and Shift-dragging turns it laterally (yaw). Both stop inside ±76.5° — 85% of a right angle — so the sheet stays visible from the sides and the back never faces the room. A two-finger twist on the map also spins it flat.
 
 ## 6. Spin around the visible centre
 
