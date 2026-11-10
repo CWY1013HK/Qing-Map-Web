@@ -8,6 +8,7 @@ import { mountCreditsToggle } from '../popups/credits'
 import { mountLabelToggle, mountLocationLabels } from '../popups/labels'
 import { mountChrome } from './chrome'
 import { focusIntroRegion, mountIntro } from './intro'
+import { mountNorthSeaBand } from './northSeaBand'
 import { mountFocusMode } from './focusMode'
 import { mountMusicToggle } from './musicToggle'
 import { clearHighResTileCache } from './seaUnderlay'
@@ -126,6 +127,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   })
 
   bindWallTilt(viewer)
+  mountNorthSeaBand(viewer)
   mountChrome(viewer)
   mountFocusMode(viewer)
   // Warm the land plate so 淨 mode does not wait on an 8MB fetch.

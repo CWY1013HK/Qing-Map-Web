@@ -260,17 +260,7 @@ body {
   initial-value: 0deg;
 }
 
-@property --wall-origin-x {
-  syntax: '<length>';
-  inherits: true;
-  initial-value: 50%;
-}
-
-@property --wall-origin-y {
-  syntax: '<length>';
-  inherits: true;
-  initial-value: 100%;
-}
+/* Origin vars are set in px from JS; no @property so minifiers accept % fallbacks. */
 
 @property --wall-object-scale {
   syntax: '<number>';
@@ -306,14 +296,16 @@ body {
 #app.is-wall-tilt-settle #viewer {
   perspective: var(--wall-perspective, 2400px);
   perspective-origin: 50% 100%;
-  /* A raised or turned sheet keeps painting past the top and sides. Only the
-     bottom edge — the floor seam on the wall — clips it. */
+  /* No clip at all: a raised or turned sheet keeps painting past every edge.
+     On the wall, the floor band paints over whatever spills past the seam. */
   overflow: visible;
-  clip-path: inset(-400% -400% 0 -400%);
 }
 
 #app.is-wall-tilt #viewer .openseadragon-container,
 #app.is-wall-tilt-settle #viewer .openseadragon-container {
+  /* The transformation box must not clip: the north sea band (and any tile
+     that overshoots) keeps painting past the container's top edge. */
+  overflow: visible;
   transform: translateY(var(--wall-object-lift, 0px)) rotateX(var(--wall-tilt, 0deg))
     rotateY(var(--wall-yaw, 0deg)) rotateZ(var(--wall-roll, 0deg))
     translateY(calc((var(--wall-object-scale, 1) - 1) * 50%)) scale(var(--wall-object-scale, 1));
@@ -335,8 +327,37 @@ body {
 
 /* Flat 2D spin. Rotation off still turns the painting in its own plane. */
 #viewer.is-wall-roll-2d .openseadragon-container {
+  overflow: visible;
   transform: rotateZ(var(--wall-roll, 0deg));
   transform-origin: var(--wall-origin-x, 50%) var(--wall-origin-y, 50%);
+}
+
+/*
+ * North sea band (src/viewer/northSeaBand.ts): a mirrored top strip of the
+ * map hung above the sheet's north edge, so a lifted or turned sheet's top
+ * edge dissolves into the wall instead of slicing the painting. Shown only
+ * while rotated; the upright map keeps its flush top edge.
+ */
+.wall-north-sea {
+  pointer-events: none !important;
+  opacity: 0;
+  transition: opacity 0.42s ease;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
+}
+
+#app.is-wall-tilt .wall-north-sea,
+#app.is-wall-tilt-settle .wall-north-sea,
+#viewer.is-wall-roll-2d .wall-north-sea {
+  opacity: 1;
+}
+
+.wall-north-sea-mirror {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-position: center top;
+  transform: scaleY(-1);
 }
 
 .wall-tilt-orb {

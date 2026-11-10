@@ -34,4 +34,6 @@ Every rotation turns around the geometric centre of the visible map, not the con
 
 ## 7. Never cut the painting
 
-A raised or turned sheet keeps painting past the wall’s top and sides. The wall does not cut its edges away. Only the floor seam — the wall’s bottom edge — clips it, so the sheet never paints over the floor.
+A raised or turned sheet keeps painting past the wall’s top and sides. The wall does not cut its edges away. Only the floor seam — the wall’s bottom edge — clips it, so the sheet never paints over the floor. The floor band itself paints over any spill past the seam; nothing else clips.
+
+The transformation box (the OSD container) does not clip either: it is `overflow: visible` while rotated. The wall fits the map height-bound, so the painting’s own top edge sits exactly on the container’s top edge. To keep that edge from reading as a slice, the north sea band (`src/viewer/northSeaBand.ts`) hangs a mirrored top strip of the map above the sheet’s north edge and dissolves it upward through a gradient mask. It appears only while the sheet is rotated; the upright map keeps its flush top edge.

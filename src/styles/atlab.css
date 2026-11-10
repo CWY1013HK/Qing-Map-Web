@@ -24,9 +24,8 @@
   position: relative;
   width: 100%;
   height: var(--atlab-wall-h);
-  /* The tilted sheet keeps painting past the top and sides; the floor seam still clips it. */
+  /* No top or side clip: the tilted sheet keeps painting. The floor covers spill past the seam. */
   overflow: visible;
-  clip-path: inset(-400% -400% 0 -400%);
   z-index: 2;
   container-type: size;
 }
@@ -144,7 +143,9 @@
   width: 100%;
   height: var(--atlab-floor-h);
   overflow: hidden;
-  z-index: 1;
+  /* Paints over the wall (z-index 2) so the tilted sheet's spill past the seam
+     is hidden by the floor band — no clip-path on the wall needed. */
+  z-index: 3;
   /* Sea-tint, not paper-white — gaps during overlay paint must not flash white. */
   background: #7ea4b8;
 }
