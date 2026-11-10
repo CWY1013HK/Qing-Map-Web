@@ -1051,6 +1051,7 @@ function contractHorizontally(
 /**
  * 2D: the live map rectangle, so zoom expands and contracts the controls.
  * Rotated: that same upright zoom frame, with only the width pulled inward.
+ * A horizontal pan slides the frame with the sheet and leaves its height alone.
  */
 function zoomFrame(app: HTMLElement): SheetQuad | null {
   const home = sheetCorners(app)
@@ -1062,7 +1063,36 @@ function zoomFrame(app: HTMLElement): SheetQuad | null {
     return flatViewportFrame(app) ?? home
   }
   const scale = chromeScale(app)
-  return contractHorizontally(app, home, uprightScaledFrame(home, app, scale), scale, pose)
+  const frame = contractHorizontally(app, home, uprightScaledFrame(home, app, scale), scale, pose)
+  const slide = sheetSlideX(app, home, scale, pose)
+  if (Math.abs(slide) < 0.5) return frame
+  const shift = (p: Pt): Pt => ({ x: p.x + slide, y: p.y })
+  return { tl: shift(frame.tl), tr: shift(frame.tr), br: shift(frame.br), bl: shift(frame.bl) }
+}
+
+/** How far a pan moves the sheet horizontally, in #app pixels. */
+function sheetSlideX(
+  app: HTMLElement,
+  home: SheetQuad,
+  scale: number,
+  pose: { tilt: number; yaw: number; roll: number },
+): number {
+  const viewer = boundViewer
+  if (!viewer || viewer.world.getItemCount() < 1) return 0
+  const item = viewer.world.getItemAt(0)
+  if (!item) return 0
+  const image = item.getBounds()
+  const origin = viewer.viewport.pixelFromPoint(new OpenSeadragon.Point(image.x, image.y), true)
+  const dx = origin.x - home.tl.x
+  const dy = origin.y - home.tl.y
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return 0
+  const w = app.clientWidth
+  const h = app.clientHeight
+  const project = (x: number, y: number) => projectOnWall(x, y, w, h, scale, pose.tilt, pose.yaw, pose.roll)
+  const corners = [home.tl, home.tr, home.br, home.bl]
+  let sum = 0
+  for (const p of corners) sum += project(p.x + dx, p.y + dy).x - project(p.x, p.y).x
+  return sum / corners.length
 }
 
 function placeAtlabWallChrome(): void {

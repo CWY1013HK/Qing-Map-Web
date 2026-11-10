@@ -20,7 +20,7 @@ When the frame moves, the controls animate to the new place. They do not snap.
 
 ## 4. A drag pans across the screen
 
-Dragging the map moves it along the screen, horizontally across the display. It does not slide along the tilted plane of the sheet.
+Dragging the map moves it along the screen, horizontally across the display. It does not slide along the tilted plane of the sheet. The controls shift sideways with that move. Their top and bottom stay put.
 
 ## 5. Upside down is allowed. The back is not.
 

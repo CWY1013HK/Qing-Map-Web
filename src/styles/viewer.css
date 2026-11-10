@@ -304,6 +304,16 @@ body {
     translateY(calc((var(--wall-object-scale, 1) - 1) * 50%)) scale(var(--wall-object-scale, 1));
   transform-origin: 50% 100%;
   backface-visibility: hidden;
+  /* Keep the redrawing canvas in this 3D layer. Without it, a pan leaves a second copy of the map. */
+  isolation: isolate;
+}
+
+#app.is-wall-tilt #viewer .openseadragon-canvas,
+#app.is-wall-tilt-settle #viewer .openseadragon-canvas,
+#app.is-wall-tilt #viewer canvas,
+#app.is-wall-tilt-settle #viewer canvas {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .wall-tilt-orb {
