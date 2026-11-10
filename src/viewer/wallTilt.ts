@@ -54,6 +54,8 @@ let objectLift = 0
 let tiltDeg = 0
 let yawDeg = 0
 let rollDeg = 0
+/** Transform pivot in container pixels — the visible map's geometric centre. */
+let wallOrigin: Pt | null = null
 let rotationEnabled = false
 let pendingEnable = false
 let choseAngle = false
@@ -601,8 +603,8 @@ function nudgeObjectLift(screenDy: number): void {
   const rect = el.getBoundingClientRect()
   const layoutPerScreen = rect.height > 1 ? el.clientHeight / rect.height : 1
   const next = objectLift + screenDy * layoutPerScreen
-  // Stop once the top of the sheet meets the wall, so the painting is not cut off.
-  objectLift = clamp(next, -maxObjectRaise(), 0)
+  // Up stops when the top meets the wall; down stops when the bottom meets the floor.
+  objectLift = clamp(next, -maxObjectRaise(), maxObjectLower())
   tiltRoot()?.style.setProperty('--wall-object-lift', `${objectLift.toFixed(1)}px`)
 }
 
@@ -616,6 +618,18 @@ function maxObjectRaise(): number {
   const topL = projectOnWall(0, 0, w, h, objectScale, pose.tilt, pose.yaw, pose.roll).y
   const topR = projectOnWall(w, 0, w, h, objectScale, pose.tilt, pose.yaw, pose.roll).y
   return Math.max(0, Math.min(topL, topR))
+}
+
+/** How far the sheet can drop before its bottom edge meets the floor seam. */
+function maxObjectLower(): number {
+  const el = boundViewer?.element
+  const pose = readSheetPose()
+  if (!el || !pose) return 0
+  const w = el.clientWidth
+  const h = el.clientHeight
+  const bottomL = projectOnWall(0, h, w, h, objectScale, pose.tilt, pose.yaw, pose.roll).y
+  const bottomR = projectOnWall(w, h, w, h, objectScale, pose.tilt, pose.yaw, pose.roll).y
+  return Math.max(0, h - Math.max(bottomL, bottomR))
 }
 
 function readSheetPose(): { tilt: number; yaw: number; roll: number } | null {
@@ -648,8 +662,8 @@ function projectOnWall(
   yaw: number,
   roll = 0,
 ): Pt {
-  const ox = width / 2
-  const oy = height
+  const ox = wallOrigin?.x ?? width / 2
+  const oy = wallOrigin?.y ?? height
   const ty = ((scale - 1) * height) / 2
   let px = (x - ox) * scale
   let py = (y - oy) * scale + ty
@@ -787,6 +801,7 @@ function syncWallOrigin(): void {
   if (!app) return
   const c = visibleMapCenter()
   if (!c) return
+  wallOrigin = c
   app.style.setProperty('--wall-origin-x', `${c.x.toFixed(1)}px`)
   app.style.setProperty('--wall-origin-y', `${c.y.toFixed(1)}px`)
 }
