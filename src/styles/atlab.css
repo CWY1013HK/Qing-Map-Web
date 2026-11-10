@@ -46,6 +46,18 @@
   --wall-skip-bottom: 1.35rem;
 }
 
+.atlab-wall .toolbar,
+.atlab-wall .overlay-seals,
+.atlab-wall .tour-seals,
+.atlab-wall .minimap-panel,
+.atlab-wall .tour-skip {
+  transition:
+    left 0.42s ease,
+    top 0.42s ease,
+    right 0.42s ease,
+    bottom 0.42s ease;
+}
+
 .atlab-wall .toolbar {
   left: var(--wall-badge-left);
   top: var(--wall-badge-top);
@@ -72,7 +84,17 @@
   height: min(29cqh, 210px);
 }
 
-/* Plaques and the stamp follow the zoomed sheet. Tilt only pulls them inward horizontally. */
+@media (prefers-reduced-motion: reduce) {
+  .atlab-wall .toolbar,
+  .atlab-wall .overlay-seals,
+  .atlab-wall .tour-seals,
+  .atlab-wall .minimap-panel,
+  .atlab-wall .tour-skip {
+    transition: none;
+  }
+}
+
+/* Plaques and the stamp follow the zoomed sheet. Rotation only pulls them inward horizontally. */
 .atlab-wall .map-seal-stack {
   display: contents;
 }

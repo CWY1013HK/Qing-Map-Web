@@ -6,8 +6,10 @@ import { t } from '../i18n'
  * Starts on with `?wallTilt=1` (32°) or `?wallTilt=28` (degrees). Otherwise
  * the pearl beside 淨 and 功, or the 功 settings row, turns it on.
  * Optional `?wallPerspective=2400`.
- * A tap on the pearl toggles rotation. A drag on it, or two fingers, turns the sheet.
- * Tilt and yaw stay inside ±89° so the back never faces the room.
+ * A tap on the pearl toggles rotation. A drag on it turns and leans the sheet.
+ * Shift-drag, or a two-finger twist, spins it in its own plane with no stop,
+ * so it can turn upside down. Tilt and yaw stay inside ±89° so the back
+ * never faces the room.
  * The floor viewer is never tilted.
  */
 
@@ -47,9 +49,10 @@ let boundViewer: Viewer | null = null
 let objectScale = 1
 /** Screen-space lift of the whole sheet, in layout pixels. Negative raises it. */
 let objectLift = 0
-/** Lean back (rotateX) and turn (rotateY), degrees. Both stay in ±MAX_FACE_DEG. */
+/** Lean (rotateX) and turn (rotateY) stay inside ±89°. In-plane spin (rotateZ) does not. */
 let tiltDeg = 0
 let yawDeg = 0
+let rollDeg = 0
 let rotationEnabled = false
 let pendingEnable = false
 let choseAngle = false
@@ -123,6 +126,7 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
       const root = tiltRoot()
       root?.style.setProperty('--wall-tilt', '0deg')
       root?.style.setProperty('--wall-yaw', '0deg')
+      root?.style.setProperty('--wall-roll', '0deg')
       if (root) armSettle(root)
       cancelAnimationFrame(orientFrame)
       orientFrame = requestAnimationFrame(() => {
@@ -142,6 +146,7 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
   const center = viewport.getCenter(true)
   rotationEnabled = false
   objectScale = 1
+  rollDeg = 0
   cancelAnimationFrame(orientFrame)
   orientFrame = 0
   const root = tiltRoot()
@@ -154,12 +159,14 @@ export function setWallRotationEnabled(on: boolean, animate = true): boolean {
     armSettle(root)
     root.style.setProperty('--wall-tilt', '0deg')
     root.style.setProperty('--wall-yaw', '0deg')
+    root.style.setProperty('--wall-roll', '0deg')
     root.style.setProperty('--wall-object-lift', '0px')
     if (!belowHome) root.style.setProperty('--wall-object-scale', '1')
   } else {
     root?.style.setProperty('--wall-object-scale', '1')
     root?.style.setProperty('--wall-tilt', '0deg')
     root?.style.setProperty('--wall-yaw', '0deg')
+    root?.style.setProperty('--wall-roll', '0deg')
     root?.style.setProperty('--wall-object-lift', '0px')
   }
   objectLift = 0
@@ -221,6 +228,7 @@ export function bindWallTilt(viewer: Viewer): void {
   let last: Pt | null = null
   let lastClient: Pt | null = null
   const trail: { t: number; x: number; y: number }[] = []
+  const screenTrail: { t: number; x: number; y: number }[] = []
 
   const remember = (p: Pt) => {
     last = p
@@ -229,10 +237,17 @@ export function bindWallTilt(viewer: Viewer): void {
     while (trail.length > 1 && t - trail[0]!.t > 140) trail.shift()
   }
 
+  const rememberScreen = (p: Pt) => {
+    const t = performance.now()
+    screenTrail.push({ t, x: p.x, y: p.y })
+    while (screenTrail.length > 1 && t - screenTrail[0]!.t > 140) screenTrail.shift()
+  }
+
   const resetGesture = () => {
     last = null
     lastClient = null
     trail.length = 0
+    screenTrail.length = 0
   }
 
   const assignPosition = (position: { x: number; y: number }, client: Pt | null): Pt | null => {
@@ -252,6 +267,7 @@ export function bindWallTilt(viewer: Viewer): void {
       const local = assignPosition(event.position, client)
       if (client) lastClient = client
       if (local) remember(local)
+      if (client) rememberScreen(client)
     },
     {},
     HANDLER_PRIORITY,
@@ -266,15 +282,18 @@ export function bindWallTilt(viewer: Viewer): void {
       const screenDx = client && lastClient ? client.x - lastClient.x : 0
       const screenDy = client && lastClient ? client.y - lastClient.y : 0
       const lifting = rotationEnabled && objectScale <= 1.001 && Math.abs(screenDy) >= Math.abs(screenDx)
-      if (last) {
-        // A vertical drag lifts the whole sheet. Panning it would crop the painting.
-        event.delta.x = lifting ? 0 : local.x - last.x
-        event.delta.y = rotationEnabled && objectScale <= 1.001 ? 0 : local.y - last.y
+      if (last && client && lastClient) {
+        // Move the sheet with the finger across the screen. A plane delta would
+        // slide along the tilted face instead of straight across the wall.
+        const moved = localDeltaForScreen(screenDx, screenDy, last)
+        event.delta.x = lifting ? 0 : moved.x
+        event.delta.y = rotationEnabled && objectScale <= 1.001 ? 0 : moved.y
       }
       if (lifting && screenDy !== 0) nudgeObjectLift(screenDy)
       event.position.x = local.x
       event.position.y = local.y
       if (client) lastClient = client
+      if (client) rememberScreen(client)
       remember(local)
     },
     {},
@@ -294,17 +313,17 @@ export function bindWallTilt(viewer: Viewer): void {
         return
       }
       event.preventDefaultAction = true
-      const flick = flickFromTrail(trail)
+      const flick = flickFromTrail(screenTrail)
       const minSpeed = settings.flickMinSpeed ?? 120
-      if (flick && flick.speed >= minSpeed) {
+      if (flick && flick.speed >= minSpeed && last) {
         const momentum = settings.flickMomentum ?? 0.25
         const nav = viewer as Viewer & { panHorizontal?: boolean; panVertical?: boolean }
-        let ampX = momentum * flick.speed * Math.cos(flick.direction)
-        let ampY = 0
-        if (nav.panHorizontal === false) ampX = 0
+        let screenDx = momentum * flick.speed * Math.cos(flick.direction)
+        if (nav.panHorizontal === false) screenDx = 0
+        const moved = localDeltaForScreen(screenDx, 0, last)
         const center = viewer.viewport.pixelFromPoint(viewer.viewport.getCenter(true))
         const target = viewer.viewport.pointFromPixel(
-          new OpenSeadragon.Point(center.x - ampX, center.y - ampY),
+          new OpenSeadragon.Point(center.x - moved.x, center.y - moved.y),
           true,
         )
         viewer.viewport.panTo(target, false)
@@ -356,10 +375,15 @@ export function bindWallTilt(viewer: Viewer): void {
       const distNow = Math.hypot(p0.currentPos.x - p1.currentPos.x, p0.currentPos.y - p1.currentPos.y)
       const distLast = Math.hypot(p0.lastPos.x - p1.lastPos.x, p0.lastPos.y - p1.lastPos.y)
       const zooming = distLast > 12 && Math.abs(distNow / distLast - 1) > 0.05
+      const twist = fingerTwist(p0.lastPos, p1.lastPos, p0.currentPos, p1.currentPos)
+      if (Math.abs(twist) > 0.2) rollDeg += twist
       if (!zooming) {
         event.preventDefaultPanAction = true
         event.preventDefaultZoomAction = true
         if (midDx !== 0 || midDy !== 0) nudgeRotation(midDx, midDy)
+        else if (Math.abs(twist) > 0.2) applyOrientation()
+      } else if (Math.abs(twist) > 0.2) {
+        applyOrientation()
       }
       const a = pageToLocal(p0.currentPos)
       const b = pageToLocal(p1.currentPos)
@@ -583,12 +607,12 @@ function maxObjectRaise(): number {
   if (!el || !pose) return 0
   const w = el.clientWidth
   const h = el.clientHeight
-  const topL = projectOnWall(0, 0, w, h, objectScale, pose.tilt, pose.yaw).y
-  const topR = projectOnWall(w, 0, w, h, objectScale, pose.tilt, pose.yaw).y
+  const topL = projectOnWall(0, 0, w, h, objectScale, pose.tilt, pose.yaw, pose.roll).y
+  const topR = projectOnWall(w, 0, w, h, objectScale, pose.tilt, pose.yaw, pose.roll).y
   return Math.max(0, Math.min(topL, topR))
 }
 
-function readSheetPose(): { tilt: number; yaw: number } | null {
+function readSheetPose(): { tilt: number; yaw: number; roll: number } | null {
   const root = tiltRoot()
   if (!root) return null
   const active = root.classList.contains('is-wall-tilt') || root.classList.contains('is-wall-tilt-settle')
@@ -596,9 +620,11 @@ function readSheetPose(): { tilt: number; yaw: number } | null {
   const style = getComputedStyle(root)
   const tilt = parseFloat(style.getPropertyValue('--wall-tilt'))
   const yaw = parseFloat(style.getPropertyValue('--wall-yaw'))
+  const roll = parseFloat(style.getPropertyValue('--wall-roll'))
   return {
     tilt: Number.isFinite(tilt) ? tilt : tiltDeg,
     yaw: Number.isFinite(yaw) ? yaw : yawDeg,
+    roll: Number.isFinite(roll) ? roll : rollDeg,
   }
 }
 
@@ -614,12 +640,20 @@ function projectOnWall(
   scale: number,
   tilt: number,
   yaw: number,
+  roll = 0,
 ): Pt {
   const ox = width / 2
   const oy = height
   const ty = ((scale - 1) * height) / 2
   let px = (x - ox) * scale
   let py = (y - oy) * scale + ty
+  const rollR = (roll * Math.PI) / 180
+  const cr = Math.cos(rollR)
+  const sr = Math.sin(rollR)
+  const xr = px * cr - py * sr
+  const yr = px * sr + py * cr
+  px = xr
+  py = yr
   let pz = 0
   const yawR = (yaw * Math.PI) / 180
   const tiltR = (tilt * Math.PI) / 180
@@ -636,14 +670,69 @@ function projectOnWall(
   return { x: ox + x1 * f, y: oy + y2 * f }
 }
 
+/** Layout pixels on the wall for one screen pixel. Ignores the sheet transform. */
+function layoutPerScreen(): number {
+  const stage = document.getElementById('atlab') ?? host
+  if (!stage) return 1
+  const rect = stage.getBoundingClientRect()
+  if (!(rect.width > 1) || !(stage.clientWidth > 1)) return 1
+  return stage.clientWidth / rect.width
+}
+
+/**
+ * Screen drag → container-pixel pan whose on-screen result is that same drag.
+ * Inverting the sheet's projection keeps the motion across the wall, not along the face.
+ */
+function localDeltaForScreen(screenDx: number, screenDy: number, at: Pt): Pt {
+  const scaleToLayout = layoutPerScreen()
+  const lx = screenDx * scaleToLayout
+  const ly = screenDy * scaleToLayout
+  const pose = readSheetPose()
+  const el = host
+  if (!pose || !el) return { x: lx, y: ly }
+  const w = el.clientWidth
+  const h = el.clientHeight
+  const eps = 1
+  const p = (x: number, y: number) => projectOnWall(x, y, w, h, objectScale, pose.tilt, pose.yaw, pose.roll)
+  const origin = p(at.x, at.y)
+  const ox = p(at.x + eps, at.y)
+  const oy = p(at.x, at.y + eps)
+  const j00 = (ox.x - origin.x) / eps
+  const j10 = (ox.y - origin.y) / eps
+  const j01 = (oy.x - origin.x) / eps
+  const j11 = (oy.y - origin.y) / eps
+  const det = j00 * j11 - j01 * j10
+  if (Math.abs(det) < 1e-4) return { x: lx, y: ly }
+  return {
+    x: (j11 * lx - j01 * ly) / det,
+    y: (-j10 * lx + j00 * ly) / det,
+  }
+}
+
+/** Change in the angle between two fingers, in degrees. Positive spins the sheet. */
+function fingerTwist(
+  lastA: { x: number; y: number },
+  lastB: { x: number; y: number },
+  nowA: { x: number; y: number },
+  nowB: { x: number; y: number },
+): number {
+  const before = Math.atan2(lastB.y - lastA.y, lastB.x - lastA.x)
+  const after = Math.atan2(nowB.y - nowA.y, nowB.x - nowA.x)
+  let turn = after - before
+  if (turn > Math.PI) turn -= Math.PI * 2
+  if (turn < -Math.PI) turn += Math.PI * 2
+  return (turn * 180) / Math.PI
+}
+
 function clampFace(deg: number): number {
   return Math.min(MAX_FACE_DEG, Math.max(-MAX_FACE_DEG, deg))
 }
 
-/** Drag right turns the sheet; drag down leans it back. Both axes stop before 90°. */
-function nudgeRotation(dx: number, dy: number): void {
+/** Drag right turns the sheet; drag down leans it back. Both stop before the back shows. Shift-drag spins the sheet in its plane, with no stop. */
+function nudgeRotation(dx: number, dy: number, spin = false): void {
   if (!rotationEnabled) return
-  yawDeg = clampFace(yawDeg + dx * DEG_PER_PX)
+  if (spin) rollDeg += dx * DEG_PER_PX
+  else yawDeg = clampFace(yawDeg + dx * DEG_PER_PX)
   tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
   applyOrientation()
 }
@@ -653,13 +742,14 @@ function applyOrientation(): void {
   if (!root) return
   root.style.setProperty('--wall-tilt', `${tiltDeg.toFixed(2)}deg`)
   root.style.setProperty('--wall-yaw', `${yawDeg.toFixed(2)}deg`)
+  root.style.setProperty('--wall-roll', `${rollDeg.toFixed(2)}deg`)
   const orb = document.getElementById('wall-tilt-orb')
   if (!orb) return
   const hx = Math.min(68, Math.max(12, 32 - yawDeg * 0.28))
   const hy = Math.min(70, Math.max(10, 26 + tiltDeg * 0.22))
   orb.style.setProperty('--orb-hx', `${hx}%`)
   orb.style.setProperty('--orb-hy', `${hy}%`)
-  orb.setAttribute('aria-valuetext', `${Math.round(tiltDeg)}° / ${Math.round(yawDeg)}°`)
+  orb.setAttribute('aria-valuetext', `${Math.round(tiltDeg)}° / ${Math.round(yawDeg)}° / ${Math.round(rollDeg)}°`)
   scheduleWallChrome()
 }
 
@@ -713,7 +803,7 @@ function mountTurnOrb(): void {
       releaseSettle()
     }
     if (!rotationEnabled) return
-    nudgeRotation(dx, dy)
+    nudgeRotation(dx, dy, event.shiftKey)
     drag = { id: drag.id, x: event.clientX, y: event.clientY, moved: true }
   })
 
@@ -769,7 +859,9 @@ type SheetQuad = { tl: Pt; tr: Pt; br: Pt; bl: Pt }
  * While zooming in, remember a horizontal contraction so a later step cannot
  * spread the frame wider than that again. Height is never stored here.
  */
-let chromeWidthHold: { scale: number; width: number; floor: number; narrowing: boolean; tilt: number; yaw: number } | null = null
+let chromeWidthHold: { scale: number; width: number; floor: number; narrowing: boolean; tilt: number; yaw: number; roll: number } | null = null
+/** Tallest upright frame while rotated. Zooming out does not shorten it. */
+let chromeVerticalHold: { top: number; bottom: number } | null = null
 
 function chromeScale(app: HTMLElement): number {
   if (app.classList.contains('is-wall-scale-settle')) {
@@ -862,12 +954,21 @@ function contractHorizontally(
   home: SheetQuad,
   upright: SheetQuad,
   scale: number,
-  pose: { tilt: number; yaw: number },
+  pose: { tilt: number; yaw: number; roll: number },
 ): SheetQuad {
   const w = app.clientWidth
   const h = app.clientHeight
-  const top = Math.min(upright.tl.y, upright.bl.y)
-  const bottom = Math.max(upright.br.y, upright.tr.y)
+  const rawTop = Math.min(upright.tl.y, upright.bl.y)
+  const rawBottom = Math.max(upright.br.y, upright.tr.y)
+  if (!chromeVerticalHold) chromeVerticalHold = { top: rawTop, bottom: rawBottom }
+  else {
+    chromeVerticalHold = {
+      top: Math.min(chromeVerticalHold.top, rawTop),
+      bottom: Math.max(chromeVerticalHold.bottom, rawBottom),
+    }
+  }
+  const top = chromeVerticalHold.top
+  const bottom = chromeVerticalHold.bottom
   const uL = Math.min(upright.tl.x, upright.bl.x)
   const uR = Math.max(upright.tr.x, upright.br.x)
   const uprightWidth = uR - uL
@@ -882,7 +983,7 @@ function contractHorizontally(
   let minX = Infinity
   let maxX = -Infinity
   for (const p of [home.tl, home.tr, home.br, home.bl]) {
-    const q = projectOnWall(p.x, p.y, w, h, scale, pose.tilt, pose.yaw)
+    const q = projectOnWall(p.x, p.y, w, h, scale, pose.tilt, pose.yaw, pose.roll)
     if (!Number.isFinite(q.x)) continue
     minX = Math.min(minX, q.x)
     maxX = Math.max(maxX, q.x)
@@ -899,7 +1000,10 @@ function contractHorizontally(
   const zoomingIn = prev != null && scale > prev.scale + 0.001
   const zoomingOut = prev != null && scale < prev.scale - 0.001
   const poseChanged =
-    prev != null && (Math.abs(pose.tilt - prev.tilt) > 0.4 || Math.abs(pose.yaw - prev.yaw) > 0.4)
+    prev != null &&
+    (Math.abs(pose.tilt - prev.tilt) > 0.4 ||
+      Math.abs(pose.yaw - prev.yaw) > 0.4 ||
+      Math.abs(pose.roll - prev.roll) > 0.4)
   let narrowing = !poseChanged && (prev?.narrowing ?? false)
   let floor = prev?.floor ?? rawWidth
   let width = rawWidth
@@ -921,7 +1025,7 @@ function contractHorizontally(
     floor = Math.min(floor, rawWidth)
   }
   width = Math.min(width, uprightWidth)
-  chromeWidthHold = { scale, width, floor, narrowing, tilt: pose.tilt, yaw: pose.yaw }
+  chromeWidthHold = { scale, width, floor, narrowing, tilt: pose.tilt, yaw: pose.yaw, roll: pose.roll }
 
   const mid = (left + right) / 2
   let heldLeft = mid - width / 2
@@ -954,6 +1058,7 @@ function zoomFrame(app: HTMLElement): SheetQuad | null {
   const pose = readSheetPose()
   if (!pose) {
     chromeWidthHold = null
+    chromeVerticalHold = null
     return flatViewportFrame(app) ?? home
   }
   const scale = chromeScale(app)
