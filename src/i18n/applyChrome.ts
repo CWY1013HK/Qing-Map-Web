@@ -39,6 +39,12 @@ export function applyChromeI18n(): void {
   setTitle('#btn-zoom-out', t('toolbar.zoomOut'))
   setTitle('#btn-home', t('toolbar.home'))
   setTitle('#btn-focus', t('toolbar.focus'))
+
+  const byobuBtn = document.querySelector<HTMLButtonElement>('#btn-byobu')
+  if (byobuBtn) {
+    const on = byobuBtn.getAttribute('aria-pressed') === 'true'
+    byobuBtn.title = on ? t('toolbar.byobuHide') : t('toolbar.byobuShow')
+  }
   setTitle('#btn-hide-minimap', t('toolbar.minimapHideBtn'))
 
   const minimap = document.querySelector('#minimap-panel')

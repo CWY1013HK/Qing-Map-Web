@@ -539,7 +539,9 @@
 
 #app.intro-active .annotation-popup,
 #app.focus-mode .annotation-popup,
-#app.focus-mode .map-label-btn {
+#app.byobu-mode .annotation-popup,
+#app.focus-mode .map-label-btn,
+#app.byobu-mode .map-label-btn {
   opacity: 0 !important;
   pointer-events: none !important;
   visibility: hidden;

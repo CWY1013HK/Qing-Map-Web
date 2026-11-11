@@ -19,3 +19,5 @@ Two complete chrome sets (badges + paper + 令牌 tablets):
 Ebony originals are also archived as `public/intro/handi-lingpai-ebony.png` and `zhongguo-lingpai-ebony.png`.
 
 Switch theme in [`src/config.ts`](../../src/config.ts) (`UI_THEME`). No end-user toggle.
+
+**Regenerate 折 badge:** `python3 scripts/build-badge-zhe.py` (donor `badge-yuan.png` / 遠 plate, 楷書 Kai).

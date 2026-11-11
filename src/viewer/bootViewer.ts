@@ -9,6 +9,7 @@ import { mountLabelToggle, mountLocationLabels } from '../popups/labels'
 import { mountChrome } from './chrome'
 import { focusIntroRegion, mountIntro } from './intro'
 import { mountLabelBillboard } from './labelBillboard'
+import { mountByobuMode } from './byobuMode'
 import { mountFocusMode } from './focusMode'
 import { mountMusicToggle } from './musicToggle'
 import { clearHighResTileCache } from './seaUnderlay'
@@ -131,6 +132,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   const labelBillboard = mountLabelBillboard(viewer)
   mountChrome(viewer)
   mountFocusMode(viewer)
+  mountByobuMode(viewer)
   // Warm the land plate so 淨 mode does not wait on an 8MB fetch.
   const landWarm = new Image()
   landWarm.decoding = 'async'

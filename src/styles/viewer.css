@@ -31,6 +31,7 @@ body {
   --badge-tu: url('/ui/silver/badge-tu.png');
   --badge-shou: url('/ui/silver/badge-shou.png');
   --badge-jing: url('/ui/silver/badge-jing.png');
+  --badge-zhe: url('/ui/silver/badge-zhe.png?v=yuan');
   --badge-zhi: url('/ui/silver/badge-zhi.png');
   --badge-gong: url('/ui/silver/badge-gong.png');
   --badge-yin: url('/ui/silver/badge-yin.png');
@@ -59,6 +60,7 @@ body {
   --badge-tu: url('/ui/bronze/badge-tu.png');
   --badge-shou: url('/ui/bronze/badge-shou.png');
   --badge-jing: url('/ui/bronze/badge-jing.png');
+  --badge-zhe: url('/ui/bronze/badge-zhe.png?v=yuan');
   --badge-zhi: url('/ui/bronze/badge-zhi.png');
   --badge-gong: url('/ui/bronze/badge-gong.png');
   --badge-yin: url('/ui/bronze/badge-yin.png');
@@ -236,6 +238,12 @@ body {
   background-image: var(--badge-jing);
 }
 #btn-focus[aria-pressed='true'] {
+  filter: drop-shadow(0 2px 4px var(--badge-shadow)) brightness(1.08);
+}
+#btn-byobu {
+  background-image: var(--badge-zhe);
+}
+#btn-byobu[aria-pressed='true'] {
   filter: drop-shadow(0 2px 4px var(--badge-shadow)) brightness(1.08);
 }
 #btn-toggle-labels {
@@ -1012,6 +1020,49 @@ body {
   pointer-events: none;
   visibility: hidden;
   transition: opacity 0.4s ease;
+}
+
+/* —— 折 · eight-panel 屏風 —— */
+.byobu-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  touch-action: none;
+}
+
+.byobu-screen-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#app.byobu-mode #viewer .openseadragon-container,
+#app.byobu-mode #viewer .openseadragon-canvas,
+#app.byobu-mode #viewer canvas:not(.byobu-screen-canvas) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#app.byobu-mode .map-label-btn,
+#app.byobu-mode .map-overlay-layer,
+#app.byobu-mode .map-overlay-layer-wrap,
+#app.byobu-mode .province-labels-layer,
+#app.byobu-mode .province-label-billboard-host,
+#app.byobu-mode .wall-label-layer,
+#app.byobu-mode .focus-cloud,
+#app.byobu-mode .sea-underlay,
+#app.byobu-mode .annotation-popup {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden;
+}
+
+#app.byobu-mode .map-seal-stack,
+#app.byobu-mode .overlay-seals,
+#app.byobu-mode .tour-seals {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {

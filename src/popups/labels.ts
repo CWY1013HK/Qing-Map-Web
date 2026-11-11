@@ -9,6 +9,7 @@ import {
   openAnnotationPopup,
 } from './panel'
 import { openCityEditor, type CityEditorSave } from './cityEditor'
+import { isByobuModeActive } from '../viewer/byobuMode'
 import { viewerPixelFromClient } from '../viewer/wallTilt'
 import type { LabelBillboard } from '../viewer/labelBillboard'
 
@@ -827,7 +828,8 @@ export function mountLocationLabels(viewer: Viewer, labelBillboard?: LabelBillbo
     if (
       labelEditing ||
       app?.classList.contains('intro-active') ||
-      app?.classList.contains('focus-mode')
+      app?.classList.contains('focus-mode') ||
+      isByobuModeActive()
     ) {
       return
     }

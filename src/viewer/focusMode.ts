@@ -27,6 +27,7 @@ import {
 } from '../lib/mapDecor'
 import { closeCreditsPopup } from '../popups/credits'
 import { closeAnnotationPopup } from '../popups/panel'
+import { isByobuModeActive } from './byobuMode'
 import { startSeaUnderlay, type SeaUnderlayHandle } from './seaUnderlay'
 
 type Viewer = OpenSeadragon.Viewer
@@ -559,6 +560,9 @@ export function mountFocusMode(viewer: Viewer): void {
 
   const enter = () => {
     if (handle) return
+    if (isByobuModeActive()) {
+      document.querySelector<HTMLButtonElement>('#btn-byobu')?.click()
+    }
     closeAnnotationPopup()
     void closeCreditsPopup()
     app.classList.add('focus-mode')
