@@ -124,6 +124,18 @@ function mat4RotX(deg: number): Mat4 {
   return m
 }
 
+function mat4RotZ(deg: number): Mat4 {
+  const r = (deg * Math.PI) / 180
+  const c = Math.cos(r)
+  const s = Math.sin(r)
+  const m = mat4Ident()
+  m[0] = c
+  m[1] = s
+  m[4] = -s
+  m[5] = c
+  return m
+}
+
 function mat4Perspective(fovY: number, aspect: number, near: number, far: number): Mat4 {
   const f = 1.0 / Math.tan(fovY / 2)
   const rangeInv = 1 / (near - far)
@@ -158,24 +170,36 @@ function panelBoundaries(creases: number[], count: number): number[] {
 
 type Pt3 = { x: number; y: number; z: number }
 
-/** World-space centre of the folded accordion (panel corners). */
-function foldedScreenCentre(
+const VIEW_FOV_Y_RAD = (42 * Math.PI) / 180
+/** Gentle downward gaze so the 屏風 fills the wall band. */
+const VIEW_PITCH_DEG = 5
+
+function transformPoint(m: Mat4, x: number, y: number, z: number): Pt3 {
+  return {
+    x: m[0]! * x + m[4]! * y + m[8]! * z + m[12]!,
+    y: m[1]! * x + m[5]! * y + m[9]! * z + m[13]!,
+    z: m[2]! * x + m[6]! * y + m[10]! * z + m[14]!,
+  }
+}
+
+type FoldedLayout = {
+  centre: Pt3
+  /** Panel corners after shifting the accordion centroid to the origin. */
+  centered: Pt3[]
+  scene: Mat4
+}
+
+function foldedLayout(
   mapW: number,
   mapH: number,
   bounds: number[],
   signs: readonly number[],
   foldDeg: number,
   panelCount: number,
-): Pt3 {
-  const scene = mat4Trans(-mapW / 2, -mapH / 2, 0)
+): FoldedLayout {
+  const base = mat4Trans(-mapW / 2, -mapH / 2, 0)
   let chain = mat4Ident()
   const pts: Pt3[] = []
-
-  const transformPoint = (m: Mat4, x: number, y: number, z: number): Pt3 => ({
-    x: m[0]! * x + m[4]! * y + m[8]! * z + m[12]!,
-    y: m[1]! * x + m[5]! * y + m[9]! * z + m[13]!,
-    z: m[2]! * x + m[6]! * y + m[10]! * z + m[14]!,
-  })
 
   for (let i = 0; i < panelCount; i++) {
     const u0 = bounds[i]!
@@ -184,7 +208,7 @@ function foldedScreenCentre(
     if (i > 0) {
       chain = mat4Mul(chain, mat4RotY(signs[i - 1]! * foldDeg))
     }
-    const model = mat4Mul(scene, chain)
+    const model = mat4Mul(base, chain)
     for (const corner of [
       [0, 0, 0],
       [pw, 0, 0],
@@ -196,16 +220,45 @@ function foldedScreenCentre(
     chain = mat4Mul(chain, mat4Trans(pw, 0, 0))
   }
 
-  let x = 0
-  let y = 0
-  let z = 0
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
   for (const p of pts) {
-    x += p.x
-    y += p.y
-    z += p.z
+    minX = Math.min(minX, p.x)
+    maxX = Math.max(maxX, p.x)
+    minY = Math.min(minY, p.y)
+    maxY = Math.max(maxY, p.y)
+    minZ = Math.min(minZ, p.z)
+    maxZ = Math.max(maxZ, p.z)
   }
-  const n = pts.length || 1
-  return { x: x / n, y: y / n, z: z / n }
+  const centre = {
+    x: (minX + maxX) / 2,
+    y: (minY + maxY) / 2,
+    z: (minZ + maxZ) / 2,
+  }
+  const scene = mat4Trans(-mapW / 2 - centre.x, -mapH / 2 - centre.y, -centre.z)
+  const centered = pts.map((p) => ({
+    x: p.x - centre.x,
+    y: p.y - centre.y,
+    z: p.z - centre.z,
+  }))
+  return { centre, centered, scene }
+}
+
+function cameraDistance(centered: Pt3[], aspect: number, fovYRad: number): number {
+  let maxX = 0
+  let maxY = 0
+  for (const p of centered) {
+    maxX = Math.max(maxX, Math.abs(p.x))
+    maxY = Math.max(maxY, Math.abs(p.y))
+  }
+  const tan = Math.tan(fovYRad / 2)
+  const distV = maxY / tan
+  const distH = maxX / (tan * aspect)
+  return Math.max(distV, distH, 0.01) * 1.12
 }
 
 /**
@@ -241,25 +294,57 @@ export function startByobuScreen(host: HTMLElement): ByobuScreenHandle {
   let raf = 0
   let stopped = false
   let orbitYaw = 0
+  let panX = 0
+  let panY = 0
+  let zoom = 1
   let dragX = 0
+  let dragY = 0
   let dragging = false
+  let shiftOrbit = false
   let textureReady = false
+
+  const clampZoom = (z: number) => Math.max(0.45, Math.min(2.8, z))
+
+  const onWheel = (e: WheelEvent) => {
+    e.preventDefault()
+    const factor = Math.exp(-e.deltaY * 0.0012)
+    zoom = clampZoom(zoom * factor)
+  }
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return
     dragging = true
+    shiftOrbit = e.shiftKey
     dragX = e.clientX
+    dragY = e.clientY
     root.setPointerCapture(e.pointerId)
   }
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging) return
-    orbitYaw += (e.clientX - dragX) * 0.22
+    const dx = e.clientX - dragX
+    const dy = e.clientY - dragY
     dragX = e.clientX
+    dragY = e.clientY
+    if (e.shiftKey || shiftOrbit) {
+      orbitYaw += dx * 0.22
+      return
+    }
+    const dpr = Math.min(2, window.devicePixelRatio || 1)
+    const scale = (0.0032 / dpr) * (2 / zoom)
+    panX += dx * scale
+    panY -= dy * scale
   }
-  const onPointerUp = () => {
+  const onPointerUp = (e: PointerEvent) => {
     dragging = false
+    shiftOrbit = false
+    try {
+      root.releasePointerCapture(e.pointerId)
+    } catch {
+      /* released */
+    }
   }
 
+  root.addEventListener('wheel', onWheel, { passive: false })
   root.addEventListener('pointerdown', onPointerDown)
   root.addEventListener('pointermove', onPointerMove)
   root.addEventListener('pointerup', onPointerUp)
@@ -363,16 +448,13 @@ export function startByobuScreen(host: HTMLElement): ByobuScreenHandle {
     gl.uniform1f(uFrame, 0.006)
 
     const aspect = w / h
-    const proj = mat4Perspective((44 * Math.PI) / 180, aspect, 0.08, 120)
-    const pose = readWallSheetPose()
-    const wallTilt = pose?.tilt ?? 32
-    const wallYaw = pose?.yaw ?? 0
+    const proj = mat4Perspective(VIEW_FOV_Y_RAD, aspect, 0.08, 120)
 
     const mapH = 2
     const mapW = mapH * MAP_ASPECT
     const bounds = panelBoundaries(cfg.creases, cfg.panelCount)
     const signs = cfg.hingeSigns
-    const centre = foldedScreenCentre(
+    const layout = foldedLayout(
       mapW,
       mapH,
       bounds,
@@ -380,18 +462,16 @@ export function startByobuScreen(host: HTMLElement): ByobuScreenHandle {
       cfg.foldDegrees,
       cfg.panelCount,
     )
+    const camDist = cameraDistance(layout.centered, aspect, VIEW_FOV_Y_RAD) / zoom
 
-    const view = mat4Mul(
-      mat4Mul(
-        mat4RotY(orbitYaw + wallYaw * 0.35),
-        mat4RotX(12 + wallTilt * 0.22),
-      ),
-      mat4Trans(0, -0.25, -mapW * 0.72),
-    )
-    const scene = mat4Mul(
-      mat4RotX(wallTilt * 0.38),
-      mat4Trans(-mapW / 2 - centre.x, -mapH / 2 - centre.y, -centre.z),
-    )
+    const sheet = readWallSheetPose()
+    const viewYaw = orbitYaw + (sheet?.yaw ?? 0)
+    const viewPitch = VIEW_PITCH_DEG + (sheet?.tilt ?? 0)
+    const viewRoll = sheet?.roll ?? 0
+    // Same X→Y→Z order as the wall sheet CSS (--wall-tilt / --wall-yaw / --wall-roll).
+    const orient = mat4Mul(mat4RotX(viewPitch), mat4Mul(mat4RotY(viewYaw), mat4RotZ(viewRoll)))
+    const view = mat4Mul(mat4Trans(panX, panY, -camDist), orient)
+    const scene = layout.scene
 
     if (textureReady && texture) {
       gl.activeTexture(gl.TEXTURE0)
@@ -432,6 +512,7 @@ export function startByobuScreen(host: HTMLElement): ByobuScreenHandle {
       cancelAnimationFrame(raf)
       raf = 0
       window.removeEventListener('resize', onResize)
+      root.removeEventListener('wheel', onWheel)
       root.removeEventListener('pointerdown', onPointerDown)
       root.removeEventListener('pointermove', onPointerMove)
       root.removeEventListener('pointerup', onPointerUp)

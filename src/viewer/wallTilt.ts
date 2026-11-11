@@ -110,6 +110,7 @@ export function isWallRotationEnabled(): boolean {
 /** Pearl or settings toggle. Remembers the last angle, and leans to 32° the first time. */
 export function setWallRotationEnabled(on: boolean, animate = true): boolean {
   if (!boundViewer || !passZoomTo) return rotationEnabled
+  if (!on && document.getElementById('app')?.classList.contains('byobu-mode')) return rotationEnabled
   if (on === rotationEnabled) return rotationEnabled
 
   const viewport = boundViewer.viewport

@@ -1013,13 +1013,31 @@ body {
   backface-visibility: hidden;
 }
 
-#app.focus-mode .toolbar,
+/* 淨 / 折 immersive: one exit badge on the toolbar; hide other chrome (touch). */
 #app.focus-mode .minimap-panel,
-#app.focus-mode .tile-status {
+#app.byobu-mode .minimap-panel,
+#app.focus-mode .tile-status,
+#app.byobu-mode .tile-status,
+#app.focus-mode .wall-tilt-orb {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
   transition: opacity 0.4s ease;
+}
+
+#app.focus-mode .toolbar .badge-btn,
+#app.byobu-mode .toolbar .badge-btn {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.4s ease;
+}
+
+#app.focus-mode #btn-focus,
+#app.byobu-mode #btn-byobu {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 /* —— 折 · eight-panel 屏風 —— */

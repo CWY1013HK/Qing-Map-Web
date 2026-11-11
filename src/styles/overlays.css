@@ -508,21 +508,15 @@ html:lang(zh-Hans) .province-label--xiandai {
   transition: opacity 0.4s ease;
 }
 
-/* Keep tour transcript + skip + frames visible while chrome is in 淨 */
-#app.focus-mode .tour-caption:not([hidden]),
-#app.focus-mode .tour-skip:not([hidden]),
-#app.focus-mode .tour-frames {
-  opacity: 1;
-  visibility: visible;
-}
-
-#app.focus-mode .tour-caption:not([hidden]) {
-  pointer-events: none;
-}
-
-#app.focus-mode .tour-skip:not([hidden]),
-#app.focus-mode .tour-frame {
-  pointer-events: auto;
+#app.focus-mode .tour-caption,
+#app.focus-mode .tour-skip,
+#app.focus-mode .tour-frames,
+#app.byobu-mode .tour-caption,
+#app.byobu-mode .tour-skip,
+#app.byobu-mode .tour-frames {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden;
 }
 
 /* Tour caption — transcript under voiceover (Manchu stays visible here) */

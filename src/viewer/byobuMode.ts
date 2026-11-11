@@ -37,6 +37,7 @@ export function mountByobuMode(viewer: Viewer): void {
   let savedLabels = true
   let savedOverlays = new Set<string>()
   let savedRotation = false
+  let savedViewport: { center: OpenSeadragon.Point; zoom: number } | null = null
 
   const hideAllOverlays = () => {
     const mgr = getOverlayManager()
@@ -61,6 +62,11 @@ export function mountByobuMode(viewer: Viewer): void {
     labelStore.setVisible(false)
     hideAllOverlays()
     if (labelsBtn) labelsBtn.setAttribute('aria-pressed', 'false')
+
+    savedViewport = {
+      center: viewer.viewport.getCenter(true).clone(),
+      zoom: viewer.viewport.getZoom(true),
+    }
 
     setWallRotationEnabled(true)
     app.classList.add('byobu-mode')
@@ -88,6 +94,15 @@ export function mountByobuMode(viewer: Viewer): void {
     }
 
     if (!savedRotation) setWallRotationEnabled(false)
+
+    if (savedViewport) {
+      const { center, zoom } = savedViewport
+      savedViewport = null
+      viewer.viewport.panTo(center, true)
+      viewer.viewport.zoomTo(zoom, undefined, true)
+      viewer.viewport.applyConstraints(true)
+      viewer.navigator?.update(viewer.viewport)
+    }
 
     active = false
     applyChromeI18n()
