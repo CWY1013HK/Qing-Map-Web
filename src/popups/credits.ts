@@ -114,6 +114,8 @@ function applyCreditsCopy(): void {
   setText('[data-i18n="credits.fonts"]', t('credits.fonts'))
   setText('[data-i18n="credits.fontsMap"]', t('credits.fontsMap'))
   setText('[data-i18n="credits.fontsPopup"]', t('credits.fontsPopup'))
+  setText('[data-i18n="credits.imagery"]', t('credits.imagery'))
+  setText('[data-i18n="credits.byobuRoom"]', t('credits.byobuRoom'))
   setText('[data-i18n="credits.music"]', t('credits.music'))
   setText('[data-i18n="credits.trackMist"]', t('credits.trackMist'))
   setText('[data-i18n="credits.trackChao"]', t('credits.trackChao'))
@@ -188,6 +190,18 @@ function ensurePanel(): HTMLElement {
           <tr>
             <th scope="row" data-i18n-aria="credits.fontsContAria"></th>
             <td data-i18n="credits.fontsPopup"></td>
+          </tr>
+          <tr>
+            <th scope="row" data-i18n="credits.imagery"></th>
+            <td>
+              <span data-i18n="credits.byobuRoom"></span>
+              <a
+                href="https://www.britishmuseum.org/collection/object/A_1877-0714-0-1438-1449"
+                target="_blank"
+                rel="noopener noreferrer"
+                >British Museum</a
+              >
+            </td>
           </tr>
         </tbody>
       </table>

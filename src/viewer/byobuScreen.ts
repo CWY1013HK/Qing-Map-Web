@@ -124,18 +124,6 @@ function mat4RotX(deg: number): Mat4 {
   return m
 }
 
-function mat4RotZ(deg: number): Mat4 {
-  const r = (deg * Math.PI) / 180
-  const c = Math.cos(r)
-  const s = Math.sin(r)
-  const m = mat4Ident()
-  m[0] = c
-  m[1] = s
-  m[4] = -s
-  m[5] = c
-  return m
-}
-
 function mat4Perspective(fovY: number, aspect: number, near: number, far: number): Mat4 {
   const f = 1.0 / Math.tan(fovY / 2)
   const rangeInv = 1 / (near - far)
@@ -357,7 +345,7 @@ export function startByobuScreen(host: HTMLElement): ByobuScreenHandle {
 
   gl =
     canvas.getContext('webgl', {
-      alpha: false,
+      alpha: true,
       antialias: true,
       depth: true,
       premultipliedAlpha: false,
@@ -436,7 +424,7 @@ export function startByobuScreen(host: HTMLElement): ByobuScreenHandle {
 
     gl.viewport(0, 0, w, h)
     gl.enable(gl.DEPTH_TEST)
-    gl.clearColor(0.77, 0.84, 0.89, 1)
+    gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     gl.useProgram(program)
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
@@ -467,9 +455,8 @@ export function startByobuScreen(host: HTMLElement): ByobuScreenHandle {
     const sheet = readWallSheetPose()
     const viewYaw = orbitYaw + (sheet?.yaw ?? 0)
     const viewPitch = VIEW_PITCH_DEG + (sheet?.tilt ?? 0)
-    const viewRoll = sheet?.roll ?? 0
-    // Same X→Y→Z order as the wall sheet CSS (--wall-tilt / --wall-yaw / --wall-roll).
-    const orient = mat4Mul(mat4RotX(viewPitch), mat4Mul(mat4RotY(viewYaw), mat4RotZ(viewRoll)))
+    // Pearl yaw/tilt only — in-plane roll is for the flat map, not the 屏風 orbit.
+    const orient = mat4Mul(mat4RotX(viewPitch), mat4RotY(viewYaw))
     const view = mat4Mul(mat4Trans(panX, panY, -camDist), orient)
     const scene = layout.scene
 

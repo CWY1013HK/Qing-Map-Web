@@ -855,6 +855,15 @@ function clampFace(deg: number): number {
   return Math.min(MAX_FACE_DEG, Math.max(-MAX_FACE_DEG, deg))
 }
 
+function isByobuChrome(): boolean {
+  return document.getElementById('app')?.classList.contains('byobu-mode') ?? false
+}
+
+/** Pearl uses lateral turn while 折 is on — yaw/tilt, not in-plane roll on the 屏風. */
+function pearlLateralMode(shiftKey: boolean): boolean {
+  return shiftKey || (isByobuChrome() && rotationEnabled)
+}
+
 /**
  * Drag right spins the map flat, in its own plane. That spin has no stop, so
  * the map turns across 360° and upside down. Drag down leans it back, and
@@ -980,7 +989,7 @@ function mountTurnOrb(): void {
       releaseSettle()
     }
     if (!rotationEnabled && event.shiftKey) return
-    nudgeRotation(dx, dy, event.shiftKey)
+    nudgeRotation(dx, dy, pearlLateralMode(event.shiftKey))
     drag = { id: drag.id, x: event.clientX, y: event.clientY, moved: true }
   })
 
@@ -1000,8 +1009,8 @@ function mountTurnOrb(): void {
       event.preventDefault()
       return
     }
-    const lateral = event.shiftKey
-    if (!rotationEnabled && (lateral || event.key === 'ArrowUp' || event.key === 'ArrowDown')) return
+    const lateral = pearlLateralMode(event.shiftKey)
+    if (!rotationEnabled && (event.shiftKey || event.key === 'ArrowUp' || event.key === 'ArrowDown')) return
     const step = event.shiftKey ? 8 : 3
     const px = step / DEG_PER_PX
     if (event.key === 'ArrowLeft') nudgeRotation(-px, 0, lateral)

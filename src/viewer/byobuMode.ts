@@ -11,15 +11,56 @@ import { closeCreditsPopup } from '../popups/credits'
 import { labelStore } from '../popups/labelStore'
 import { applyChromeI18n } from '../i18n/applyChrome'
 import { closeAnnotationPopup } from '../popups/panel'
+import byobuConfig from '../../data/byobu.json'
 import { isWallRotationEnabled, setWallRotationEnabled } from './wallTilt'
 import { startByobuScreen, type ByobuScreenHandle } from './byobuScreen'
 
 const OVERLAY_GROUPS = [HANDI_GROUP_ID, ZHONGGUO_GROUP_ID, XIANDAI_GROUP_ID, HAILU_GROUP_ID] as const
+const BYOBU_BACKDROP_MS = 620
 
 let active = false
+let exiting = false
+let roomBackdrop: HTMLElement | null = null
 
 export function isByobuModeActive(): boolean {
   return active
+}
+
+function backdropTransitionMs(): number {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0
+  return BYOBU_BACKDROP_MS
+}
+
+function waitBackdrop(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+function ensureRoomBackdrop(app: HTMLElement): HTMLElement {
+  if (roomBackdrop?.isConnected) return roomBackdrop
+  const url = (byobuConfig as { roomBackdropUrl?: string }).roomBackdropUrl
+  const layer = document.createElement('div')
+  layer.id = 'byobu-room-backdrop'
+  layer.className = 'byobu-room-backdrop'
+  layer.setAttribute('aria-hidden', 'true')
+  const photo = document.createElement('div')
+  photo.className = 'byobu-room-backdrop__photo'
+  if (url) photo.style.backgroundImage = `url('${url}')`
+  const veil = document.createElement('div')
+  veil.className = 'byobu-room-backdrop__veil'
+  layer.append(photo, veil)
+  const viewer = app.querySelector('#viewer')
+  if (viewer) app.insertBefore(layer, viewer)
+  else app.prepend(layer)
+  roomBackdrop = layer
+  return layer
+}
+
+function showRoomBackdrop(layer: HTMLElement): void {
+  layer.classList.remove('is-visible')
+  void layer.offsetWidth
+  layer.classList.add('is-visible')
 }
 
 /** Wall chrome: toggle 折 — eight-panel 屏風 with annotations off and 3D on. */
@@ -69,21 +110,17 @@ export function mountByobuMode(viewer: Viewer): void {
     }
 
     setWallRotationEnabled(true)
+    const backdrop = ensureRoomBackdrop(app)
     app.classList.add('byobu-mode')
     btn.setAttribute('aria-pressed', 'true')
+    requestAnimationFrame(() => showRoomBackdrop(backdrop))
     screen = startByobuScreen(host)
     active = true
     applyChromeI18n()
     document.dispatchEvent(new CustomEvent('qing-byobu-change'))
   }
 
-  const exit = () => {
-    if (!active) return
-    btn.setAttribute('aria-pressed', 'false')
-    screen?.stop()
-    screen = null
-    app.classList.remove('byobu-mode')
-
+  const finishExit = () => {
     labelStore.setVisible(savedLabels)
     if (labelsBtn) labelsBtn.setAttribute('aria-pressed', savedLabels ? 'true' : 'false')
 
@@ -105,9 +142,24 @@ export function mountByobuMode(viewer: Viewer): void {
     }
 
     active = false
+    exiting = false
     applyChromeI18n()
     document.dispatchEvent(new CustomEvent('qing-byobu-change'))
     viewer.forceRedraw()
+  }
+
+  const exit = () => {
+    void (async () => {
+      if (!active || exiting) return
+      exiting = true
+      btn.setAttribute('aria-pressed', 'false')
+      roomBackdrop?.classList.remove('is-visible')
+      await waitBackdrop(backdropTransitionMs())
+      screen?.stop()
+      screen = null
+      app.classList.remove('byobu-mode')
+      finishExit()
+    })()
   }
 
   btn.addEventListener('click', () => {

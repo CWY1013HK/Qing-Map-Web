@@ -59,6 +59,9 @@ const zhHant = {
   'credits.fontsMap': '地圖標註：中華民國教育部「教育部隸書」',
   'credits.fontsContAria': '字形（續）',
   'credits.fontsPopup': '彈窗：霞鹜文楷 Lite（中文）／ Georgia（英文）',
+  'credits.imagery': '影像',
+  'credits.byobuRoom':
+    '折模式廳堂背景：英國博物館藏廣州製家庭內景冊頁（約 1801–1850，1877,0714,0.1438–1449）— Trustees of the British Museum',
   'credits.music': '音樂來源',
   'credits.trackMist': 'Mist Sheng（雾笙）',
   'credits.trackChao': 'Chao Tian Zi（朝天子）',
@@ -137,6 +140,9 @@ const zhHans: Record<MessageKey, string> = {
   'credits.fontsMap': '地图标注：中华民国教育部「教育部隶书」',
   'credits.fontsContAria': '字形（续）',
   'credits.fontsPopup': '弹窗：霞鹜文楷 Lite（中文）／ Georgia（英文）',
+  'credits.imagery': '影像',
+  'credits.byobuRoom':
+    '折模式厅堂背景：英国博物馆藏广州制家庭内景册页（约 1801–1850，1877,0714,0.1438–1449）— Trustees of the British Museum',
   'credits.music': '音乐来源',
   'credits.trackMist': 'Mist Sheng（雾笙）',
   'credits.trackChao': 'Chao Tian Zi（朝天子）',
@@ -215,6 +221,9 @@ const en: Record<MessageKey, string> = {
   'credits.fontsMap': 'Map labels: MOE LiShu (Ministry of Education, Taiwan)',
   'credits.fontsContAria': 'Typefaces (continued)',
   'credits.fontsPopup': 'Popups: LXGW WenKai Lite (Chinese) / Georgia (English)',
+  'credits.imagery': 'Imagery',
+  'credits.byobuRoom':
+    '折 mode room backdrop: British Museum, Guangzhou album leaf, domestic interior (ca. 1801–1850, 1877,0714,0.1438–1449) — Trustees of the British Museum',
   'credits.music': 'Music sources',
   'credits.trackMist': 'Mist Sheng（雾笙）',
   'credits.trackChao': 'Chao Tian Zi（朝天子）',

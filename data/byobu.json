@@ -4,5 +4,7 @@
   "foldDegrees": 26,
   "hingeSigns": [1, -1, 1, -1, 1, -1, 1],
   "creases": [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875],
-  "textureUrl": "/map-preview-low.jpg"
+  "textureUrl": "/map-preview-low.jpg",
+  "roomBackdropUrl": "/byobu/mansion-room.jpg",
+  "roomBackdropCreditUrl": "https://www.britishmuseum.org/collection/object/A_1877-0714-0-1438-1449"
 }
