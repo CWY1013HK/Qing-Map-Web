@@ -20,4 +20,4 @@ Ebony originals are also archived as `public/intro/handi-lingpai-ebony.png` and 
 
 Switch theme in [`src/config.ts`](../../src/config.ts) (`UI_THEME`). No end-user toggle.
 
-**Regenerate 折 badge:** `python3 scripts/build-badge-zhe.py` (donor `badge-yuan.png` / 遠 plate, 楷書 Kai).
+**Regenerate 折 badge:** AI regen matched to 淨/音/遠, then circular-fit + light rim-graft from `badge-yuan.png` only (do not grain-transfer or blur the plate). Fallback: `python3 scripts/build-badge-zhe.py`.

@@ -54,12 +54,12 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   function showHtmlPreview(): void {
     status.hidden = true
     preview.hidden = false
-    tileStatus.hidden = false
-    setStatusMessage(tileStatus, 'status.loadingTiles')
+    tileStatus.hidden = true
   }
 
   function showViewer(): void {
     preview.hidden = true
+    tileStatus.hidden = true
     viewerEl.hidden = false
     viewerEl.classList.add('is-ready')
     viewerEl.removeAttribute('aria-hidden')
@@ -176,7 +176,6 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
       width: bounds.width,
       success: () => {
         tileStatus.hidden = true
-        setStatusMessage(tileStatus, null)
       },
       error: () => {
         failToHtmlPreview('status.tilesFailed')

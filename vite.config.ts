@@ -1,9 +1,71 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { defineConfig, type Plugin } from 'vite'
 import { overlayWriteApi } from './scripts/vite-overlay-write.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
+
+const TILE_MIME: Record<string, string> = {
+  '.dzi': 'application/xml',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
+  '.xml': 'application/xml',
+}
+
+/**
+ * Vite snapshots `public/` paths at dev-server start. After `prepare-public`
+ * replaces `public/tiles/`, map.dzi can miss the whitelist and SPA fallback
+ * returns index.html — OpenSeadragon then fails with "#document".
+ */
+function serveMapTiles(): Plugin {
+  const tilesDir = path.join(root, 'public', 'tiles')
+
+  const handler = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    const pathOnly = (req.url ?? '').split('?')[0] ?? ''
+    if (!pathOnly.startsWith('/tiles/')) return next()
+
+    let rel: string
+    try {
+      rel = decodeURIComponent(pathOnly.slice('/tiles/'.length))
+    } catch {
+      return next()
+    }
+    if (!rel || rel.includes('..')) return next()
+
+    const file = path.normalize(path.join(tilesDir, rel))
+    if (!file.startsWith(tilesDir)) return next()
+
+    let stat: fs.Stats
+    try {
+      stat = fs.statSync(file)
+    } catch {
+      return next()
+    }
+    if (!stat.isFile()) return next()
+
+    const ext = path.extname(file).toLowerCase()
+    res.statusCode = 200
+    res.setHeader('Content-Type', TILE_MIME[ext] ?? 'application/octet-stream')
+    res.setHeader('Content-Length', stat.size)
+    if (req.method === 'HEAD') {
+      res.end()
+      return
+    }
+    fs.createReadStream(file).pipe(res)
+  }
+
+  const mount = (server: { middlewares: { use: (fn: typeof handler) => void } }) => {
+    server.middlewares.use(handler)
+  }
+
+  return {
+    name: 'serve-map-tiles',
+    configureServer: mount,
+    configurePreviewServer: mount,
+  }
+}
 
 /** Serve `/atlab` as `atlab.html` in dev and preview. */
 function atlabRewrite(): Plugin {
@@ -34,7 +96,7 @@ function atlabRewrite(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [atlabRewrite(), overlayWriteApi(root)],
+  plugins: [serveMapTiles(), atlabRewrite(), overlayWriteApi(root)],
   server: {
     host: true,
     port: 5173,

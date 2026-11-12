@@ -13,10 +13,39 @@ import { applyChromeI18n } from '../i18n/applyChrome'
 import { closeAnnotationPopup } from '../popups/panel'
 import byobuConfig from '../../data/byobu.json'
 import { isWallRotationEnabled, setWallRotationEnabled } from './wallTilt'
-import { startByobuScreen, type ByobuScreenHandle } from './byobuScreen'
+import {
+  DEFAULT_BYOBU_TRANSITION_MS,
+  startByobuScreen,
+  type ByobuScreenHandle,
+  type ByobuTransitionChannels,
+} from './byobuScreen'
 
 const OVERLAY_GROUPS = [HANDI_GROUP_ID, ZHONGGUO_GROUP_ID, XIANDAI_GROUP_ID, HAILU_GROUP_ID] as const
-const BYOBU_BACKDROP_MS = 620
+function applyTransitionStyle(app: HTMLElement, ch: ByobuTransitionChannels): void {
+  app.style.setProperty('--byobu-timeline', ch.timeline.toFixed(4))
+  app.style.setProperty('--byobu-room', ch.room.toFixed(4))
+  app.style.setProperty('--byobu-fold', ch.crease.toFixed(4))
+  app.style.setProperty('--byobu-orbit', ch.orbit.toFixed(4))
+}
+
+function mapSnapshotCanvas(viewer: Viewer): HTMLCanvasElement | null {
+  const canvas = viewer.canvas as HTMLCanvasElement | undefined
+  if (!canvas || canvas.width < 2 || canvas.height < 2) return null
+  try {
+    const probe = document.createElement('canvas')
+    probe.width = 2
+    probe.height = 2
+    probe.getContext('2d')?.drawImage(canvas, 0, 0, 1, 1)
+    return canvas
+  } catch {
+    return null
+  }
+}
+
+function foldTransitionMs(): number {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0
+  return DEFAULT_BYOBU_TRANSITION_MS
+}
 
 let active = false
 let exiting = false
@@ -24,17 +53,6 @@ let roomBackdrop: HTMLElement | null = null
 
 export function isByobuModeActive(): boolean {
   return active
-}
-
-function backdropTransitionMs(): number {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0
-  return BYOBU_BACKDROP_MS
-}
-
-function waitBackdrop(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms)
-  })
 }
 
 function ensureRoomBackdrop(app: HTMLElement): HTMLElement {
@@ -55,12 +73,6 @@ function ensureRoomBackdrop(app: HTMLElement): HTMLElement {
   else app.prepend(layer)
   roomBackdrop = layer
   return layer
-}
-
-function showRoomBackdrop(layer: HTMLElement): void {
-  layer.classList.remove('is-visible')
-  void layer.offsetWidth
-  layer.classList.add('is-visible')
 }
 
 /** Wall chrome: toggle 折 — eight-panel 屏風 with annotations off and 3D on. */
@@ -109,15 +121,43 @@ export function mountByobuMode(viewer: Viewer): void {
       zoom: viewer.viewport.getZoom(true),
     }
 
-    setWallRotationEnabled(true)
-    const backdrop = ensureRoomBackdrop(app)
-    app.classList.add('byobu-mode')
+    if (savedRotation) {
+      setWallRotationEnabled(true, false)
+    }
+    ensureRoomBackdrop(app)
+    app.classList.add('byobu-mode', 'byobu-fold-transition')
+    applyTransitionStyle(app, {
+      timeline: 0,
+      room: 0,
+      crease: 0,
+      orbit: 0,
+      frame: 0,
+    })
     btn.setAttribute('aria-pressed', 'true')
-    requestAnimationFrame(() => showRoomBackdrop(backdrop))
-    screen = startByobuScreen(host)
+    viewer.forceRedraw()
+    screen = startByobuScreen(host, {
+      mapSnapshot: mapSnapshotCanvas(viewer),
+      onTransition: (ch) => applyTransitionStyle(app, ch),
+    })
     active = true
     applyChromeI18n()
     document.dispatchEvent(new CustomEvent('qing-byobu-change'))
+    void screen.animateFold(1, foldTransitionMs()).then(() => {
+      screen?.snapPearlBaseline()
+      app.classList.remove('byobu-fold-transition')
+      for (const key of [
+        '--byobu-timeline',
+        '--byobu-room',
+        '--byobu-fold',
+        '--byobu-orbit',
+      ]) {
+        app.style.removeProperty(key)
+      }
+      if (!savedRotation) {
+        setWallRotationEnabled(true, false)
+      }
+      screen?.snapPearlBaseline()
+    })
   }
 
   const finishExit = () => {
@@ -130,7 +170,7 @@ export function mountByobuMode(viewer: Viewer): void {
       overlayStore.setVisible(id, savedOverlays.has(id))
     }
 
-    if (!savedRotation) setWallRotationEnabled(false)
+    if (!savedRotation) setWallRotationEnabled(false, false)
 
     if (savedViewport) {
       const { center, zoom } = savedViewport
@@ -153,11 +193,29 @@ export function mountByobuMode(viewer: Viewer): void {
       if (!active || exiting) return
       exiting = true
       btn.setAttribute('aria-pressed', 'false')
-      roomBackdrop?.classList.remove('is-visible')
-      await waitBackdrop(backdropTransitionMs())
+      if (!savedRotation) {
+        setWallRotationEnabled(false, false)
+      }
+      app.classList.add('byobu-fold-transition')
+      applyTransitionStyle(app, {
+        timeline: 1,
+        room: 1,
+        crease: 1,
+        orbit: 1,
+        frame: 1,
+      })
+      await screen?.animateFold(0, foldTransitionMs())
       screen?.stop()
       screen = null
-      app.classList.remove('byobu-mode')
+      app.classList.remove('byobu-mode', 'byobu-fold-transition')
+      for (const key of [
+        '--byobu-timeline',
+        '--byobu-room',
+        '--byobu-fold',
+        '--byobu-orbit',
+      ]) {
+        app.style.removeProperty(key)
+      }
       finishExit()
     })()
   }

@@ -31,7 +31,7 @@ body {
   --badge-tu: url('/ui/silver/badge-tu.png');
   --badge-shou: url('/ui/silver/badge-shou.png');
   --badge-jing: url('/ui/silver/badge-jing.png');
-  --badge-zhe: url('/ui/silver/badge-zhe.png?v=yuan');
+  --badge-zhe: url('/ui/silver/badge-zhe.png?v=tex11');
   --badge-zhi: url('/ui/silver/badge-zhi.png');
   --badge-gong: url('/ui/silver/badge-gong.png');
   --badge-yin: url('/ui/silver/badge-yin.png');
@@ -60,7 +60,7 @@ body {
   --badge-tu: url('/ui/bronze/badge-tu.png');
   --badge-shou: url('/ui/bronze/badge-shou.png');
   --badge-jing: url('/ui/bronze/badge-jing.png');
-  --badge-zhe: url('/ui/bronze/badge-zhe.png?v=yuan');
+  --badge-zhe: url('/ui/bronze/badge-zhe.png?v=tex11');
   --badge-zhi: url('/ui/bronze/badge-zhi.png');
   --badge-gong: url('/ui/bronze/badge-gong.png');
   --badge-yin: url('/ui/bronze/badge-yin.png');
@@ -1049,17 +1049,18 @@ body {
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition:
-    opacity 0.62s ease,
-    visibility 0s linear 0.62s;
 }
 
-.byobu-room-backdrop.is-visible {
-  opacity: 1;
+#app.byobu-mode .byobu-room-backdrop {
   visibility: visible;
-  transition:
-    opacity 0.62s ease,
-    visibility 0s linear 0s;
+}
+
+#app.byobu-mode.byobu-fold-transition .byobu-room-backdrop {
+  opacity: var(--byobu-room, 0);
+}
+
+#app.byobu-mode:not(.byobu-fold-transition) .byobu-room-backdrop {
+  opacity: 1;
 }
 
 .byobu-room-backdrop__photo {
@@ -1083,7 +1084,10 @@ body {
 
 #app.byobu-mode::before {
   opacity: 0;
-  transition: opacity 0.62s ease;
+}
+
+#app.byobu-mode.byobu-fold-transition::before {
+  opacity: calc(1 - var(--byobu-room, 0));
 }
 
 /* —— 折 · eight-panel 屏風 —— */
@@ -1106,6 +1110,18 @@ body {
 #app.byobu-mode #viewer canvas:not(.byobu-screen-canvas) {
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+#app.byobu-mode .byobu-screen-canvas {
+  opacity: 1 !important;
+}
+
+#app.byobu-mode.byobu-fold-transition .byobu-screen {
+  pointer-events: none;
+}
+
+#app.byobu-mode:not(.byobu-fold-transition) .byobu-screen {
+  pointer-events: auto;
 }
 
 #app.byobu-mode .map-label-btn,
@@ -1132,7 +1148,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .byobu-room-backdrop,
-  .byobu-room-backdrop.is-visible,
   #app.byobu-mode::before {
     transition: none !important;
   }

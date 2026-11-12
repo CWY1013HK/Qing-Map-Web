@@ -649,6 +649,115 @@ export function isWallLabelBillboardMode(): boolean {
   return !!document.getElementById('viewer')?.classList.contains('is-wall-roll-2d')
 }
 
+/** Live wall pose plus framing the 折 WebGL transition should match. */
+export type WallByobuSync = {
+  tilt: number
+  yaw: number
+  roll: number
+  wall3d: boolean
+  objectScale: number
+  objectLiftPx: number
+  originX: number
+  originY: number
+  viewerW: number
+  viewerH: number
+}
+
+/** Visible map on the wall after the live CSS sheet transform (container pixels). */
+export type WallMapQuad = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  cx: number
+  cy: number
+  width: number
+  height: number
+  viewerW: number
+  viewerH: number
+}
+
+export function readVisibleMapWallQuad(): WallMapQuad | null {
+  const viewer = boundViewer
+  if (!viewer || viewer.world.getItemCount() < 1) return null
+  const el = viewer.element
+  const viewerW = el.clientWidth
+  const viewerH = el.clientHeight
+  if (viewerW < 2 || viewerH < 2) return null
+  const item = viewer.world.getItemAt(0)
+  if (!item) return null
+  const b = item.getBounds()
+  const corners = [
+    new OpenSeadragon.Point(b.x, b.y),
+    new OpenSeadragon.Point(b.x + b.width, b.y),
+    new OpenSeadragon.Point(b.x + b.width, b.y + b.height),
+    new OpenSeadragon.Point(b.x, b.y + b.height),
+  ]
+  const projected: Pt[] = []
+  for (const p of corners) {
+    const px = viewer.viewport.pixelFromPoint(p, true)
+    const q = projectSheetPoint(px.x, px.y)
+    if (q) projected.push(q)
+  }
+  if (projected.length < 4) return null
+  let left = Infinity
+  let right = -Infinity
+  let top = Infinity
+  let bottom = -Infinity
+  for (const p of projected) {
+    left = Math.min(left, p.x)
+    right = Math.max(right, p.x)
+    top = Math.min(top, p.y)
+    bottom = Math.max(bottom, p.y)
+  }
+  if (!(right > left) || !(bottom > top)) return null
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    cx: (left + right) / 2,
+    cy: (top + bottom) / 2,
+    width: right - left,
+    height: bottom - top,
+    viewerW,
+    viewerH,
+  }
+}
+
+export function readWallByobuSync(): WallByobuSync | null {
+  const pose = readWallSheetPose()
+  if (!pose) return null
+  const root = tiltRoot()
+  const el = boundViewer?.element
+  if (!root || !el) return null
+  const wall3d =
+    root.classList.contains('is-wall-tilt') || root.classList.contains('is-wall-tilt-settle')
+  const style = getComputedStyle(root)
+  const num = (name: string, fallback: number): number => {
+    const v = parseFloat(style.getPropertyValue(name))
+    return Number.isFinite(v) ? v : fallback
+  }
+  const w = el.clientWidth
+  const h = el.clientHeight
+  if (w < 2 || h < 2) return null
+  return {
+    ...pose,
+    wall3d,
+    objectScale: num('--wall-object-scale', objectScale),
+    objectLiftPx: num('--wall-object-lift', objectLift),
+    originX: num('--wall-origin-x', w / 2),
+    originY: num('--wall-origin-y', wall3d ? h : h / 2),
+    viewerW: w,
+    viewerH: h,
+  }
+}
+
+/** Live pearl / wall orientation in CSS degrees (same as `--wall-tilt` / `--wall-yaw` / `--wall-roll`). */
+export function readWallOrientationDegrees(): { tilt: number; yaw: number; roll: number } {
+  return { tilt: tiltDeg, yaw: yawDeg, roll: rollDeg }
+}
+
 /** Sheet angles driving the wall CSS transform (3D lean and/or flat in-plane spin). */
 export function readWallSheetPose(): { tilt: number; yaw: number; roll: number } | null {
   const root = tiltRoot()
