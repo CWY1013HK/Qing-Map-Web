@@ -758,6 +758,11 @@ export function readWallOrientationDegrees(): { tilt: number; yaw: number; roll:
   return { tilt: tiltDeg, yaw: yawDeg, roll: rollDeg }
 }
 
+/** Push `tiltDeg` / `yawDeg` / `rollDeg` to CSS (e.g. before handing 屏風 back to the wall). */
+export function publishWallOrientation(): void {
+  applyOrientation()
+}
+
 /** Sheet angles driving the wall CSS transform (3D lean and/or flat in-plane spin). */
 export function readWallSheetPose(): { tilt: number; yaw: number; roll: number } | null {
   const root = tiltRoot()

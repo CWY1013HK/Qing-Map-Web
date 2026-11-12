@@ -12,7 +12,7 @@ import { labelStore } from '../popups/labelStore'
 import { applyChromeI18n } from '../i18n/applyChrome'
 import { closeAnnotationPopup } from '../popups/panel'
 import byobuConfig from '../../data/byobu.json'
-import { isWallRotationEnabled, setWallRotationEnabled } from './wallTilt'
+import { isWallRotationEnabled, publishWallOrientation, setWallRotationEnabled } from './wallTilt'
 import {
   DEFAULT_BYOBU_TRANSITION_MS,
   startByobuScreen,
@@ -193,9 +193,6 @@ export function mountByobuMode(viewer: Viewer): void {
       if (!active || exiting) return
       exiting = true
       btn.setAttribute('aria-pressed', 'false')
-      if (!savedRotation) {
-        setWallRotationEnabled(false, false)
-      }
       app.classList.add('byobu-fold-transition')
       applyTransitionStyle(app, {
         timeline: 1,
@@ -205,6 +202,7 @@ export function mountByobuMode(viewer: Viewer): void {
         frame: 1,
       })
       await screen?.animateFold(0, foldTransitionMs())
+      publishWallOrientation()
       screen?.stop()
       screen = null
       app.classList.remove('byobu-mode', 'byobu-fold-transition')

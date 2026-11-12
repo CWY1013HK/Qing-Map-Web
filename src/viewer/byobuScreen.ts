@@ -297,10 +297,14 @@ function buildWallSceneAtEnter(
   mapW: number,
   mapH: number,
   layoutScene: Mat4,
+  angles?: { tilt: number; yaw: number; roll: number },
 ): Mat4 {
   if (!wall) return layoutScene
   const pivot = wallPivotInScene(mapW, mapH, wall)
-  const wallM = wallSheetModelRot(wall.tilt, wall.yaw, wall.roll, pivot.x, pivot.y)
+  const tilt = angles?.tilt ?? wall.tilt
+  const yaw = angles?.yaw ?? wall.yaw
+  const roll = angles?.roll ?? wall.roll
+  const wallM = wallSheetModelRot(tilt, yaw, roll, pivot.x, pivot.y)
   return mat4Mul(wallM, layoutScene)
 }
 
@@ -652,6 +656,8 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
   let textureReady = false
   let timeline = 0
   let foldAnimFrame = 0
+  /** Exit 屏風 → 2D: ease inspect zoom/pan back to wall framing during the reverse-orbit phase. */
+  let exitFramingRestore = false
   const clampZoom = (z: number) => Math.max(0.45, Math.min(2.8, z))
 
   const enterSync: WallByobuSync | null = readWallByobuSync()
@@ -943,8 +949,16 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     const activeFramingZoom =
       framingZoom + (inspectFramingZoom - framingZoom) * orbitT
     const framingBounds = orbitT > 0 ? layout.centered : flatLayout.centered
+    const inspectDisplaced =
+      Math.abs(userZoom - 1) > 0.02 ||
+      Math.abs(panX) > 1e-4 ||
+      Math.abs(panY) > 1e-4 ||
+      Math.abs(orbitYaw) > 0.25
+    const exitRestoreT =
+      exitFramingRestore && inspectDisplaced ? easeInOutCubic(1 - orbitT) : 0
+    const activeUserZoom = userZoom + (1 - userZoom) * exitRestoreT
     const camDist =
-      cameraDistance(framingBounds, aspect, VIEW_FOV_Y_RAD) / (activeFramingZoom * userZoom)
+      cameraDistance(framingBounds, aspect, VIEW_FOV_Y_RAD) / (activeFramingZoom * activeUserZoom)
 
     const wall = enterSync
     const pivot = wallPivotInScene(mapW, mapH, wall)
@@ -959,18 +973,27 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     let scene = layout.scene
     const liftY = wallLiftInScene(wall, mapH, wallW)
 
+    const atFlatWall = orbitT < 1e-5 && channels.crease < 1e-5
+    const atFlatWallPose = wallW > 1 - 1e-5 && atFlatWall
+    const sheetTilt = atFlatWallPose ? pearl.tilt : enterTilt * wallW
+    const sheetYaw = atFlatWallPose ? pearl.yaw : enterYaw * wallW
+    const sheetRoll = atFlatWallPose ? pearl.roll : enterRoll * wallW
+
     if (wall && wallW > 0) {
       scene = mat4Mul(
-        wallSheetModelRot(enterTilt * wallW, enterYaw * wallW, enterRoll * wallW, pivot.x, pivot.y),
+        wallSheetModelRot(sheetTilt, sheetYaw, sheetRoll, pivot.x, pivot.y),
         scene,
       )
     }
 
     let wallPanX = framingPanX
     let wallPanY = framingPanY
-    const atFlatWall = orbitT < 1e-5 && channels.crease < 1e-5
     if (atFlatWall && wallQuad && enterSync) {
-      const flatScene = buildWallSceneAtEnter(enterSync, mapW, mapH, flatLayout.scene)
+      const flatScene = buildWallSceneAtEnter(enterSync, mapW, mapH, flatLayout.scene, {
+        tilt: sheetTilt,
+        yaw: sheetYaw,
+        roll: sheetRoll,
+      })
       const targetCx = wallQuad.cx / wallQuad.viewerW
       const targetCy = wallQuad.cy / wallQuad.viewerH
       const solved = solveFlatWallPan(
@@ -993,12 +1016,15 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
       framingPanY = wallPanY
     }
 
-    const activePanX = wallPanX + (panX - wallPanX) * orbitT
-    const activePanY = wallPanY + (panY - wallPanY) * orbitT
+    const inspectPanX = panX + (0 - panX) * exitRestoreT
+    const inspectPanY = panY + (0 - panY) * exitRestoreT
+    const activePanX = wallPanX + (inspectPanX - wallPanX) * orbitT
+    const activePanY = wallPanY + (inspectPanY - wallPanY) * orbitT
 
     // Orbit eases wall lean off the sheet; inspection stays upright — pearl deltas only on the camera.
     const viewPitch = VIEW_PITCH_DEG + glDelta.tilt * orbitT
-    const viewYaw = (glDelta.yaw + orbitYaw) * orbitT
+    const inspectOrbitYaw = orbitYaw * (1 - exitRestoreT)
+    const viewYaw = (glDelta.yaw + inspectOrbitYaw) * orbitT
     const viewRoll = glDelta.roll * orbitT
     const orient = mat4Mul(mat4RotX(viewPitch), mat4Mul(mat4RotY(viewYaw), mat4RotZ(viewRoll)))
     const view = mat4Mul(mat4Trans(activePanX, activePanY + liftY, -camDist), orient)
@@ -1038,8 +1064,18 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
 
   const animateFold = (target: number, ms = DEFAULT_BYOBU_TRANSITION_MS): Promise<void> => {
     const goal = clamp01(target)
+    exitFramingRestore = goal < timeline - 1e-5
     if (prefersReducedMotion() || ms <= 0) {
       publishTimeline(goal)
+      if (goal <= 1e-5) {
+        userZoom = 1
+        panX = 0
+        panY = 0
+        orbitYaw = 0
+        exitFramingRestore = false
+      } else {
+        exitFramingRestore = false
+      }
       return Promise.resolve()
     }
     return new Promise((resolve) => {
@@ -1051,6 +1087,13 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
         publishTimeline(from + (goal - from) * easeInOutCubic(u))
         if (u >= 1) {
           foldAnimFrame = 0
+          if (goal <= 1e-5) {
+            userZoom = 1
+            panX = 0
+            panY = 0
+            orbitYaw = 0
+          }
+          exitFramingRestore = false
           resolve()
           return
         }
