@@ -8,7 +8,6 @@ import { mountCreditsToggle } from '../popups/credits'
 import { mountLabelToggle, mountLocationLabels } from '../popups/labels'
 import { mountChrome } from './chrome'
 import { focusIntroRegion, mountIntro } from './intro'
-import { mountLabelBillboard } from './labelBillboard'
 import { mountByobuMode } from './byobuMode'
 import { mountFocusMode } from './focusMode'
 import { mountMusicToggle } from './musicToggle'
@@ -129,7 +128,6 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   })
 
   bindWallTilt(viewer)
-  const labelBillboard = mountLabelBillboard(viewer)
   mountChrome(viewer)
   mountFocusMode(viewer)
   mountByobuMode(viewer)
@@ -147,7 +145,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
       mountOverlayVertexEditor(viewer, { provinceLabels })
     })
   }
-  mountLocationLabels(viewer, labelBillboard)
+  mountLocationLabels(viewer)
   mountLabelToggle()
   mountMusicToggle()
   mountCreditsToggle()

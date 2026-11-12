@@ -231,6 +231,23 @@ export function bindWallTilt(viewer: Viewer): void {
   if (pendingEnable) setWallRotationEnabled(true, false)
   bindWallChrome(viewer)
 
+  const root = tiltRoot()
+  root?.addEventListener('transitionend', (event) => {
+    if (event.target !== root || rotationEnabled) return
+    if (root.classList.contains('is-wall-tilt') || !root.classList.contains('is-wall-tilt-settle')) {
+      return
+    }
+    const prop = event.propertyName
+    if (prop !== '--wall-tilt' && prop !== '--wall-yaw') return
+    const cs = getComputedStyle(root)
+    const tilt = parseFloat(cs.getPropertyValue('--wall-tilt'))
+    const yaw = parseFloat(cs.getPropertyValue('--wall-yaw'))
+    if (Math.abs(tilt) > 0.08 || Math.abs(yaw) > 0.08) return
+    window.clearTimeout(settleTimer)
+    settleTimer = 0
+    finishWallTiltSettle(root)
+  })
+
   let last: Pt | null = null
   let lastClient: Pt | null = null
   const trail: { t: number; x: number; y: number }[] = []
@@ -527,12 +544,20 @@ function armSettle(root: HTMLElement): void {
   root.classList.add('is-wall-tilt-settle')
   window.clearTimeout(settleTimer)
   settleTimer = window.setTimeout(() => {
-    root.classList.remove('is-wall-tilt-settle')
-    root.classList.remove('is-wall-scale-settle')
-    if (boundViewer && !rotationEnabled) clearWallBillboardChrome(boundViewer)
-    notifyRotation()
-    scheduleWallChrome()
+    finishWallTiltSettle(root)
   }, SETTLE_MS)
+}
+
+/** 3D→2D ease-out ended: drop upright clones and show on-map province plates again. */
+function finishWallTiltSettle(root: HTMLElement): void {
+  root.classList.remove('is-wall-tilt-settle')
+  root.classList.remove('is-wall-scale-settle')
+  if (boundViewer && !rotationEnabled) {
+    clearWallBillboardChrome(boundViewer)
+    boundViewer.forceRedraw()
+  }
+  notifyRotation()
+  scheduleWallChrome()
 }
 
 /** Move the frame with the sheet while a zoom eases. */
@@ -763,6 +788,42 @@ export function publishWallOrientation(): void {
   applyOrientation()
 }
 
+/** CSS angle easing (`#app.is-wall-tilt-settle`). */
+export function wallAngleSettleMs(): number {
+  return prefersReducedMotion() ? 0 : 440
+}
+
+/** Before 折: upright map in the viewer — yaw/roll off; keep default 3D lean only when entering from 3D. */
+export function prepareWallForByobuEnter(keep3dLean: boolean): void {
+  yawDeg = 0
+  rollDeg = 0
+  objectLift = 0
+  if (keep3dLean) {
+    if (tiltDeg === 0 && !choseAngle) {
+      tiltDeg = DEFAULT_DEGREES
+      choseAngle = true
+    }
+  } else {
+    tiltDeg = 0
+  }
+  applyOrientation()
+}
+
+/** After leaving 屏風: neutral turn/spin; flat wall or standard default 3D lean. */
+export function applyStandardWallExit(exitTo3d: boolean): void {
+  yawDeg = 0
+  rollDeg = 0
+  objectLift = 0
+  if (exitTo3d) {
+    tiltDeg = DEFAULT_DEGREES
+    choseAngle = true
+  } else {
+    tiltDeg = 0
+  }
+  applyOrientation()
+  boundViewer?.forceRedraw()
+}
+
 /** Sheet angles driving the wall CSS transform (3D lean and/or flat in-plane spin). */
 export function readWallSheetPose(): { tilt: number; yaw: number; roll: number } | null {
   const root = tiltRoot()
@@ -839,7 +900,7 @@ function projectOnWall(
 /**
  * Container pixel → wall-space pixel for the sheet's CURRENT pose, read from
  * the live CSS variables so mid-transition frames project correctly. Identity
- * when the sheet is flat. UI that anchors to wall space (label billboard)
+ * when the sheet is flat. UI that anchors to wall space (province billboard)
  * projects through this every frame.
  *
  * @param zOffset Lift along local +Z before perspective (same 3D path as CSS).
@@ -877,47 +938,32 @@ export function projectSheetPoint(x: number, y: number, zOffset = 0): Pt | null 
   return p
 }
 
-/** Fixed hover distance for upright labels, along the projected plane normal. */
+/** Lift along local +Z before perspective — same units as {@link projectSheetPoint}'s `zOffset`. */
 export const SHEET_LABEL_NORMAL_OFFSET = 14
 
-/** Local +Z probe used to measure the sheet normal in wall space. */
-const NORMAL_PROBE_Z = 1
-
-/** How one step along the sheet normal moves on the wall (varies with tilt). */
-export function sheetNormalWallDelta(containerX: number, containerY: number): Pt | null {
+/** Wall-space step per +1 model Z at a container anchor (direction only; length varies with pose). */
+export function sheetZWallDelta(containerX: number, containerY: number): Pt | null {
   const p0 = projectSheetPoint(containerX, containerY, 0)
-  const p1 = projectSheetPoint(containerX, containerY, NORMAL_PROBE_Z)
+  const p1 = projectSheetPoint(containerX, containerY, 1)
   if (!p0 || !p1) return null
   return { x: p1.x - p0.x, y: p1.y - p0.y }
 }
 
 /**
- * Map anchor on the plane, lifted along the true surface normal (flat → toward
- * the room; tilted → increasingly upward on the wall). At near-flat poses the
- * wall offset is ~0 so plates match the 2D map.
+ * Screen px → layout px for a layer (e.g. wall-label-layer). On `/atlab` the
+ * root `scale()` shrinks getBoundingClientRect; billboard `left`/`top` use layout.
  */
-export function liftAlongSheetNormal(
-  containerX: number,
-  containerY: number,
-  distance = SHEET_LABEL_NORMAL_OFFSET,
-): Pt | null {
-  const plane = projectSheetPoint(containerX, containerY, 0)
-  const delta = sheetNormalWallDelta(containerX, containerY)
-  if (!plane) return null
-  if (!delta) return plane
-  const probeLen = Math.hypot(delta.x, delta.y)
-  if (probeLen < 1e-6) return plane
-  const s = distance / probeLen
-  return { x: plane.x + delta.x * s, y: plane.y + delta.y * s }
+export function wallLayerLayoutScale(layer: HTMLElement): number {
+  const rect = layer.getBoundingClientRect()
+  if (!(rect.width > 1) || !(layer.clientWidth > 1)) return 1
+  return layer.clientWidth / rect.width
 }
 
 /** Layout pixels on the wall for one screen pixel. Ignores the sheet transform. */
 function layoutPerScreen(): number {
   const stage = document.getElementById('atlab') ?? host
   if (!stage) return 1
-  const rect = stage.getBoundingClientRect()
-  if (!(rect.width > 1) || !(stage.clientWidth > 1)) return 1
-  return stage.clientWidth / rect.width
+  return wallLayerLayoutScale(stage)
 }
 
 /**

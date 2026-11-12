@@ -108,23 +108,13 @@ body {
   background: transparent !important;
 }
 
-/*
- * Wall-space label layer (src/viewer/labelBillboard.ts). 誌 dots anchor to
- * the same flat space as the badges, seals, and minimap — upright, tracking
- * their projected map anchors, never riding the tilted sheet.
- */
+/* Upright province / décor clones (src/viewer/overlayUpright.ts). */
 .wall-label-layer {
   position: absolute;
   inset: 0;
   z-index: 3;
   overflow: visible;
   pointer-events: none;
-  /* Clip-path set in JS while the sheet is tilted — matches projected map quad. */
-}
-
-.wall-label-layer .map-label-btn {
-  position: absolute;
-  pointer-events: auto;
 }
 
 .preview {
@@ -1096,6 +1086,11 @@ body {
   inset: 0;
   z-index: 6;
   touch-action: none;
+}
+
+.byobu-screen.byobu-screen--preparing {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .byobu-screen-canvas {

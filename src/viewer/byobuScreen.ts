@@ -65,6 +65,9 @@ export type ByobuScreenHandle = {
   stop: () => void
   setOrbitYaw: (deg: number) => void
   snapPearlBaseline: () => void
+  resetInspectFraming: () => void
+  /** Texture uploaded and at least one frame drawn (flat pose at t=0). */
+  whenReady: () => Promise<void>
   animateFold: (target: number, ms?: number) => Promise<void>
 }
 
@@ -607,7 +610,7 @@ function cameraDistance(centered: Pt3[], aspect: number, fovYRad: number): numbe
  */
 export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions): ByobuScreenHandle {
   const root = document.createElement('div')
-  root.className = 'byobu-screen'
+  root.className = 'byobu-screen byobu-screen--preparing'
   root.setAttribute('aria-hidden', 'true')
 
   const canvas = document.createElement('canvas')
@@ -654,10 +657,12 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
   let dragging = false
   let shiftOrbit = false
   let textureReady = false
+  let paintedReady = false
+  let readyResolved = false
+  const readyWaiters: Array<() => void> = []
+  const BYOBU_READY_TIMEOUT_MS = 12_000
   let timeline = 0
   let foldAnimFrame = 0
-  /** Exit 屏風 → 2D: ease inspect zoom/pan back to wall framing during the reverse-orbit phase. */
-  let exitFramingRestore = false
   const clampZoom = (z: number) => Math.max(0.45, Math.min(2.8, z))
 
   const enterSync: WallByobuSync | null = readWallByobuSync()
@@ -719,6 +724,13 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     pearlEnter.yaw = p.yaw
     pearlEnter.roll = p.roll
   }
+  const resetInspectFraming = () => {
+    panX = 0
+    panY = 0
+    userZoom = 1
+    orbitYaw = 0
+    snapPearlBaseline()
+  }
   const enterTilt = enterSync?.tilt ?? pearlEnter.tilt
   const enterYaw = enterSync?.yaw ?? pearlEnter.yaw
   const enterRoll = enterSync?.roll ?? pearlEnter.roll
@@ -730,6 +742,28 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     options?.onTransition?.(byobuTransitionChannels(timeline))
   }
   publishTimeline(0)
+
+  const finishReady = () => {
+    if (readyResolved || stopped) return
+    readyResolved = true
+    root.classList.remove('byobu-screen--preparing')
+    for (const wake of readyWaiters) wake()
+    readyWaiters.length = 0
+  }
+
+  const whenReady = (): Promise<void> => {
+    if (readyResolved) return Promise.resolve()
+    return new Promise((resolve) => {
+      readyWaiters.push(resolve)
+    })
+  }
+
+  window.setTimeout(() => {
+    if (!readyResolved && !stopped) {
+      console.warn('[byobu] ready wait timed out; starting fold anyway')
+      finishReady()
+    }
+  }, BYOBU_READY_TIMEOUT_MS)
 
   const onWheel = (e: WheelEvent) => {
     e.preventDefault()
@@ -784,6 +818,8 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
       stop: () => {},
       setOrbitYaw: () => {},
       snapPearlBaseline: () => {},
+      resetInspectFraming: () => {},
+      whenReady: async () => {},
       animateFold: async () => {},
     }
   }
@@ -949,16 +985,8 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     const activeFramingZoom =
       framingZoom + (inspectFramingZoom - framingZoom) * orbitT
     const framingBounds = orbitT > 0 ? layout.centered : flatLayout.centered
-    const inspectDisplaced =
-      Math.abs(userZoom - 1) > 0.02 ||
-      Math.abs(panX) > 1e-4 ||
-      Math.abs(panY) > 1e-4 ||
-      Math.abs(orbitYaw) > 0.25
-    const exitRestoreT =
-      exitFramingRestore && inspectDisplaced ? easeInOutCubic(1 - orbitT) : 0
-    const activeUserZoom = userZoom + (1 - userZoom) * exitRestoreT
     const camDist =
-      cameraDistance(framingBounds, aspect, VIEW_FOV_Y_RAD) / (activeFramingZoom * activeUserZoom)
+      cameraDistance(framingBounds, aspect, VIEW_FOV_Y_RAD) / (activeFramingZoom * userZoom)
 
     const wall = enterSync
     const pivot = wallPivotInScene(mapW, mapH, wall)
@@ -1016,15 +1044,12 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
       framingPanY = wallPanY
     }
 
-    const inspectPanX = panX + (0 - panX) * exitRestoreT
-    const inspectPanY = panY + (0 - panY) * exitRestoreT
-    const activePanX = wallPanX + (inspectPanX - wallPanX) * orbitT
-    const activePanY = wallPanY + (inspectPanY - wallPanY) * orbitT
+    const activePanX = wallPanX + (panX - wallPanX) * orbitT
+    const activePanY = wallPanY + (panY - wallPanY) * orbitT
 
     // Orbit eases wall lean off the sheet; inspection stays upright — pearl deltas only on the camera.
     const viewPitch = VIEW_PITCH_DEG + glDelta.tilt * orbitT
-    const inspectOrbitYaw = orbitYaw * (1 - exitRestoreT)
-    const viewYaw = (glDelta.yaw + inspectOrbitYaw) * orbitT
+    const viewYaw = (glDelta.yaw + orbitYaw) * orbitT
     const viewRoll = glDelta.roll * orbitT
     const orient = mat4Mul(mat4RotX(viewPitch), mat4Mul(mat4RotY(viewYaw), mat4RotZ(viewRoll)))
     const view = mat4Mul(mat4Trans(activePanX, activePanY + liftY, -camDist), orient)
@@ -1054,6 +1079,11 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
       chain = mat4Mul(chain, mat4Trans(pw, 0, 0))
     }
 
+    if (textureReady && texture && !paintedReady) {
+      paintedReady = true
+      requestAnimationFrame(() => finishReady())
+    }
+
     raf = requestAnimationFrame(tick)
   }
 
@@ -1062,20 +1092,13 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
   resize()
   raf = requestAnimationFrame(tick)
 
-  const animateFold = (target: number, ms = DEFAULT_BYOBU_TRANSITION_MS): Promise<void> => {
+  const animateFold = async (target: number, ms = DEFAULT_BYOBU_TRANSITION_MS): Promise<void> => {
+    await whenReady()
     const goal = clamp01(target)
-    exitFramingRestore = goal < timeline - 1e-5
     if (prefersReducedMotion() || ms <= 0) {
       publishTimeline(goal)
-      if (goal <= 1e-5) {
-        userZoom = 1
-        panX = 0
-        panY = 0
-        orbitYaw = 0
-        exitFramingRestore = false
-      } else {
-        exitFramingRestore = false
-      }
+      if (goal <= 1e-5) resetInspectFraming()
+      else if (goal >= 1 - 1e-5) resetInspectFraming()
       return Promise.resolve()
     }
     return new Promise((resolve) => {
@@ -1087,13 +1110,7 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
         publishTimeline(from + (goal - from) * easeInOutCubic(u))
         if (u >= 1) {
           foldAnimFrame = 0
-          if (goal <= 1e-5) {
-            userZoom = 1
-            panX = 0
-            panY = 0
-            orbitYaw = 0
-          }
-          exitFramingRestore = false
+          if (goal <= 1e-5 || goal >= 1 - 1e-5) resetInspectFraming()
           resolve()
           return
         }
@@ -1106,6 +1123,7 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
   return {
     stop: () => {
       stopped = true
+      finishReady()
       if (foldAnimFrame) cancelAnimationFrame(foldAnimFrame)
       foldAnimFrame = 0
       cancelAnimationFrame(raf)
@@ -1125,6 +1143,8 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
       orbitYaw = deg
     },
     snapPearlBaseline,
+    resetInspectFraming,
+    whenReady,
     animateFold,
   }
 }

@@ -175,12 +175,17 @@
   overflow: visible;
 }
 
-/* Skewed on-map text under the upright clone (3D only, while clones are live). */
-#app.is-province-upright .province-labels-layer .province-label {
+/* Skewed on-map text under the upright clone — only while the sheet is transformed.
+   After 3D→2D, is-province-upright can lag one frame; never hide plates on a flat sheet. */
+#app.is-province-upright:where(.is-wall-tilt, .is-wall-tilt-settle)
+  .province-labels-layer
+  .province-label,
+#app.is-province-upright:has(#viewer.is-wall-roll-2d) .province-labels-layer .province-label {
   opacity: 0 !important;
 }
 
-#app.is-province-upright .focus-decor.is-visible {
+#app.is-province-upright:where(.is-wall-tilt, .is-wall-tilt-settle) .focus-decor.is-visible,
+#app.is-province-upright:has(#viewer.is-wall-roll-2d) .focus-decor.is-visible {
   opacity: 0 !important;
 }
 

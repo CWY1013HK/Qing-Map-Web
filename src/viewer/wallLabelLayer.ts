@@ -4,7 +4,7 @@ const LAYER_ID = 'wall-label-layer'
 
 const layers = new WeakMap<Viewer, HTMLElement>()
 
-/** Flat wall layer (sibling of #viewer) shared by 誌 and province billboards. */
+/** Flat wall layer (sibling of #viewer) for upright province / décor billboards. */
 export function wallLabelLayer(viewer: Viewer): HTMLElement | null {
   let layer = layers.get(viewer)
   if (layer) return layer

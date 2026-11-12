@@ -1,6 +1,6 @@
 import type { Viewer } from 'openseadragon'
 import { clearWallBillboardChrome } from './wallBillboardReset'
-import { isWallLabelBillboardMode } from './wallTilt'
+import { isWallLabelBillboardMode, wallLayerLayoutScale } from './wallTilt'
 import { wallLabelLayer } from './wallLabelLayer'
 import { placeUprightLabelBox } from './wallPlacement'
 
@@ -130,16 +130,17 @@ function syncDecorBillboard(viewer: Viewer, layer: HTMLElement): number {
 
     const rect = deco.getBoundingClientRect()
     if (rect.width < 1) continue
-    const left = rect.left - layerRect.left
-    const top = rect.top - layerRect.top
+    const layoutScale = wallLayerLayoutScale(layer)
+    const left = (rect.left - layerRect.left) * layoutScale
+    const top = (rect.top - layerRect.top) * layoutScale
 
     const flipX = parseFloat(inner.style.getPropertyValue('--fc-flip-x') || '1')
     const stamp = document.createElement('div')
     stamp.className = 'focus-decor-billboard'
     stamp.style.left = `${left.toFixed(1)}px`
     stamp.style.top = `${top.toFixed(1)}px`
-    stamp.style.width = `${rect.width.toFixed(1)}px`
-    stamp.style.height = `${rect.height.toFixed(1)}px`
+    stamp.style.width = `${(rect.width * layoutScale).toFixed(1)}px`
+    stamp.style.height = `${(rect.height * layoutScale).toFixed(1)}px`
     const bg = inner.style.backgroundImage || getComputedStyle(inner).backgroundImage
     if (bg && bg !== 'none') stamp.style.backgroundImage = bg
     stamp.style.transform = `scaleX(${flipX})`

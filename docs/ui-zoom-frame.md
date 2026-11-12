@@ -38,8 +38,10 @@ A raised or turned sheet keeps painting past the wall’s top and sides. The wal
 
 The transformation box (the OSD container) does not clip either: it is `overflow: visible` while rotated. The wall fits the map height-bound, so the painting’s own top edge sits exactly on the container’s top edge. That edge is left alone — no fade, band, feather, or any other treatment at the map’s top, rotated or not.
 
-## 8. Labels anchor to wall space, not the sheet
+## 8. 誌 hotspots ride the sheet; province plates stay upright
 
-誌 location dots and text plates render upright in the wall’s flat UI space — the same space as the badges, seals, and minimap. Each frame the label’s map anchor is projected through the sheet’s current pose (`projectSheetPoint` in `src/viewer/wallTilt.ts`, mid-transition values included), and the label (`src/viewer/labelBillboard.ts`) is placed at that projected wall point, upright and unclipped by the sheet. Labels never ride the tilted plane, never smear with perspective, and track their anchors through every animation frame.
+誌 location dots and text plates are OSD overlays on the map — they stick to the painted surface and foreshorten with the sheet during tilt, spin, and zoom, the same as the red and yellow ink outlines. They are not projected into wall space.
 
-Region (area) labels are the exception: they paint a map region, so they stay on the sheet as OSD overlays and foreshorten with it.
+Province name plates and décor stamps still use the upright wall billboard (`src/viewer/overlayUpright.ts`): they render flat in UI space like the badges, seals, and minimap. Plate centres pin to the on-sheet glyph (`getBoundingClientRect` under the live CSS 3D transform), then step `SHEET_LABEL_NORMAL_OFFSET` along local +Z via `sheetZWallDelta` — same perpendicular hover height at every map anchor, near and far.
+
+Region (area) 誌 labels also stay on the sheet as OSD overlays because they paint a map region.

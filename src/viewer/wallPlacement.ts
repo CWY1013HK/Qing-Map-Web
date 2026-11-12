@@ -1,9 +1,9 @@
 import OpenSeadragon, { type TiledImage, type Viewer } from 'openseadragon'
 import {
-  liftAlongSheetNormal,
-  projectSheetPoint,
   readWallSheetPose,
   SHEET_LABEL_NORMAL_OFFSET,
+  sheetZWallDelta,
+  wallLayerLayoutScale,
 } from './wallTilt'
 
 export type WallBox = {
@@ -13,41 +13,6 @@ export type WallBox = {
   height: number
   cx: number
   cy: number
-}
-
-/** Map a viewport rect through {@link projectSheetPoint} (誌 labels). */
-export function placeViewportRectOnWall(
-  viewer: Viewer,
-  rect: OpenSeadragon.Rect,
-): WallBox | null {
-  const vp = viewer.viewport
-  const tl = vp.pixelFromPoint(rect.getTopLeft(), true)
-  const br = vp.pixelFromPoint(rect.getBottomRight(), true)
-  const w = br.x - tl.x
-  const h = br.y - tl.y
-  if (!(w > 0) || !(h > 0)) return null
-  const cx = (tl.x + br.x) / 2
-  const cy = (tl.y + br.y) / 2
-  const pc = projectSheetPoint(cx, cy)
-  if (!pc) return null
-  const e1 = projectSheetPoint(cx - w / 2, cy, 0)
-  const e2 = projectSheetPoint(cx + w / 2, cy, 0)
-  const v1 = projectSheetPoint(cx, cy - h / 2, 0)
-  const v2 = projectSheetPoint(cx, cy + h / 2, 0)
-  const kx =
-    e1 && e2 && w > 0.0001 ? Math.hypot(e2.x - e1.x, e2.y - e1.y) / w : 1
-  const ky =
-    v1 && v2 && h > 0.0001 ? Math.hypot(v2.x - v1.x, v2.y - v1.y) / h : kx
-  const pw = w * kx
-  const ph = h * ky
-  return {
-    left: pc.x - pw / 2,
-    top: pc.y - ph / 2,
-    width: pw,
-    height: ph,
-    cx: pc.x,
-    cy: pc.y,
-  }
 }
 
 export function labelContainerAnchor(
@@ -97,6 +62,28 @@ export function labelContainerAnchor(
   return { x: center.x, y: center.y, w: rectWC, h: rectHC }
 }
 
+/** On-sheet centre in wall-layer px (CSS 3D truth), plus constant model-Z lift when rotated. */
+function uprightBillboardCenter(
+  src: SVGTextElement,
+  wallLayer: HTMLElement,
+  containerX: number,
+  containerY: number,
+): { x: number; y: number } | null {
+  const layerRect = wallLayer.getBoundingClientRect()
+  const srcRect = src.getBoundingClientRect()
+  if (srcRect.width < 1 || srcRect.height < 1) return null
+  const layoutScale = wallLayerLayoutScale(wallLayer)
+  const planeX = (srcRect.left + srcRect.width / 2 - layerRect.left) * layoutScale
+  const planeY = (srcRect.top + srcRect.height / 2 - layerRect.top) * layoutScale
+  if (!readWallSheetPose()) return { x: planeX, y: planeY }
+  const dz = sheetZWallDelta(containerX, containerY)
+  if (!dz) return { x: planeX, y: planeY }
+  return {
+    x: planeX + dz.x * SHEET_LABEL_NORMAL_OFFSET,
+    y: planeY + dz.y * SHEET_LABEL_NORMAL_OFFSET,
+  }
+}
+
 /**
  * Upright province plate: position follows tilt; size matches flat 2D at this zoom
  * (viewport pixels from map UV), never the foreshortened on-sheet screen rect.
@@ -111,43 +98,14 @@ export function placeUprightLabelBox(
   const pw = anchor.w
   const ph = anchor.h
 
-  if (readWallSheetPose()) {
-    const lifted = liftAlongSheetNormal(anchor.x, anchor.y, SHEET_LABEL_NORMAL_OFFSET)
-    if (lifted) {
-      return {
-        left: lifted.x - pw / 2,
-        top: lifted.y - ph / 2,
-        width: pw,
-        height: ph,
-        cx: lifted.x,
-        cy: lifted.y,
-      }
-    }
-  }
-
-  const at = projectSheetPoint(anchor.x, anchor.y, 0)
-  if (at) {
-    return {
-      left: at.x - pw / 2,
-      top: at.y - ph / 2,
-      width: pw,
-      height: ph,
-      cx: at.x,
-      cy: at.y,
-    }
-  }
-
-  const layerRect = wallLayer.getBoundingClientRect()
-  const srcRect = src.getBoundingClientRect()
-  if (srcRect.width < 1 || srcRect.height < 1) return null
-  const left = srcRect.left - layerRect.left + (srcRect.width - pw) / 2
-  const top = srcRect.top - layerRect.top + (srcRect.height - ph) / 2
+  const at = uprightBillboardCenter(src, wallLayer, anchor.x, anchor.y)
+  if (!at) return null
   return {
-    left,
-    top,
+    left: at.x - pw / 2,
+    top: at.y - ph / 2,
     width: pw,
     height: ph,
-    cx: left + pw / 2,
-    cy: top + ph / 2,
+    cx: at.x,
+    cy: at.y,
   }
 }

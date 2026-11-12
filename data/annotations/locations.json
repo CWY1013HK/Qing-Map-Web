@@ -315,16 +315,16 @@
     },
     {
       "id": "bloc-title",
-      "title": "大清萬年一統地理圖",
+      "title": "標題",
       "body": "大清萬年一統地理圖",
       "i18n": {
         "zh-Hans": {
-          "title": "大清万年一统地理图",
+          "title": "标题",
           "body": "大清万年一统地理图"
         },
         "en": {
-          "title": "Geographical Map of the Great Qing's Everlasting Unity",
-          "body": "Geographical Map of the Great Qing's Everlasting Unity"
+          "title": "Title",
+          "body": "Map of the Qing Empire's Everlasting Unity"
         }
       },
       "point": { "x": 0.9677, "y": 0.2176 },

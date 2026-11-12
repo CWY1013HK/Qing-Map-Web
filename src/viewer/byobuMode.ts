@@ -12,7 +12,14 @@ import { labelStore } from '../popups/labelStore'
 import { applyChromeI18n } from '../i18n/applyChrome'
 import { closeAnnotationPopup } from '../popups/panel'
 import byobuConfig from '../../data/byobu.json'
-import { isWallRotationEnabled, publishWallOrientation, setWallRotationEnabled } from './wallTilt'
+import {
+  applyStandardWallExit,
+  isWallRotationEnabled,
+  prepareWallForByobuEnter,
+  publishWallOrientation,
+  setWallRotationEnabled,
+  wallAngleSettleMs,
+} from './wallTilt'
 import {
   DEFAULT_BYOBU_TRANSITION_MS,
   startByobuScreen,
@@ -48,6 +55,7 @@ function foldTransitionMs(): number {
 }
 
 let active = false
+let entering = false
 let exiting = false
 let roomBackdrop: HTMLElement | null = null
 
@@ -90,7 +98,6 @@ export function mountByobuMode(viewer: Viewer): void {
   let savedLabels = true
   let savedOverlays = new Set<string>()
   let savedRotation = false
-  let savedViewport: { center: OpenSeadragon.Point; zoom: number } | null = null
 
   const hideAllOverlays = () => {
     const mgr = getOverlayManager()
@@ -99,65 +106,76 @@ export function mountByobuMode(viewer: Viewer): void {
     }
   }
 
+  const waitMs = (ms: number) =>
+    ms <= 0 ? Promise.resolve() : new Promise<void>((resolve) => setTimeout(resolve, ms))
+
   const enter = () => {
-    if (active) return
-    closeAnnotationPopup()
-    void closeCreditsPopup()
+    if (active || entering) return
+    void (async () => {
+      entering = true
+      try {
+        closeAnnotationPopup()
+        void closeCreditsPopup()
 
-    if (focusBtn?.getAttribute('aria-pressed') === 'true') {
-      focusBtn.click()
-    }
+        if (focusBtn?.getAttribute('aria-pressed') === 'true') {
+          focusBtn.click()
+        }
 
-    savedLabels = labelStore.isVisible()
-    savedOverlays = new Set(overlayStore.getVisible())
-    savedRotation = isWallRotationEnabled()
+        savedLabels = labelStore.isVisible()
+        savedOverlays = new Set(overlayStore.getVisible())
+        savedRotation = isWallRotationEnabled()
 
-    labelStore.setVisible(false)
-    hideAllOverlays()
-    if (labelsBtn) labelsBtn.setAttribute('aria-pressed', 'false')
+        labelStore.setVisible(false)
+        hideAllOverlays()
+        if (labelsBtn) labelsBtn.setAttribute('aria-pressed', 'false')
 
-    savedViewport = {
-      center: viewer.viewport.getCenter(true).clone(),
-      zoom: viewer.viewport.getZoom(true),
-    }
+        prepareWallForByobuEnter(savedRotation)
+        viewer.viewport.goHome(true)
+        viewer.viewport.applyConstraints(true)
+        await waitMs(wallAngleSettleMs())
+        if (!savedRotation && isWallRotationEnabled()) {
+          setWallRotationEnabled(false, true)
+          await waitMs(wallAngleSettleMs())
+        } else if (savedRotation) {
+          setWallRotationEnabled(true, false)
+        }
+        viewer.forceRedraw()
 
-    if (savedRotation) {
-      setWallRotationEnabled(true, false)
-    }
-    ensureRoomBackdrop(app)
-    app.classList.add('byobu-mode', 'byobu-fold-transition')
-    applyTransitionStyle(app, {
-      timeline: 0,
-      room: 0,
-      crease: 0,
-      orbit: 0,
-      frame: 0,
-    })
-    btn.setAttribute('aria-pressed', 'true')
-    viewer.forceRedraw()
-    screen = startByobuScreen(host, {
-      mapSnapshot: mapSnapshotCanvas(viewer),
-      onTransition: (ch) => applyTransitionStyle(app, ch),
-    })
-    active = true
-    applyChromeI18n()
-    document.dispatchEvent(new CustomEvent('qing-byobu-change'))
-    void screen.animateFold(1, foldTransitionMs()).then(() => {
-      screen?.snapPearlBaseline()
-      app.classList.remove('byobu-fold-transition')
-      for (const key of [
-        '--byobu-timeline',
-        '--byobu-room',
-        '--byobu-fold',
-        '--byobu-orbit',
-      ]) {
-        app.style.removeProperty(key)
+        ensureRoomBackdrop(app)
+        screen = startByobuScreen(host, {
+          mapSnapshot: mapSnapshotCanvas(viewer),
+          onTransition: (ch) => applyTransitionStyle(app, ch),
+        })
+        await screen.whenReady()
+        app.classList.add('byobu-mode', 'byobu-fold-transition')
+        applyTransitionStyle(app, {
+          timeline: 0,
+          room: 0,
+          crease: 0,
+          orbit: 0,
+          frame: 0,
+        })
+        btn.setAttribute('aria-pressed', 'true')
+        active = true
+        applyChromeI18n()
+        document.dispatchEvent(new CustomEvent('qing-byobu-change'))
+        await screen.animateFold(1, foldTransitionMs())
+        app.classList.remove('byobu-fold-transition')
+        for (const key of [
+          '--byobu-timeline',
+          '--byobu-room',
+          '--byobu-fold',
+          '--byobu-orbit',
+        ]) {
+          app.style.removeProperty(key)
+        }
+        if (!savedRotation) {
+          setWallRotationEnabled(true, false)
+        }
+      } finally {
+        entering = false
       }
-      if (!savedRotation) {
-        setWallRotationEnabled(true, false)
-      }
-      screen?.snapPearlBaseline()
-    })
+    })()
   }
 
   const finishExit = () => {
@@ -170,16 +188,16 @@ export function mountByobuMode(viewer: Viewer): void {
       overlayStore.setVisible(id, savedOverlays.has(id))
     }
 
-    if (!savedRotation) setWallRotationEnabled(false, false)
-
-    if (savedViewport) {
-      const { center, zoom } = savedViewport
-      savedViewport = null
-      viewer.viewport.panTo(center, true)
-      viewer.viewport.zoomTo(zoom, undefined, true)
-      viewer.viewport.applyConstraints(true)
-      viewer.navigator?.update(viewer.viewport)
+    if (!savedRotation) {
+      setWallRotationEnabled(false, false)
+      applyStandardWallExit(false)
+    } else {
+      applyStandardWallExit(true)
     }
+
+    viewer.viewport.goHome(true)
+    viewer.viewport.applyConstraints(true)
+    viewer.navigator?.update(viewer.viewport)
 
     active = false
     exiting = false
@@ -202,6 +220,7 @@ export function mountByobuMode(viewer: Viewer): void {
         frame: 1,
       })
       await screen?.animateFold(0, foldTransitionMs())
+      applyStandardWallExit(savedRotation)
       publishWallOrientation()
       screen?.stop()
       screen = null
