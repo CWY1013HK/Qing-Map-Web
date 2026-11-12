@@ -1116,6 +1116,16 @@ body {
   opacity: 1 !important;
 }
 
+/* Exit 折: dolly back on WebGL while crossfading the live 2D map (--byobu-handoff). */
+#app.byobu-mode.byobu-exit-transition.byobu-fold-transition #viewer .openseadragon-canvas,
+#app.byobu-mode.byobu-exit-transition.byobu-fold-transition #viewer canvas:not(.byobu-screen-canvas) {
+  opacity: var(--byobu-handoff, 0) !important;
+}
+
+#app.byobu-mode.byobu-exit-transition.byobu-fold-transition .byobu-screen-canvas {
+  opacity: calc(1 - var(--byobu-handoff, 0)) !important;
+}
+
 #app.byobu-mode.byobu-fold-transition .byobu-screen {
   pointer-events: none;
 }

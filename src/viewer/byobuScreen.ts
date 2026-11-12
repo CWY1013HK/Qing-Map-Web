@@ -214,9 +214,9 @@ function mat4RotZ(deg: number): Mat4 {
   return m
 }
 
-/** CSS degrees → scene (WebGL Y-up) — negate so rotateX/Y match `projectOnWall` / the wall sheet. */
+/** CSS degrees → scene (WebGL Y-up). Tilt/roll flip with screen Y; yaw matches `projectOnWall` (+rotateY). */
 function cssDegreesToScene(tilt: number, yaw: number, roll: number): { tilt: number; yaw: number; roll: number } {
-  return { tilt: -tilt, yaw: -yaw, roll: -roll }
+  return { tilt: -tilt, yaw, roll: -roll }
 }
 
 /** Match CSS `rotateX` → `rotateY` → `rotateZ` about the wall transform-origin. Angles are CSS degrees. */
@@ -458,12 +458,15 @@ function mat4Perspective(fovY: number, aspect: number, near: number, far: number
 }
 
 /** UV splits; nudges each crease away from u=0.5 by a fixed map-pixel offset. */
-function panelBoundaries(
-  creases: number[],
-  count: number,
-  centrePx = 0,
-  mapWidthPx = 9219,
-): number[] {
+type CreasePx = {
+  centrePx: number
+  centrePxOuter: number
+  centrePxLeftmost: number
+  centrePxRightmost: number
+  mapWidthPx: number
+}
+
+function panelBoundaries(creases: number[], count: number, px: CreasePx): number[] {
   let inner: number[]
   if (creases.length === count - 1) {
     inner = [...creases]
@@ -472,11 +475,26 @@ function panelBoundaries(
     inner = []
     for (let i = 1; i < count; i++) inner.push(i * step)
   }
-  if (centrePx > 0 && mapWidthPx > 0) {
-    const du = centrePx / mapWidthPx
+  const outerPx = px.centrePxOuter > 0 ? px.centrePxOuter : px.centrePx
+  const { mapWidthPx, centrePx } = px
+  if (
+    mapWidthPx > 0 &&
+    (centrePx > 0 || outerPx > 0 || px.centrePxLeftmost > 0 || px.centrePxRightmost > 0)
+  ) {
+    const last = inner.length - 1
     inner = inner
-      .map((u) => {
+      .map((u, i) => {
         if (Math.abs(u - 0.5) < 1e-6) return u
+        let creasePx = centrePx
+        if (i === 0 && px.centrePxLeftmost > 0) {
+          creasePx = px.centrePxLeftmost
+        } else if (i === last && px.centrePxRightmost > 0) {
+          creasePx = px.centrePxRightmost
+        } else if (u <= 0.25 + 1e-4 || u >= 0.75 - 1e-4) {
+          creasePx = outerPx
+        }
+        if (creasePx <= 0) return u
+        const du = creasePx / mapWidthPx
         return u + (u < 0.5 ? -du : du)
       })
       .sort((a, b) => a - b)
@@ -599,11 +617,19 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     hingeSigns: number[]
     creases: number[]
     creaseCentrePx?: number
+    creaseCentrePxOuter?: number
+    creaseCentrePxLeftmost?: number
+    creaseCentrePxRightmost?: number
     mapWidthPx?: number
     textureUrl: string
   }
-  const creaseCentrePx = cfg.creaseCentrePx ?? 0
-  const mapWidthPx = cfg.mapWidthPx ?? 9219
+  const creasePx: CreasePx = {
+    centrePx: cfg.creaseCentrePx ?? 0,
+    centrePxOuter: cfg.creaseCentrePxOuter ?? 0,
+    centrePxLeftmost: cfg.creaseCentrePxLeftmost ?? 0,
+    centrePxRightmost: cfg.creaseCentrePxRightmost ?? 0,
+    mapWidthPx: cfg.mapWidthPx ?? 9219,
+  }
 
   let gl: WebGLRenderingContext | null = null
   let program: WebGLProgram | null = null
@@ -637,7 +663,7 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
       ? host.clientWidth / host.clientHeight
       : mapContentAspect
 
-  const cfgBounds = panelBoundaries(cfg.creases, cfg.panelCount, creaseCentrePx, mapWidthPx)
+  const cfgBounds = panelBoundaries(cfg.creases, cfg.panelCount, creasePx)
   const flatMapH = 2
   const flatMapW = flatMapH * mapContentAspect
   const flatLayout = foldedLayout(
@@ -869,7 +895,7 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
 
     const mapH = 2
     const mapW = mapH * mapContentAspect
-    const bounds = panelBoundaries(cfg.creases, cfg.panelCount, creaseCentrePx, mapWidthPx)
+    const bounds = panelBoundaries(cfg.creases, cfg.panelCount, creasePx)
     const signs = cfg.hingeSigns
     const foldDeg = cfg.foldDegrees * channels.crease
     const orbitT = channels.orbit
@@ -882,10 +908,11 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
       cfg.panelCount,
       null,
     )
+    const centreT = orbitT < 0.92 ? 0 : (orbitT - 0.92) / 0.08
     const anchorCentre: Pt3 = {
-      x: flatCentreAnchor.x + (dynamicLayout.centre.x - flatCentreAnchor.x) * orbitT,
-      y: flatCentreAnchor.y + (dynamicLayout.centre.y - flatCentreAnchor.y) * orbitT,
-      z: flatCentreAnchor.z + (dynamicLayout.centre.z - flatCentreAnchor.z) * orbitT,
+      x: flatCentreAnchor.x + (dynamicLayout.centre.x - flatCentreAnchor.x) * centreT,
+      y: flatCentreAnchor.y + (dynamicLayout.centre.y - flatCentreAnchor.y) * centreT,
+      z: flatCentreAnchor.z + (dynamicLayout.centre.z - flatCentreAnchor.z) * centreT,
     }
     const layout = foldedLayout(
       mapW,
