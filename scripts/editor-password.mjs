@@ -3,6 +3,7 @@
  * Mint / list / revoke per-editor passwords for /editor (dev server).
  *
  *   npm run editor-password -- add "Alice"
+ *   npm run editor-password -- add "Alice" "custom-secret"   # optional fixed password
  *   npm run editor-password -- list
  *   npm run editor-password -- revoke ed-xxxx
  */
@@ -30,13 +31,13 @@ function newPassword() {
 
 function usage() {
   console.error(`Usage:
-  npm run editor-password -- add <name>
+  npm run editor-password -- add <name> [password]
   npm run editor-password -- list
   npm run editor-password -- revoke <editorId>`)
   process.exit(1)
 }
 
-const [cmd, arg] = process.argv.slice(2)
+const [cmd, arg, arg2] = process.argv.slice(2)
 if (!cmd) usage()
 
 const paths = editorPaths(projectRoot)
@@ -59,7 +60,7 @@ if (cmd === 'add') {
   if (!label) usage()
   const grantedAt = new Date().toISOString()
   const id = newEditorId()
-  const password = newPassword()
+  const password = arg2?.length ? String(arg2) : newPassword()
   const data = readEditors(projectRoot)
   data.editors.push({
     id,
