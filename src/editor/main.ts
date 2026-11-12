@@ -5,6 +5,12 @@ import '../styles/popups.css'
 import '../styles/editor.css'
 import { bootInteractiveViewer } from '../viewer/bootViewer'
 import { setEditorSessionActive, type EditorSessionMeta } from '../lib/mapEditor'
+import { mountI18n, registerLocaleRefresh, t } from '../i18n'
+import {
+  applyEditorChrome,
+  mapEditorAuthError,
+  mountEditorLangToggle,
+} from './applyEditorChrome'
 
 type SessionOk = { ok: true; editor: EditorSessionMeta }
 type SessionFail = { ok: false; error?: string }
@@ -68,7 +74,7 @@ function wireLoginForm(): void {
       const result = await login(password)
       if (!result.ok) {
         if (errorEl) {
-          errorEl.textContent = result.error ?? 'Sign-in failed'
+          errorEl.textContent = mapEditorAuthError(result.error)
           errorEl.removeAttribute('hidden')
         }
         return
@@ -88,8 +94,17 @@ function wireLogout(): void {
 }
 
 async function main(): Promise<void> {
+  mountI18n()
+  registerLocaleRefresh(applyEditorChrome)
+  applyEditorChrome()
+  mountEditorLangToggle()
+
   if (!import.meta.env.DEV) {
-    document.body.textContent = 'Editor is only available with npm run dev.'
+    document.body.textContent = ''
+    const msg = document.createElement('p')
+    msg.style.cssText = 'margin:2rem;font-family:system-ui,sans-serif;text-align:center'
+    msg.textContent = t('editor.devOnly')
+    document.body.appendChild(msg)
     return
   }
 

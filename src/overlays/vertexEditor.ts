@@ -25,6 +25,13 @@ import {
 } from './vertexEditorChrome'
 import { getAnnotationEditHandle } from '../popups/labels'
 import { canUseMapEditor } from '../lib/mapEditor'
+import { t } from '../i18n'
+import {
+  bindVertexEditorI18n,
+  vertexErasedStatus,
+  vertexSaveLabel,
+  vertexSavedFiles,
+} from './vertexEditorI18n'
 
 type DragState = {
   fileKey: string
@@ -93,9 +100,9 @@ export function mountOverlayVertexEditor(
     <div class="vertex-editor-row">
       <label class="vertex-editor-toggle">
         <input type="checkbox" id="vertex-edit-enabled" />
-        Edit
+        <span id="vertex-edit-toggle-label">Edit</span>
       </label>
-      <label>Mode
+      <label id="vertex-edit-mode-wrap"><span>Mode</span>
         <select id="vertex-edit-mode">
           <option value="vertices">Vertices</option>
           <option value="overlays">Overlays</option>
@@ -106,12 +113,12 @@ export function mountOverlayVertexEditor(
       <span class="vertex-editor-hint" id="vertex-edit-hint">E edit · hold D erase · Alt-click delete · dblclick insert</span>
     </div>
     <div class="vertex-editor-row" id="vertex-edit-outline-row">
-      <label>Overlay
+      <label><span id="vertex-edit-overlay-label">Overlay</span>
         <select id="vertex-edit-target">
           ${FILE_KEYS.map((f) => `<option value="${f.key}">${f.label}</option>`).join('')}
         </select>
       </label>
-      <label>Ring
+      <label><span id="vertex-edit-ring-label">Ring</span>
         <select id="vertex-edit-ring"></select>
       </label>
     </div>
@@ -127,10 +134,10 @@ export function mountOverlayVertexEditor(
     <div class="vertex-editor-row">
       <span class="vertex-editor-hint" id="vertex-edit-erase-hint">Hold <kbd>D</kbd> + drag to box-erase (vertices mode)</span>
       <button type="button" class="vertex-editor-save" id="vertex-edit-save" disabled>Save</button>
-      <span class="vertex-editor-hint">⌘/Ctrl+S</span>
+      <span class="vertex-editor-hint" id="vertex-edit-save-shortcut">⌘/Ctrl+S</span>
     </div>
     <div class="vertex-editor-row">
-      <span class="vertex-editor-status" id="vertex-edit-status">Idle</span>
+      <span class="vertex-editor-status" id="vertex-edit-status" data-kind="idle">Idle</span>
     </div>
   `
   document.querySelector('#app')?.appendChild(panel)
@@ -147,6 +154,10 @@ export function mountOverlayVertexEditor(
   const ringEl = panel.querySelector<HTMLSelectElement>('#vertex-edit-ring')!
   const saveBtn = panel.querySelector<HTMLButtonElement>('#vertex-edit-save')!
   const statusEl = panel.querySelector<HTMLElement>('#vertex-edit-status')!
+  const toggleLabel = panel.querySelector<HTMLElement>('#vertex-edit-toggle-label')!
+  const overlayLabel = panel.querySelector<HTMLElement>('#vertex-edit-overlay-label')!
+  const ringLabel = panel.querySelector<HTMLElement>('#vertex-edit-ring-label')!
+  const saveShortcut = panel.querySelector<HTMLElement>('#vertex-edit-save-shortcut')!
 
   const editMode = () => modeEl.value
   const isOverlayMode = () => editMode() === 'overlays'
@@ -230,21 +241,50 @@ export function mountOverlayVertexEditor(
   const syncSaveUi = () => {
     const n = dirtyKeys.size
     saveBtn.disabled = n === 0 || saving
-    saveBtn.textContent = n > 1 ? `Save (${n})` : 'Save'
+    saveBtn.textContent = vertexSaveLabel(n)
     panel.classList.toggle('is-dirty', n > 0)
   }
 
   const markDirty = (fileKey: string) => {
     dirtyKeys.add(fileKey)
     syncSaveUi()
-    if (!saving) setStatus('Unsaved changes', 'busy')
+    if (!saving) setStatus(t('vertex.status.unsaved'), 'busy')
+  }
+
+  const editingStatusMessage = (): string => {
+    if (isOverlayMode()) return t('vertex.status.editingOverlays')
+    if (isLabelMode()) return t('vertex.status.editingAnnotations')
+    if (isAnnotationMode()) return t('vertex.status.editingLocationLabels')
+    return t('vertex.status.editingVertices')
+  }
+
+  const editingStatusMessageShort = (): string => {
+    if (isOverlayMode()) return t('vertex.status.editingOverlaysShort')
+    if (isLabelMode()) return t('vertex.status.editingAnnotations')
+    if (isAnnotationMode()) return t('vertex.status.editingLocationLabels')
+    return t('vertex.status.editingVertices')
+  }
+
+  const refreshStatusForMode = () => {
+    if (!enabledEl.checked) {
+      setStatus(
+        dirtyKeys.size ? t('vertex.status.unsaved') : t('vertex.status.idle'),
+        dirtyKeys.size ? 'busy' : 'idle',
+      )
+      return
+    }
+    if (dirtyKeys.size) {
+      setStatus(t('vertex.status.unsaved'), 'busy')
+      return
+    }
+    setStatus(editingStatusMessage(), 'idle')
   }
 
   const saveDirty = async () => {
     if (saving || dirtyKeys.size === 0) return
     saving = true
     syncSaveUi()
-    setStatus('Saving…', 'busy')
+    setStatus(t('vertex.status.saving'), 'busy')
     const keys = [...dirtyKeys]
     try {
       for (const fileKey of keys) {
@@ -262,10 +302,8 @@ export function mountOverlayVertexEditor(
         dirtyKeys.delete(fileKey)
       }
       const hailu = keys.includes('hailu')
-      setStatus(
-        `Saved ${keys.map((k) => `${k}.json`).join(', ')}${hailu ? ' + sea-lanes.json' : ''}`,
-        'ok',
-      )
+      const fileList = `${keys.map((k) => `${k}.json`).join(', ')}${hailu ? ' + sea-lanes.json' : ''}`
+      setStatus(vertexSavedFiles(fileList), 'ok')
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e), 'err')
     } finally {
@@ -392,11 +430,11 @@ export function mountOverlayVertexEditor(
     const kept = ring.filter((p) => p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1)
     const removed = ring.length - kept.length
     if (removed === 0) {
-      setStatus('No vertices in box', 'idle')
+      setStatus(t('vertex.status.noVerticesInBox'), 'idle')
       return
     }
     if (kept.length < 2) {
-      setStatus('Keep at least 2 vertices — shrink the box', 'err')
+      setStatus(t('vertex.status.minVertices'), 'err')
       return
     }
 
@@ -405,7 +443,7 @@ export function mountOverlayVertexEditor(
     rebuildHandles()
     refreshRingSelect()
     markDirty(targetEl.value)
-    setStatus(`Erased ${removed} · path bridged (${kept.length} left)`, 'ok')
+    setStatus(vertexErasedStatus(removed, kept.length), 'ok')
   }
 
   const syncModeUi = () => {
@@ -659,7 +697,10 @@ export function mountOverlayVertexEditor(
       handleGroup.replaceChildren()
       provinceLabels?.setSelectedId(null)
       viewer.setMouseNavEnabled(true)
-      setStatus(dirtyKeys.size ? 'Unsaved changes' : 'Idle', dirtyKeys.size ? 'busy' : 'idle')
+      setStatus(
+        dirtyKeys.size ? t('vertex.status.unsaved') : t('vertex.status.idle'),
+        dirtyKeys.size ? 'busy' : 'idle',
+      )
     } else if (overlay) {
       overlayStore.setGroupVisible(manager.idsForGroup(HANDI_GROUP_ID), true)
       overlayStore.setGroupVisible(manager.idsForGroup(ZHONGGUO_GROUP_ID), true)
@@ -668,18 +709,18 @@ export function mountOverlayVertexEditor(
       handleGroup.replaceChildren()
       // Pan off so the province hit layer can receive pointer events reliably.
       viewer.setMouseNavEnabled(false)
-      if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
-      else setStatus('Editing overlays — drag to move, scroll to scale · uncheck Edit to pan', 'idle')
+      if (dirtyKeys.size) setStatus(t('vertex.status.unsaved'), 'busy')
+      else setStatus(editingStatusMessage(), 'idle')
     } else if (labels) {
       handleGroup.replaceChildren()
       viewer.setMouseNavEnabled(false)
-      if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
-      else setStatus('Editing annotations — drag a box to move, edges to resize', 'idle')
+      if (dirtyKeys.size) setStatus(t('vertex.status.unsaved'), 'busy')
+      else setStatus(editingStatusMessage(), 'idle')
     } else if (annot) {
       handleGroup.replaceChildren()
       viewer.setMouseNavEnabled(false)
-      if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
-      else setStatus('Editing location labels — drag empty map to capture a city · click an entry to edit', 'idle')
+      if (dirtyKeys.size) setStatus(t('vertex.status.unsaved'), 'busy')
+      else setStatus(editingStatusMessage(), 'idle')
     } else {
       const meta = FILE_KEYS.find((f) => f.key === targetEl.value)
       if (meta) {
@@ -690,8 +731,8 @@ export function mountOverlayVertexEditor(
       rebuildHandles()
       placeHandles()
       syncEraseCapture()
-      if (dirtyKeys.size) setStatus('Unsaved changes', 'busy')
-      else setStatus('Editing — hold D to erase, Save when ready', 'idle')
+      if (dirtyKeys.size) setStatus(t('vertex.status.unsaved'), 'busy')
+      else setStatus(editingStatusMessage(), 'idle')
     }
     syncSaveUi()
   }
@@ -729,7 +770,7 @@ export function mountOverlayVertexEditor(
       dHeld = true
       syncEraseCapture()
       rebuildHandles()
-      if (dirtyKeys.size === 0) setStatus('Hold D — drag a rectangle to erase', 'idle')
+      if (dirtyKeys.size === 0) setStatus(t('vertex.status.holdDErase'), 'idle')
       return
     }
     if (e.key === 'e' || e.key === 'E') {
@@ -752,18 +793,9 @@ export function mountOverlayVertexEditor(
     syncEraseCapture()
     rebuildHandles()
     if (enabledEl.checked && dirtyKeys.size === 0) {
-      setStatus(
-        isOverlayMode()
-          ? 'Editing overlays — drag to move, scroll to scale'
-          : isLabelMode()
-            ? 'Editing annotations — drag a box to move, edges to resize'
-            : isAnnotationMode()
-              ? 'Editing location labels — drag empty map to capture a city · click an entry to edit'
-              : 'Editing — hold D to erase, Save when ready',
-        'idle',
-      )
+      setStatus(editingStatusMessageShort(), 'idle')
     } else if (dirtyKeys.size) {
-      setStatus('Unsaved changes', 'busy')
+      setStatus(t('vertex.status.unsaved'), 'busy')
     }
   }
 
@@ -789,6 +821,23 @@ export function mountOverlayVertexEditor(
   }
   viewer.addHandler('animation', onAnim)
   viewer.addHandler('resize', onAnim)
+
+  bindVertexEditorI18n({
+    panel,
+    modeEl,
+    hintEl,
+    provinceRow,
+    labelRow,
+    annotationRow,
+    eraseHint,
+    overlayLabel,
+    ringLabel,
+    toggleLabel,
+    saveShortcut,
+    syncSaveUi,
+    getStatusKind: () => statusEl.dataset.kind,
+    refreshStatusForMode,
+  })
 
   refreshRingSelect()
   syncEnabled()

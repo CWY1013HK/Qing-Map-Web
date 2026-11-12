@@ -34,6 +34,26 @@
   opacity: 0.75;
 }
 
+.editor-gate-lang {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.editor-lang-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: inherit;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.editor-lang-btn[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .editor-gate-card label {
   display: block;
   font-size: 0.8rem;

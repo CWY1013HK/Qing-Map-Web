@@ -19,8 +19,18 @@
       aria-modal="true"
     >
       <form class="editor-gate-card" id="editor-login-form">
+        <div
+          id="editor-gate-lang"
+          class="editor-gate-lang"
+          role="group"
+          aria-label=""
+        >
+          <button type="button" class="editor-lang-btn" data-locale="zh-Hant" id="editor-lang-hant" aria-pressed="true"></button>
+          <button type="button" class="editor-lang-btn" data-locale="zh-Hans" id="editor-lang-hans" aria-pressed="false"></button>
+          <button type="button" class="editor-lang-btn" data-locale="en" id="editor-lang-en" aria-pressed="false"></button>
+        </div>
         <h1 id="editor-gate-title">Map editor</h1>
-        <p>Sign in with the password issued for your name.</p>
+        <p id="editor-gate-blurb">Sign in with the password issued for your name.</p>
         <label for="editor-password">Password</label>
         <input
           id="editor-password"
