@@ -24,6 +24,7 @@ import {
   onVertexEditorPanelVisible,
 } from './vertexEditorChrome'
 import { getAnnotationEditHandle } from '../popups/labels'
+import { canUseMapEditor } from '../lib/mapEditor'
 
 type DragState = {
   fileKey: string
@@ -75,7 +76,7 @@ export function mountOverlayVertexEditor(
   viewer: Viewer,
   opts: MountVertexEditorOptions = {},
 ): () => void {
-  if (!import.meta.env.DEV) return () => {}
+  if (!canUseMapEditor()) return () => {}
 
   const provinceLabels = opts.provinceLabels ?? null
   const manager = getOverlayManager()

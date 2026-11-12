@@ -11,6 +11,7 @@ import {
 import { openCityEditor, type CityEditorSave } from './cityEditor'
 import { isByobuModeActive } from '../viewer/byobuMode'
 import { viewerPixelFromClient } from '../viewer/wallTilt'
+import { canUseMapEditor } from '../lib/mapEditor'
 
 const DEFAULT_LABEL_WIDTH = 0.03
 /** Hit radius as fraction of image width for canvas-click fallback. */
@@ -260,7 +261,7 @@ function attachAreaEdit(
   hotspot: LabelHotspot,
   markDirty: (id: string) => void,
 ): void {
-  if (!import.meta.env.DEV) return
+  if (!canUseMapEditor()) return
   const { annotation, el } = hotspot
   if (!isAreaHotspot(annotation)) return
   ensureResizeHandles(el)
@@ -470,7 +471,7 @@ export function mountLocationLabels(viewer: Viewer): () => void {
       if (img) img.src = previewSrc
     }
     hotspots.push(hotspot)
-    if (import.meta.env.DEV) {
+    if (canUseMapEditor()) {
       attachAreaEdit(viewer, item0, hotspot, (id) => {
         dirtyIds.add(id)
         onDirty?.()
@@ -503,7 +504,7 @@ export function mountLocationLabels(viewer: Viewer): () => void {
   }
 
   async function editAnnotation(annotation: Annotation) {
-    if (!import.meta.env.DEV || editorOpen) return
+    if (!canUseMapEditor() || editorOpen) return
     editorOpen = true
     try {
       const result = await openCityEditor({
@@ -682,7 +683,7 @@ export function mountLocationLabels(viewer: Viewer): () => void {
       hotspot.el.classList.toggle('is-annot-editing', labelEditing)
     }
   }
-  if (import.meta.env.DEV) {
+  if (canUseMapEditor()) {
     detachCapture = attachCapture()
     annotationEditHandle = {
       setEditing,

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map editor — 大清萬年一統地理圖</title>
+    <link rel="stylesheet" href="/src/styles/editor.css" />
+  </head>
+  <body>
+    <div
+      id="editor-gate"
+      class="editor-gate"
+      role="dialog"
+      aria-labelledby="editor-gate-title"
+      aria-modal="true"
+    >
+      <form class="editor-gate-card" id="editor-login-form">
+        <h1 id="editor-gate-title">Map editor</h1>
+        <p>Sign in with the password issued for your name.</p>
+        <label for="editor-password">Password</label>
+        <input
+          id="editor-password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+        <button type="submit" id="editor-login-btn">Enter</button>
+        <p class="editor-gate-error" id="editor-gate-error" hidden></p>
+      </form>
+    </div>
+
+    <div id="editor-signed-in" class="editor-signed-in" hidden>
+      <span id="editor-signed-in-label"></span>
+      <button type="button" id="editor-logout-btn">Sign out</button>
+    </div>
+
+    <div id="app" class="intro-active">
+      <div id="viewer" class="viewer" hidden></div>
+      <img
+        id="preview"
+        class="preview"
+        src="/map-preview.jpg"
+        alt="Qing dynasty map (preview)"
+        draggable="false"
+      />
+
+      <aside id="toolbar" class="toolbar" aria-label="Map controls">
+        <button type="button" class="badge-btn" id="btn-zoom-in" title="近 — Zoom in" aria-label="近"></button>
+        <button type="button" class="badge-btn" id="btn-zoom-out" title="遠 — Zoom out" aria-label="遠"></button>
+        <button type="button" class="badge-btn" id="btn-home" title="全 — Fit map" aria-label="全"></button>
+        <button
+          type="button"
+          class="badge-btn"
+          id="btn-toggle-minimap"
+          title="圖 — Show or hide minimap"
+          aria-label="圖"
+          aria-pressed="true"
+        ></button>
+        <button
+          type="button"
+          class="badge-btn"
+          id="btn-toggle-labels"
+          title="誌 — Show or hide location labels"
+          aria-label="誌"
+          aria-pressed="true"
+        ></button>
+        <button
+          type="button"
+          class="badge-btn"
+          id="btn-music"
+          title="音 — Mute music"
+          aria-label="音"
+          aria-pressed="true"
+        ></button>
+        <button
+          type="button"
+          class="badge-btn"
+          id="btn-focus"
+          title="淨 — Focus mode"
+          aria-label="淨"
+          aria-pressed="false"
+        ></button>
+        <button
+          type="button"
+          class="badge-btn"
+          id="btn-byobu"
+          title="折 — Folding screen"
+          aria-label="折"
+          aria-pressed="false"
+        ></button>
+        <button
+          type="button"
+          class="badge-btn"
+          id="btn-credits"
+          title="功 — Show credits"
+          aria-label="功"
+          aria-pressed="false"
+        ></button>
+      </aside>
+
+      <aside
+        id="minimap-panel"
+        class="minimap-panel"
+        aria-label="Minimap"
+      >
+        <div class="minimap-drag" title="Drag minimap" aria-hidden="true">
+          <span class="minimap-edge edge-n"></span>
+          <span class="minimap-edge edge-e"></span>
+          <span class="minimap-edge edge-s"></span>
+          <span class="minimap-edge edge-w"></span>
+        </div>
+        <button
+          type="button"
+          class="badge-btn minimap-hide"
+          id="btn-hide-minimap"
+          title="收 — Hide minimap"
+          aria-label="收"
+        ></button>
+        <div class="minimap-paper">
+          <div id="map-navigator" class="map-navigator"></div>
+        </div>
+      </aside>
+
+      <p id="status" class="status">Loading preview…</p>
+      <p id="tile-status" class="tile-status" hidden>Loading high-res tiles…</p>
+
+      <div id="map-seal-stack" class="map-seal-stack">
+        <div id="tour-seals" class="tour-seals" aria-label="導覽印" hidden></div>
+        <div id="overlay-seals" class="overlay-seals" aria-label="令牌 overlays">
+          <button
+            type="button"
+            id="overlay-seal-handi"
+            class="overlay-seal overlay-seal--handi"
+            title="漢地十八省 — Show or hide outline"
+            aria-label="漢地十八省"
+            aria-pressed="false"
+            hidden
+          >
+            <img src="/ui/silver/handi-lingpai.png" alt="" draggable="false" />
+          </button>
+          <button
+            type="button"
+            id="overlay-seal-zhongguo"
+            class="overlay-seal overlay-seal--zhongguo"
+            title="中國疆域 — Show or hide outline"
+            aria-label="中國疆域"
+            aria-pressed="false"
+            hidden
+          >
+            <img src="/ui/silver/zhongguo-lingpai.png" alt="" draggable="false" />
+          </button>
+          <button
+            type="button"
+            id="overlay-seal-xiandai"
+            class="overlay-seal overlay-seal--xiandai"
+            title="現代中國 — Show or hide outline"
+            aria-label="現代中國"
+            aria-pressed="false"
+            hidden
+          >
+            <img src="/ui/silver/xiandai-lingpai.png?v=kaiti46" alt="" draggable="false" />
+          </button>
+          <button
+            type="button"
+            id="overlay-seal-hailu"
+            class="overlay-seal overlay-seal--hailu"
+            title="海路一覽 — Show or hide sea routes"
+            aria-label="海路一覽"
+            aria-pressed="false"
+            hidden
+          >
+            <img src="/ui/silver/hailu-lingpai.png" alt="" draggable="false" />
+          </button>
+        </div>
+      </div>
+
+      <div id="intro" class="intro" hidden>
+        <div class="intro-clouds" aria-hidden="true">
+          <div class="intro-mist-wash"></div>
+          <div class="intro-veil-clouds" id="intro-veil-clouds"></div>
+        </div>
+        <button
+          type="button"
+          id="intro-seal"
+          class="intro-seal"
+          aria-label="Enter the map"
+        >
+          <img src="/intro/qing-seal.png" alt="" draggable="false" />
+        </button>
+      </div>
+    </div>
+    <script type="module" src="/src/editor/main.ts"></script>
+  </body>
+</html>

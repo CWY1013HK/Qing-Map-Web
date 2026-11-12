@@ -15,6 +15,7 @@ import { clearHighResTileCache } from './seaUnderlay'
 import { bindOverlayUpright } from './overlayUpright'
 import { bindWallTilt, prepareWallTilt } from './wallTilt'
 import { mountTourSeals } from '../transitions/seals'
+import { canUseMapEditor } from '../lib/mapEditor'
 
 /** Permanent OSD underlayer — pans/zooms with DZI; shows through unloaded tiles. */
 const UNDERLAY_URL = '/map-preview-low.jpg'
@@ -23,6 +24,8 @@ const TILE_SOURCE = '/tiles/map.dzi'
 export type BootInteractiveOptions = {
   /** When false, skip intro curtain (useful for kiosk tests). Default true. */
   intro?: boolean
+  /** Password-gated /editor: mount vertex editor and label tools. */
+  editor?: boolean
 }
 
 /**
@@ -140,7 +143,7 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
   mountTourSeals(viewer)
   const provinceLabels = mountProvinceLabels(viewer)
   bindOverlayUpright(viewer)
-  if (import.meta.env.DEV) {
+  if (opts.editor && canUseMapEditor()) {
     void import('../overlays/vertexEditor').then(({ mountOverlayVertexEditor }) => {
       mountOverlayVertexEditor(viewer, { provinceLabels })
     })

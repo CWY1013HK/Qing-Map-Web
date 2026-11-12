@@ -1,0 +1,106 @@
+.editor-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  background: rgba(12, 14, 18, 0.92);
+  color: #e8e4dc;
+  font-family: system-ui, sans-serif;
+}
+
+.editor-gate[hidden] {
+  display: none;
+}
+
+.editor-gate-card {
+  width: min(22rem, 90vw);
+  padding: 1.5rem 1.75rem;
+  border-radius: 0.5rem;
+  background: #1a1d24;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.editor-gate-card h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.editor-gate-card p {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.editor-gate-card label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.editor-gate-card input[type='password'] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #0f1115;
+  color: inherit;
+  font-size: 1rem;
+}
+
+.editor-gate-card button[type='submit'] {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.55rem;
+  border: none;
+  border-radius: 0.35rem;
+  background: #3d4f6a;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.editor-gate-card button[type='submit']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editor-gate-error {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: #f5a8a8;
+}
+
+.editor-signed-in {
+  position: fixed;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.35rem;
+  background: rgba(20, 24, 32, 0.88);
+  color: #c8d0dc;
+  font-size: 0.75rem;
+  font-family: system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.editor-signed-in[hidden] {
+  display: none;
+}
+
+.editor-signed-in button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: inherit;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}

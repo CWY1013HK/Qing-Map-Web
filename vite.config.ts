@@ -67,36 +67,41 @@ function serveMapTiles(): Plugin {
   }
 }
 
-/** Serve `/atlab` as `atlab.html` in dev and preview. */
-function atlabRewrite(): Plugin {
+function htmlPathRewrite(paths: Record<string, string>): Plugin {
   const rewrite = (url: string | undefined) => {
     if (!url) return url
     const pathOnly = url.split('?')[0]
-    if (pathOnly === '/atlab' || pathOnly === '/atlab/') {
-      return url.replace(pathOnly, '/atlab.html')
+    for (const [route, file] of Object.entries(paths)) {
+      if (pathOnly === route || pathOnly === `${route}/`) {
+        return url.replace(pathOnly, file)
+      }
     }
     return url
   }
 
+  const mount = (server: { middlewares: { use: (fn: (req: IncomingMessage, res: ServerResponse, next: () => void) => void) => void } }) => {
+    server.middlewares.use((req, _res, next) => {
+      req.url = rewrite(req.url)
+      next()
+    })
+  }
+
   return {
-    name: 'atlab-rewrite',
-    configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        req.url = rewrite(req.url)
-        next()
-      })
-    },
-    configurePreviewServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        req.url = rewrite(req.url)
-        next()
-      })
-    },
+    name: 'html-path-rewrite',
+    configureServer: mount,
+    configurePreviewServer: mount,
   }
 }
 
 export default defineConfig({
-  plugins: [serveMapTiles(), atlabRewrite(), overlayWriteApi(root)],
+  plugins: [
+    serveMapTiles(),
+    htmlPathRewrite({
+      '/atlab': '/atlab.html',
+      '/editor': '/editor.html',
+    }),
+    overlayWriteApi(root),
+  ],
   server: {
     host: true,
     port: 5173,
@@ -107,6 +112,7 @@ export default defineConfig({
       input: {
         main: path.resolve(root, 'index.html'),
         atlab: path.resolve(root, 'atlab.html'),
+        editor: path.resolve(root, 'editor.html'),
       },
     },
   },

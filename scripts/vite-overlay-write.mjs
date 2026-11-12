@@ -16,6 +16,12 @@ import {
   readCollection,
   replaceAnnotation,
 } from './annotation-json.mjs'
+import {
+  appendAuditLog,
+  handleEditorAuthRoutes,
+  pathRequiresEditorAuth,
+  requireEditorOr401,
+} from './editor-auth.mjs'
 
 const ALLOWED = new Set([
   'handi-shibasheng',
@@ -190,6 +196,24 @@ export function overlayWriteApi(projectRoot) {
         const urlPath = req.url?.split('?')[0]
         const query = new URL(req.url ?? '/', 'http://localhost').searchParams
 
+        if (await handleEditorAuthRoutes(projectRoot, req, res, urlPath)) return
+
+        let editorSession = null
+        if (pathRequiresEditorAuth(urlPath, req.method ?? 'GET')) {
+          editorSession = requireEditorOr401(projectRoot, req, res)
+          if (!editorSession) return
+        }
+
+        const auditEdit = (action, detail) => {
+          if (!editorSession) return
+          appendAuditLog(projectRoot, {
+            editorId: editorSession.editorId,
+            editorLabel: editorSession.label,
+            action,
+            detail,
+          })
+        }
+
         // Vite only serves public files it saw at startup. A capture writes a
         // new PNG after that, so read the label directory from disk instead.
         if (req.method === 'GET' && urlPath?.startsWith('/ui/labels/')) {
@@ -221,6 +245,7 @@ export function overlayWriteApi(projectRoot) {
                 )
               : ranked.matches
             const selectedId = capital ? chooseCapital(ranked.matches, province) : ranked.selectedId
+            auditEdit('annotations/chgis', { names })
             sendJson(res, 200, { ok: true, matches, selectedId })
           } catch (err) {
             fail(res, 400, err)
@@ -234,6 +259,12 @@ export function overlayWriteApi(projectRoot) {
             const cropped = await cropNormalizedRect({
               dziPath,
               tilesDir,
+              x0: body.x0,
+              y0: body.y0,
+              x1: body.x1,
+              y1: body.y1,
+            })
+            auditEdit('annotations/capture', {
               x0: body.x0,
               y0: body.y0,
               x1: body.x1,
@@ -292,9 +323,12 @@ export function overlayWriteApi(projectRoot) {
             if (mode === 'insert') insertAnnotation(annotationsPath, annotation)
             else replaceAnnotation(annotationsPath, id, annotation)
             invalidateFile(server, annotationsPath)
+            auditEdit('annotations/entry', { mode, id })
             sendJson(res, 200, {
               ok: true,
               annotation,
+              editorId: editorSession?.editorId,
+              editorLabel: editorSession?.label,
               warning: filled.warning,
               translated: filled.translated,
             })
@@ -322,7 +356,14 @@ export function overlayWriteApi(projectRoot) {
               }
             }
             invalidateFile(server, annotationsPath)
-            sendJson(res, 200, { ok: true, id, imageDeleted })
+            auditEdit('annotations/delete', { id, imageDeleted })
+            sendJson(res, 200, {
+              ok: true,
+              id,
+              imageDeleted,
+              editorId: editorSession?.editorId,
+              editorLabel: editorSession?.label,
+            })
           } catch (err) {
             fail(res, 400, err)
           }
@@ -336,6 +377,7 @@ export function overlayWriteApi(projectRoot) {
             if (!/^[a-z0-9-]+$/i.test(id)) throw new Error('Bad annotation id')
             patchAnnotationBox(annotationsPath, id, body.x, body.y, body.hitWidth, body.hitHeight)
             invalidateFile(server, annotationsPath)
+            auditEdit('annotations/point', { id })
             res.statusCode = 200
             res.setHeader('Content-Type', 'application/json')
             res.end(
@@ -346,6 +388,8 @@ export function overlayWriteApi(projectRoot) {
                 y: fmtCoord(body.y),
                 hitWidth: body.hitWidth == null ? null : fmtCoord(body.hitWidth),
                 hitHeight: body.hitHeight == null ? null : fmtCoord(body.hitHeight),
+                editorId: editorSession?.editorId,
+                editorLabel: editorSession?.label,
               }),
             )
           } catch (err) {
@@ -387,6 +431,7 @@ export function overlayWriteApi(projectRoot) {
             }
             writeJson(outPath, collection)
             invalidateFile(server, outPath)
+            auditEdit('overlays/save', { fileKey })
             res.statusCode = 200
             res.setHeader('Content-Type', 'application/json')
             res.end(
@@ -395,6 +440,8 @@ export function overlayWriteApi(projectRoot) {
                 written: outPath,
                 seaLanes: null,
                 at: new Date().toISOString(),
+                editorId: editorSession?.editorId,
+                editorLabel: editorSession?.label,
               }),
             )
             return
@@ -418,6 +465,8 @@ export function overlayWriteApi(projectRoot) {
             invalidateFile(server, seaLanesPath)
           }
 
+          auditEdit('overlays/save', { fileKey })
+
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
           res.end(
@@ -426,6 +475,8 @@ export function overlayWriteApi(projectRoot) {
               written: outPath,
               seaLanes: seaLanes ? seaLanesPath : null,
               at: new Date().toISOString(),
+              editorId: editorSession?.editorId,
+              editorLabel: editorSession?.label,
             }),
           )
         } catch (err) {

@@ -45,5 +45,10 @@ assets/land/land-alpha.png
 .vercel
 .env*
 
+# Dev /editor passwords, sessions, audit (local only)
+data/editor/
+EDITOR-PASSWORDS.md
+EDITOR-PASSWORDS.example.md
+
 # Full CNS 說文解字 dump (subset is TW-Shuowen.ttf)
 assets/fonts/TW-Shuowen-full.ttf

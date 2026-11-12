@@ -1,4 +1,5 @@
 import { CREDITS_SHOW_DEV_TOOLS } from '../config'
+import { canUseMapEditor } from '../lib/mapEditor'
 import { isWallRotationEnabled, setWallRotationEnabled } from '../viewer/wallTilt'
 import {
   getLocale,
@@ -63,8 +64,12 @@ function syncEdgeEditButton(): void {
   edgeEditBtn.textContent = shown ? t('credits.edgeOn') : t('credits.edgeOff')
 }
 
+function showMapEditorTools(): boolean {
+  return CREDITS_SHOW_DEV_TOOLS && canUseMapEditor()
+}
+
 function toolsRowHtml(): string {
-  const edgeBtn = CREDITS_SHOW_DEV_TOOLS
+  const edgeBtn = showMapEditorTools()
     ? `
         <button
           type="button"
@@ -263,7 +268,7 @@ function ensurePanel(): HTMLElement {
     setLocale(loc)
   })
 
-  if (CREDITS_SHOW_DEV_TOOLS) {
+  if (showMapEditorTools()) {
     onVertexEditorPanelVisible(() => syncEdgeEditButton())
     onVertexEditorAvailable(() => syncEdgeEditButton())
   }
