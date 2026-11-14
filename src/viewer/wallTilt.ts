@@ -1544,8 +1544,6 @@ function placeAtlabWallChrome(): void {
     app.style.setProperty('--wall-minimap-bottom', `${miniBottom.toFixed(1)}px`)
   }
 
-  /* Tour skip is pinned to the wall's bottom-right corner (overlays.css);
-     it does not track the frame. */
 }
 
 function bindWallChrome(viewer: Viewer): void {

@@ -1,5 +1,6 @@
 import { getLocale } from '../i18n'
 import type { TourLocaleText } from './types'
+import { ensureTourDialogueDock } from './tourDialogueDock'
 
 let root: HTMLElement | null = null
 let titleEl: HTMLElement | null = null
@@ -7,8 +8,8 @@ let bodyEl: HTMLElement | null = null
 
 function ensure(): void {
   if (root) return
-  const app = document.querySelector<HTMLElement>('#app')
-  if (!app) return
+  const host = ensureTourDialogueDock()
+  if (!host) return
   root = document.createElement('div')
   root.id = 'tour-caption'
   root.className = 'tour-caption'
@@ -17,7 +18,7 @@ function ensure(): void {
     <p class="tour-caption-title" id="tour-caption-title"></p>
     <p class="tour-caption-body" id="tour-caption-body"></p>
   `
-  app.appendChild(root)
+  host.prepend(root)
   titleEl = root.querySelector('#tour-caption-title')
   bodyEl = root.querySelector('#tour-caption-body')
 }
@@ -41,4 +42,9 @@ export function showTourCaption(
 export function hideTourCaption(): void {
   if (!root) return
   root.hidden = true
+}
+
+/** True when the dock is showing a title and/or body line. */
+export function isTourCaptionVisible(): boolean {
+  return Boolean(root && !root.hidden)
 }

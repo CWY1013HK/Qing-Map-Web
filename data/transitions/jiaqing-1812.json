@@ -48,7 +48,7 @@
       "narrate": "russia",
       "music": {
         "path": "/audio/tours/jiaqing-1812/cues/la-marseillaise.mp3",
-        "volume": 0.42
+        "volume": 0.21
       },
       "images": [
         {
@@ -94,7 +94,7 @@
       "narrate": "england",
       "music": {
         "path": "/audio/tours/jiaqing-1812/cues/star-spangled-banner.mp3",
-        "volume": 0.42
+        "volume": 0.21
       },
       "images": [
         {
@@ -141,7 +141,7 @@
       "narrate": "india",
       "music": {
         "path": "/audio/tours/jiaqing-1812/cues/temple-of-doom-end-credits.mp3",
-        "volume": 0.42,
+        "volume": 0.21,
         "startAt": 63
       },
       "images": [
@@ -255,8 +255,20 @@
       "narrate": "canton",
       "images": [
         {
+          "src": "/tours/jiaqing-1812/canton-huantianyitong-star-chart.jpg",
+          "alt": "渾天壹統星象全圖 — unified celestial chart (天圓地方)"
+        },
+        {
           "src": "/tours/jiaqing-1812/canton-thirteen-factories.jpg",
           "alt": "The Thirteen Factories at Canton"
+        },
+        {
+          "src": "/tours/jiaqing-1812/canton-view.jpeg",
+          "alt": "View of Canton and the Pearl River"
+        },
+        {
+          "src": "/tours/jiaqing-1812/canton-houqua.jpeg",
+          "alt": "Portrait of Houqua (Wu Bingjian)"
         }
       ],
       "waitAfterMs": 400

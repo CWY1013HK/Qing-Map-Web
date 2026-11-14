@@ -513,24 +513,42 @@ html:lang(zh-Hans) .province-label--xiandai {
   transition: opacity 0.4s ease;
 }
 
-#app.focus-mode .tour-caption,
-#app.focus-mode .tour-skip,
-#app.focus-mode .tour-frames,
-#app.byobu-mode .tour-caption,
-#app.byobu-mode .tour-skip,
-#app.byobu-mode .tour-frames {
+#app.focus-mode:not(.is-tour-playing) .tour-caption,
+#app.focus-mode:not(.is-tour-playing) .tour-skip,
+#app.focus-mode:not(.is-tour-playing) .tour-frames,
+#app.byobu-mode:not(.is-tour-playing) .tour-caption,
+#app.byobu-mode:not(.is-tour-playing) .tour-skip,
+#app.byobu-mode:not(.is-tour-playing) .tour-frames {
   opacity: 0 !important;
   pointer-events: none !important;
   visibility: hidden;
 }
 
+/* Tour subtitles + skip — centred on the screen (viewport or ATLab wall) */
+.tour-dialogue-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 9;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.55rem;
+  max-width: min(calc(42rem + 4rem), 92vw);
+  pointer-events: none;
+}
+
+.atlab-wall .tour-dialogue-dock {
+  position: absolute;
+}
+
 /* Tour caption — transcript under voiceover (Manchu stays visible here) */
 .tour-caption {
-  position: absolute;
-  left: 50%;
-  bottom: 1.35rem;
-  z-index: 8;
-  transform: translateX(-50%);
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: min(42rem, 88vw);
   padding: 0.75rem 1.15rem 0.9rem;
   border-radius: 2px;
@@ -561,12 +579,11 @@ html:lang(zh-Hans) .province-label--xiandai {
   white-space: pre-wrap;
 }
 
-/* Skip current dialogue line — bottom-right (map click does the same) */
+/* Skip current dialogue line (map click does the same) */
 .tour-skip {
-  position: absolute;
-  right: 1.15rem;
-  bottom: 1.25rem;
-  z-index: 9;
+  position: relative;
+  flex: 0 0 auto;
+  pointer-events: auto;
   width: 2.6rem;
   height: 2.6rem;
   padding: 0;
@@ -604,10 +621,6 @@ html:lang(zh-Hans) .province-label--xiandai {
 }
 
 .atlab-wall .tour-skip {
-  /* Pinned to the wall's bottom-right corner, same as regular mode.
-     It does not track the sheet or the zoom frame. */
-  right: 1.15rem;
-  bottom: 1.25rem;
   width: 2.35rem;
   height: 2.35rem;
 }

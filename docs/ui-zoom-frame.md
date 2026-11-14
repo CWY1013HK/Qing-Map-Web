@@ -1,6 +1,6 @@
 # UI zoom frame
 
-The ATLab controls (badges, plaques, minimap) sit on a frame around the map. These rules are fixed. (The tour skip button is not part of the frame: it stays pinned to the wall's bottom-right corner, like in regular mode.)
+The ATLab controls (badges, plaques, minimap) sit on a frame around the map. These rules are fixed. Tour subtitles and the skip control sit in a dock centred on the screen (viewport or ATLab wall), not on the map frame.
 
 ## 1. Zooming expansion stays on in 2D mode
 

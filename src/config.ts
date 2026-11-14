@@ -50,9 +50,9 @@ export const AUDIO = {
   mistSheng: '/audio/mist-sheng.mp3',
   chaoTianZi: '/audio/chao-tian-zi.mp3',
   jingDiao: '/audio/jing-diao.mp3',
-  volume: 0.25,
+  volume: 0.125,
   /** Louder entry hit when the seal is clicked. */
-  chaoTianZiVolume: 0.35,
+  chaoTianZiVolume: 0.175,
   /** Skip silence so the drum lands during Mist Sheng’s fade-out. */
   chaoTianZiStartAt: 1,
   fadeMs: 800,
