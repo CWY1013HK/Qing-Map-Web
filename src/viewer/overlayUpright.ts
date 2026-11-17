@@ -52,6 +52,11 @@ function ensureProvinceHost(
   pool: Map<string, ProvinceHost>,
 ): ProvinceHost {
   let host = pool.get(key)
+  if (host && host.root.parentElement !== layer) {
+    host.root.remove()
+    pool.delete(key)
+    host = undefined
+  }
   if (host) return host
   const root = document.createElement('div')
   root.className = 'province-label-billboard-host'

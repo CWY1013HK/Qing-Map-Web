@@ -316,6 +316,11 @@ body {
   /* No clip at all: a raised or turned sheet keeps painting past every edge.
      On the wall, the floor band paints over whatever spills past the seam. */
   overflow: visible;
+  /* Promote #viewer to its own compositing layer so the 3D-transformed
+     child does not leave a dark border-box edge on this element. */
+  will-change: transform;
+  /* Prevent the compositing layer bounds from showing as a visible line. */
+  outline: none;
 }
 
 #app.is-wall-tilt #viewer .openseadragon-container,
@@ -332,6 +337,10 @@ body {
   transform-style: preserve-3d;
   /* Keep the redrawing canvas on this sheet. A flat copy otherwise stays behind when the map is dragged. */
   isolation: isolate;
+  /* Force a dedicated compositing layer so the 3D-transformed canvas does not
+     leave a stale 2D "ghost" copy behind — especially on Windows/Edge where
+     isolation alone is unreliable for canvas elements under perspective. */
+  will-change: transform;
 }
 
 #app.is-wall-tilt #viewer .openseadragon-canvas,
@@ -340,6 +349,8 @@ body {
 #app.is-wall-tilt-settle #viewer canvas {
   transform: translateZ(0);
   backface-visibility: hidden;
+  /* Promote canvas to its own layer to prevent ghost copies under 3D tilt. */
+  will-change: transform;
 }
 
 /* Flat 2D spin. Rotation off still turns the painting in its own plane. */

@@ -60,6 +60,14 @@
 .atlab-wall .toolbar {
   left: var(--wall-badge-left);
   top: var(--wall-badge-top);
+  gap: 0.4rem;
+}
+
+/* ATLab-only badge sizing: ~10% smaller than the 52px base to prevent
+   overlap with the stamp/seals at the bottom of the short wall. */
+.atlab-wall .badge-btn {
+  width: 47px;
+  height: 47px;
 }
 
 /* Pearl stays left of the badges until that side meets the wall, then eases across. */
@@ -123,6 +131,13 @@
 
 .atlab-wall .tour-seal {
   --tour-seal-size: min(42px, 16.5cqh);
+}
+
+/* Ensure the HTML preview image never lingers as a ghost under the 3D
+   transformed canvas — even if JS timing differs on Windows/Edge. */
+.atlab-wall #app.is-wall-tilt .preview,
+.atlab-wall #app.is-wall-tilt-settle .preview {
+  display: none !important;
 }
 
 .atlab-wall .overlay-seals {
