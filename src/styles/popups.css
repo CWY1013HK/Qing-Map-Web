@@ -233,11 +233,12 @@
 /* Inscriptions broken into source lines: one visual line each, as wide as the text.
    The frame grows with the text up to the viewport, so the lines stay inside the border. */
 .annotation-popup--unwrapped {
+  --popup-w: max-content;
+  max-width: 96vw;
   max-height: min(94vh, 1040px);
 }
 
 .annotation-popup--long.annotation-popup--unwrapped {
-  --popup-w: max-content;
   max-width: 96vw;
 }
 

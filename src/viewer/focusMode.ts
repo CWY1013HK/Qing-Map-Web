@@ -1,5 +1,5 @@
 import OpenSeadragon from 'openseadragon'
-import { viewerPixelFromClient, wallObjectZoom } from './wallTilt'
+import { syncPearlOrbChrome, viewerPixelFromClient, wallObjectZoom } from './wallTilt'
 import {
   flipXForDrift,
   pickCloudAsset,
@@ -567,6 +567,7 @@ export function mountFocusMode(viewer: Viewer): void {
     void closeCreditsPopup()
     app.classList.add('focus-mode')
     btn.setAttribute('aria-pressed', 'true')
+    syncPearlOrbChrome()
     sea = startSeaUnderlay(viewer)
     handle = startFocusClouds(viewer, { canvas })
     if (!viewer.world.getItemAt(0)) {
@@ -576,6 +577,7 @@ export function mountFocusMode(viewer: Viewer): void {
       sea = null
       app.classList.remove('focus-mode')
       btn.setAttribute('aria-pressed', 'false')
+      syncPearlOrbChrome()
     }
   }
 
@@ -589,6 +591,7 @@ export function mountFocusMode(viewer: Viewer): void {
     sea = null
     window.setTimeout(() => {
       app.classList.remove('focus-mode')
+      syncPearlOrbChrome()
     }, 650)
   }
 

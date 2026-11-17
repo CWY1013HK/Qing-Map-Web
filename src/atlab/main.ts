@@ -5,6 +5,7 @@ import '../styles/overlays.css'
 import '../styles/popups.css'
 import { ATLAB, MAP_ASPECT } from '../config'
 import { bootInteractiveViewer } from '../viewer/bootViewer'
+import { bindAtlabMultiTouch } from './wallInput'
 import { bootFloorViewer } from './bootFloor'
 
 /**
@@ -13,9 +14,9 @@ import { bootFloorViewer } from './bootFloor'
  * Floor map is laid out at scan aspect then vertically stretched to fill the floor.
  * Always scale to fit the browser so both wall + floor are visible
  * (native 1:1 when the window is at least that large).
- * Pass ?nofit=1 to scroll the raw pixel canvas instead.
- * Pass ?wallTilt=1 to start turned, or switch it on from 功. Two fingers, or the
- * metal sphere beside 淨 and 功, turn the sheet. The floor stays flat.
+ * Pass ?nofit=1 to show the raw pixel canvas without scale-to-fit (page stays fixed).
+ * Pass ?wallTilt=1 to start turned, or switch it on from 功 天旋地轉.
+ * Pearl shows with 功 天旋地轉 or in 折; two-finger gestures work on the flat wall.
  */
 function layoutAtlabFrame(): void {
   const root = document.getElementById('atlab')
@@ -32,12 +33,9 @@ function layoutAtlabFrame(): void {
 
   const noFit = new URLSearchParams(window.location.search).has('nofit')
   if (noFit) {
-    document.body.style.overflow = 'auto'
     root.style.transform = ''
     return
   }
-
-  document.body.style.overflow = 'hidden'
   const sx = window.innerWidth / ATLAB.width
   const sy = window.innerHeight / totalH
   const scale = Math.min(sx, sy)
@@ -57,7 +55,8 @@ if (new URLSearchParams(window.location.search).has('floorDebug')) {
   )
 }
 
-bootInteractiveViewer()
+const wallViewer = bootInteractiveViewer()
+bindAtlabMultiTouch(wallViewer)
 bootFloorViewer()
 
 /* After first paint / scale, force OSD to remeasure both displays */

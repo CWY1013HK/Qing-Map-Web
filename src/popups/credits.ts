@@ -1,6 +1,6 @@
 import { CREDITS_SHOW_DEV_TOOLS } from '../config'
 import { canUseMapEditor } from '../lib/mapEditor'
-import { isWallRotationEnabled, setWallRotationEnabled } from '../viewer/wallTilt'
+import { isPearlVisible, setPearlVisible } from '../viewer/wallTilt'
 import {
   getLocale,
   LOCALES,
@@ -150,7 +150,8 @@ function applyCreditsCopy(): void {
 
 function syncRotateButton(): void {
   if (!rotateBtn) return
-  const on = isWallRotationEnabled()
+  rotateBtn.hidden = false
+  const on = isPearlVisible()
   rotateBtn.setAttribute('aria-pressed', on ? 'true' : 'false')
   rotateBtn.title = on ? t('credits.rotateHide') : t('credits.rotateShow')
   rotateBtn.textContent = on ? t('credits.rotateOn') : t('credits.rotateOff')
@@ -255,7 +256,7 @@ function ensurePanel(): HTMLElement {
   })
 
   rotateBtn?.addEventListener('click', () => {
-    setWallRotationEnabled(!isWallRotationEnabled())
+    setPearlVisible(!isPearlVisible())
   })
 
   document.addEventListener('qing-rotation-change', () => syncRotateButton())

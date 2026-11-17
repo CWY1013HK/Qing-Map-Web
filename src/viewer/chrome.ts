@@ -1,8 +1,94 @@
 import type OpenSeadragon from 'openseadragon'
 import { UI_THEME } from '../config'
 import { t } from '../i18n'
+import { resetWallOrientationOnHome } from './wallTilt'
 
 type Viewer = OpenSeadragon.Viewer
+
+/** Toolbar 全 and triple-click on the map — home zoom, flat wall, neutral tilt / spin. */
+export function restoreMapToInitialView(viewer: Viewer): void {
+  resetWallOrientationOnHome()
+  viewer.viewport.goHome(true)
+}
+
+const TRIPLE_CLICK_MS = 500
+const TRIPLE_CLICK_PX = 12
+/** Above label canvas-click handlers so the third tap can cancel their action. */
+const TRIPLE_CLICK_PRIORITY = 90
+
+function mountTripleClickRestore(viewer: Viewer): void {
+  let streak = 0
+  let lastAt = 0
+  let lastX = 0
+  let lastY = 0
+
+  const resetStreak = () => {
+    streak = 0
+    lastAt = 0
+  }
+
+  viewer.addHandler(
+    'canvas-click',
+    (event) => {
+      if (!event.quick) {
+        resetStreak()
+        return
+      }
+
+      const app = document.getElementById('app')
+      if (
+        app?.classList.contains('intro-active') ||
+        app?.classList.contains('byobu-mode') ||
+        app?.classList.contains('focus-mode') ||
+        app?.classList.contains('label-editing') ||
+        app?.classList.contains('annotation-editing')
+      ) {
+        resetStreak()
+        return
+      }
+
+      const raw = event.originalEvent
+      let x = 0
+      let y = 0
+      if (raw instanceof MouseEvent) {
+        x = raw.clientX
+        y = raw.clientY
+      } else if (typeof TouchEvent !== 'undefined' && raw instanceof TouchEvent) {
+        const t = raw.changedTouches[0]
+        if (!t) {
+          resetStreak()
+          return
+        }
+        x = t.clientX
+        y = t.clientY
+      } else {
+        resetStreak()
+        return
+      }
+
+      const now = performance.now()
+      if (streak > 0 && (now - lastAt > TRIPLE_CLICK_MS || Math.hypot(x - lastX, y - lastY) > TRIPLE_CLICK_PX)) {
+        streak = 0
+      }
+
+      streak += 1
+      lastAt = now
+      lastX = x
+      lastY = y
+
+      if (streak >= 2) {
+        event.preventDefaultAction = true
+      }
+
+      if (streak >= 3) {
+        resetStreak()
+        restoreMapToInitialView(viewer)
+      }
+    },
+    {},
+    TRIPLE_CLICK_PRIORITY,
+  )
+}
 
 export function mountChrome(viewer: Viewer): void {
   const zoomIn = document.querySelector<HTMLButtonElement>('#btn-zoom-in')
@@ -57,8 +143,10 @@ export function mountChrome(viewer: Viewer): void {
     viewer.viewport.applyConstraints()
   })
   home.addEventListener('click', () => {
-    viewer.viewport.goHome(true)
+    restoreMapToInitialView(viewer)
   })
+
+  mountTripleClickRestore(viewer)
 
   let minimapOpen = true
   let animating = false

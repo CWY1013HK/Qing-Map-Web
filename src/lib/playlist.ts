@@ -126,7 +126,7 @@ class MapPlaylist {
       void this.play(AUDIO.jingDiao, {
         loop: false,
         fadeIn: true,
-        volume: AUDIO.volume,
+        volume: AUDIO.jingDiaoVolume,
       })
       return
     }
@@ -139,7 +139,11 @@ class MapPlaylist {
     if (this.phase === 'ambient') {
       if (this.ambientCue === 'mist') {
         this.ambientCue = 'jing'
-        void this.play(AUDIO.jingDiao, { loop: false, fadeIn: true })
+        void this.play(AUDIO.jingDiao, {
+          loop: false,
+          fadeIn: true,
+          volume: AUDIO.jingDiaoVolume,
+        })
       } else {
         this.ambientCue = 'mist'
         void this.play(AUDIO.mistSheng, { loop: false, fadeIn: true })
@@ -299,7 +303,14 @@ class MapPlaylist {
     } else if (this.phase === 'ambient') {
       const src =
         this.ambientCue === 'jing' ? AUDIO.jingDiao : AUDIO.mistSheng
-      void this.play(src, { loop: false, fadeIn: false })
+      void this.play(src, {
+        loop: false,
+        fadeIn: false,
+        volume:
+          this.ambientCue === 'jing'
+            ? AUDIO.jingDiaoVolume
+            : AUDIO.volume,
+      })
     }
   }
 }

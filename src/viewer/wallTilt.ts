@@ -1,4 +1,9 @@
 import OpenSeadragon, { type Viewer } from 'openseadragon'
+import {
+  clientPointFromAtlabInput,
+  shouldResetWallGestureOnPress,
+} from '../atlab/wallInput'
+import { WALL_ROTATION_TOUCH_ENABLED } from '../config'
 import { t } from '../i18n'
 import { clearWallBillboardChrome } from './wallBillboardReset'
 
@@ -7,6 +12,7 @@ import { clearWallBillboardChrome } from './wallBillboardReset'
  * Starts on with `?wallTilt=1` (32°) or `?wallTilt=28` (degrees). Otherwise
  * the pearl beside 淨 and 功, or the 功 settings row, turns it on.
  * Optional `?wallPerspective=2400`.
+ * The toolbar pearl shows when 功 天旋地轉 or 折 is on; otherwise it stays hidden.
  * A tap on the pearl toggles the 3D lean. Dragging it sideways spins the map
  * flat, in its own plane, with no stop — across 360° and upside down, even
  * while the 3D lean is off. Dragging down leans it back. Shift-drag turns it
@@ -16,15 +22,9 @@ import { clearWallBillboardChrome } from './wallBillboardReset'
  * The floor viewer is never tilted.
  */
 
-const DEFAULT_DEGREES = 32
 const DEFAULT_PERSPECTIVE_PX = 2400
 /** 85% of 90° — far enough to feel edge-on, near enough that the sheet stays visible from the sides. */
 const MAX_FACE_DEG = 90 * 0.85
-const MIN_PERSPECTIVE_PX = 400
-/** Screen pixels of a drag that equal one degree. */
-const DEG_PER_PX = 0.32
-/** Movement under this is a tap, which toggles rotation. */
-const TAP_PX = 8
 /** Matches the CSS angle transition on `#app.is-wall-tilt-settle`. */
 const SETTLE_MS = 480
 /** Run before label / tour handlers that read canvas-click position. */
@@ -45,6 +45,17 @@ export type WallTilt = {
 
 type Pt = { x: number; y: number }
 
+/** Touch must not tilt or spin the sheet when {@link WALL_ROTATION_TOUCH_ENABLED} is false. */
+export function touchMayRotateWall(ev: Event | null | undefined): boolean {
+  if (WALL_ROTATION_TOUCH_ENABLED) return true
+  if (!ev) return true
+  if (typeof PointerEvent !== 'undefined' && ev instanceof PointerEvent) {
+    return ev.pointerType !== 'touch'
+  }
+  if (typeof TouchEvent !== 'undefined' && ev instanceof TouchEvent) return false
+  return true
+}
+
 let host: HTMLElement | null = null
 let probes: HTMLElement[] | null = null
 let boundViewer: Viewer | null = null
@@ -60,136 +71,78 @@ let rollDeg = 0
 let wallOrigin: Pt | null = null
 let rotationEnabled = false
 let pendingEnable = false
-let choseAngle = false
 let perspectivePx = DEFAULT_PERSPECTIVE_PX
 let baseVisibility = 1
 let passZoomTo: OpenSeadragon.Viewport['zoomTo'] | null = null
 let settleTimer = 0
-let orientFrame = 0
+/**
+ * Decorative pearl visibility, independent of map rotation. In 折 mode the
+ * pearl always shows; outside it, the 天旋地轉 setting toggles it.
+ */
+let pearlToggleOn = false
 
 /**
  * Read the launch query before OpenSeadragon builds the viewer.
- * Absent flag leaves rotation off until the settings toggle.
+ * Rotation is permanently disabled — the map always stays upright 2D.
+ * Returns null so no tilt is applied.
  */
 export function prepareWallTilt(
-  params: URLSearchParams = new URLSearchParams(window.location.search),
+  _params: URLSearchParams = new URLSearchParams(window.location.search),
 ): WallTilt | null {
-  const pRaw = params.get('wallPerspective')
-  if (pRaw) {
-    const n = Number(pRaw)
-    if (Number.isFinite(n) && n >= MIN_PERSPECTIVE_PX) perspectivePx = n
-  }
-
-  if (!params.has('wallTilt')) {
-    pendingEnable = false
-    return null
-  }
-
-  const raw = params.get('wallTilt') ?? ''
-  let degrees = DEFAULT_DEGREES
-  if (raw !== '' && raw !== '1') {
-    const n = Number(raw)
-    if (!Number.isFinite(n) || n <= 0) {
-      pendingEnable = false
-      return null
-    }
-    degrees = Math.min(MAX_FACE_DEG, n)
-  }
-
-  tiltDeg = degrees
+  pendingEnable = false
+  tiltDeg = 0
   yawDeg = 0
-  choseAngle = true
-  pendingEnable = true
-  return { degrees, perspectivePx }
+  rollDeg = 0
+  return null
 }
 
 export function isWallRotationEnabled(): boolean {
   return rotationEnabled
 }
 
-/** Pearl or settings toggle. Remembers the last angle, and leans to 32° the first time. */
-export function setWallRotationEnabled(on: boolean, animate = true): boolean {
-  if (!boundViewer || !passZoomTo) return rotationEnabled
-  if (!on && document.getElementById('app')?.classList.contains('byobu-mode')) return rotationEnabled
-  if (on === rotationEnabled) return rotationEnabled
+/** Whether the 天旋地轉 setting has switched the decorative pearl on. */
+export function isPearlVisible(): boolean {
+  return pearlToggleOn
+}
 
+/** 天旋地轉 toggle: show or hide the decorative pearl. Never tilts the map. */
+export function setPearlVisible(on: boolean): void {
+  pearlToggleOn = !!on
+  syncPearlOrbChrome()
+  document.dispatchEvent(new CustomEvent('qing-rotation-change'))
+}
+
+/**
+ * Pearl or settings toggle. Rotation is permanently disabled — always
+ * resets to flat 2D. Returns false.
+ */
+export function setWallRotationEnabled(_on: boolean, _animate = true): boolean {
+  if (!boundViewer || !passZoomTo) return false
+
+  // Always ensure we are in flat 2D mode.
   const viewport = boundViewer.viewport
-  const home = viewport.getHomeZoom()
-  const ease = animate && !prefersReducedMotion()
-
-  if (on) {
-    if (!choseAngle && tiltDeg === 0 && yawDeg === 0) {
-      tiltDeg = DEFAULT_DEGREES
-      choseAngle = true
-    }
-    const current = viewport.getZoom(true)
-    const nextScale = home > 0 ? clamp(current / home, MIN_OBJECT_SCALE, MAX_OBJECT_SCALE) : 1
-    rotationEnabled = true
-    objectScale = 1
-    tiltRoot()?.classList.remove('is-wall-scale-settle')
-    markTiltRoot(true)
-    if (ease) {
-      const root = tiltRoot()
-      root?.style.setProperty('--wall-tilt', '0deg')
-      root?.style.setProperty('--wall-yaw', '0deg')
-      // The in-plane spin carries over. A flat turn stays visible as the lean arrives.
-      if (root) armSettle(root)
-      cancelAnimationFrame(orientFrame)
-      orientFrame = requestAnimationFrame(() => {
-        orientFrame = 0
-        if (rotationEnabled) applyOrientation()
-      })
-    }
-    if (home > 0) viewport.zoomTo(home * nextScale, undefined, true)
-    if (!ease) applyOrientation()
-    notifyRotation()
-    return true
-  }
-
-  const fromScale = objectScale
-  const belowHome = fromScale < 0.999
-  const logical = home > 0 ? home * Math.max(fromScale, 1) : viewport.getZoom(true)
-  const center = viewport.getCenter(true)
-  rotationEnabled = false
-  objectScale = 1
-  // The flat spin survives the lean leaving. A twist is not a 3D pose.
-  cancelAnimationFrame(orientFrame)
-  orientFrame = 0
   const root = tiltRoot()
-  root?.classList.remove('is-wall-scale-settle')
-  if (ease && root) {
-    // A shrink is not legal once the sheet is flat, so grow it back to the
-    // home size while the angles ease to 0. The same CSS shift drops it
-    // onto the bottom edge again.
-    if (belowHome) root.classList.add('is-wall-scale-settle')
-    armSettle(root)
-    root.style.setProperty('--wall-tilt', '0deg')
-    root.style.setProperty('--wall-yaw', '0deg')
-    root.style.setProperty('--wall-object-lift', '0px')
-    if (!belowHome) root.style.setProperty('--wall-object-scale', '1')
-  } else {
-    root?.style.setProperty('--wall-object-scale', '1')
+  if (rotationEnabled || tiltDeg !== 0 || yawDeg !== 0 || rollDeg !== 0) {
+    rotationEnabled = false
+    tiltDeg = 0
+    yawDeg = 0
+    rollDeg = 0
+    objectScale = 1
+    objectLift = 0
+    root?.classList.remove('is-wall-tilt', 'is-wall-tilt-settle', 'is-wall-scale-settle')
     root?.style.setProperty('--wall-tilt', '0deg')
     root?.style.setProperty('--wall-yaw', '0deg')
+    root?.style.setProperty('--wall-roll', '0deg')
+    root?.style.setProperty('--wall-object-scale', '1')
     root?.style.setProperty('--wall-object-lift', '0px')
+    document.getElementById('viewer')?.classList.remove('is-wall-roll-2d')
+    const vp = viewport as OpenSeadragon.Viewport & { visibilityRatio: number }
+    vp.visibilityRatio = baseVisibility
     if (boundViewer) clearWallBillboardChrome(boundViewer)
+    boundViewer.forceRedraw()
+    boundViewer.navigator?.update(viewport)
   }
-  objectLift = 0
-  markTiltRoot(false)
-  if (ease && belowHome && root) {
-    root.style.setProperty('--wall-object-scale', '1')
-    followScaleSettle(root)
-  }
-  const vp = viewport as OpenSeadragon.Viewport & { visibilityRatio: number }
-  vp.visibilityRatio = baseVisibility
-  if (!belowHome) {
-    passZoomTo(logical, undefined, true)
-    viewport.panTo(center, true)
-  }
-  // Pan and min-zoom ease back into the flat limits while the sheet settles.
-  viewport.applyConstraints(!ease)
-  boundViewer.navigator?.update(viewport)
-  syncFlatRoll()
+  syncPearlOrbChrome()
   notifyRotation()
   return false
 }
@@ -230,6 +183,7 @@ export function bindWallTilt(viewer: Viewer): void {
   mountTurnOrb()
   if (pendingEnable) setWallRotationEnabled(true, false)
   bindWallChrome(viewer)
+  document.addEventListener('qing-byobu-change', syncPearlOrbChrome)
 
   const root = tiltRoot()
   root?.addEventListener('transitionend', (event) => {
@@ -285,7 +239,7 @@ export function bindWallTilt(viewer: Viewer): void {
   viewer.addHandler(
     'canvas-press',
     (event) => {
-      resetGesture()
+      if (shouldResetWallGestureOnPress(event.originalEvent)) resetGesture()
       const client = clientFromEvent(event.originalEvent)
       const local = assignPosition(event.position, client)
       if (client) lastClient = client
@@ -392,23 +346,7 @@ export function bindWallTilt(viewer: Viewer): void {
       if (pts.length < 2) return
       const p0 = pts[0]!
       const p1 = pts[1]!
-      const midDx = (p0.currentPos.x + p1.currentPos.x - p0.lastPos.x - p1.lastPos.x) / 2
-      const midDy = (p0.currentPos.y + p1.currentPos.y - p0.lastPos.y - p1.lastPos.y) / 2
-      const distNow = Math.hypot(p0.currentPos.x - p1.currentPos.x, p0.currentPos.y - p1.currentPos.y)
-      const distLast = Math.hypot(p0.lastPos.x - p1.lastPos.x, p0.lastPos.y - p1.lastPos.y)
-      const zooming = distLast > 12 && Math.abs(distNow / distLast - 1) > 0.05
-      const twist = fingerTwist(p0.lastPos, p1.lastPos, p0.currentPos, p1.currentPos)
-      if (Math.abs(twist) > 0.2) rollDeg += twist
-      if (!rotationEnabled) {
-        if (Math.abs(twist) > 0.2) applyOrientation()
-      } else if (!zooming) {
-        event.preventDefaultPanAction = true
-        event.preventDefaultZoomAction = true
-        if (midDx !== 0 || midDy !== 0) nudgeRotation(midDx, midDy, true)
-        else if (Math.abs(twist) > 0.2) applyOrientation()
-      } else if (Math.abs(twist) > 0.2) {
-        applyOrientation()
-      }
+      // Rotation disabled — no twist/roll handling.
       const a = pageToLocal(p0.currentPos)
       const b = pageToLocal(p1.currentPos)
       const lastA = pageToLocal(p0.lastPos)
@@ -540,7 +478,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-function armSettle(root: HTMLElement): void {
+export function armSettle(root: HTMLElement): void {
   root.classList.add('is-wall-tilt-settle')
   window.clearTimeout(settleTimer)
   settleTimer = window.setTimeout(() => {
@@ -561,7 +499,7 @@ function finishWallTiltSettle(root: HTMLElement): void {
 }
 
 /** Move the frame with the sheet while a zoom eases. */
-function followScaleSettle(root: HTMLElement): void {
+export function followScaleSettle(root: HTMLElement): void {
   const step = () => {
     if (!root.classList.contains('is-wall-scale-settle')) return
     scheduleWallChrome()
@@ -570,18 +508,35 @@ function followScaleSettle(root: HTMLElement): void {
   requestAnimationFrame(step)
 }
 
-function releaseSettle(): void {
+export function releaseSettle(): void {
   window.clearTimeout(settleTimer)
   tiltRoot()?.classList.remove('is-wall-tilt-settle')
 }
 
-function notifyRotation(): void {
+export function syncPearlOrbChrome(): void {
   const orb = document.getElementById('wall-tilt-orb')
-  orb?.setAttribute('aria-pressed', rotationEnabled ? 'true' : 'false')
+  const app = document.getElementById('app')
+  if (!app) return
+  const inByobu = app.classList.contains('byobu-mode') ?? false
+  const inFocus = app.classList.contains('focus-mode') ?? false
+  const show = (pearlToggleOn || inByobu) && !inFocus
+  // The class reveals the pearl without applying any 3D transform to the map.
+  app.classList.toggle('show-pearl', pearlToggleOn)
+  if (!orb) return
+  orb.setAttribute('aria-pressed', pearlToggleOn ? 'true' : 'false')
+  orb.tabIndex = show ? 0 : -1
+  orb.setAttribute('aria-hidden', show ? 'false' : 'true')
+  const label = pearlToggleOn ? t('credits.rotateHide') : t('credits.rotateShow')
+  orb.title = label
+  orb.setAttribute('aria-label', label)
+}
+
+function notifyRotation(): void {
+  syncPearlOrbChrome()
   document.dispatchEvent(new CustomEvent('qing-rotation-change'))
 }
 
-function markTiltRoot(on: boolean): void {
+export function markTiltRoot(on: boolean): void {
   const root = tiltRoot()
   if (!root) return
   root.classList.toggle('is-wall-tilt', on)
@@ -663,15 +618,9 @@ function maxObjectLower(): number {
   return Math.max(0, h - Math.max(bottomL, bottomR))
 }
 
-/** True while province / decor use the upright wall billboard (3D lean or flat spin). */
+/** Rotation disabled — billboard mode is never needed. */
 export function isWallLabelBillboardMode(): boolean {
-  if (rotationEnabled) return true
-  const app = document.getElementById('app')
-  // 3D→2D ease-out: sheet still perspective-transformed until settle ends.
-  if (app?.classList.contains('is-wall-tilt-settle') && !app.classList.contains('is-wall-tilt')) {
-    return true
-  }
-  return !!document.getElementById('viewer')?.classList.contains('is-wall-roll-2d')
+  return false
 }
 
 /** Live wall pose plus framing the 折 WebGL transition should match. */
@@ -793,64 +742,51 @@ export function wallAngleSettleMs(): number {
   return prefersReducedMotion() ? 0 : 440
 }
 
-/** Before 折: upright map in the viewer — yaw/roll off; keep default 3D lean only when entering from 3D. */
-export function prepareWallForByobuEnter(keep3dLean: boolean): void {
+/** Before 折: always flat 2D — no tilt/yaw/roll. */
+export function prepareWallForByobuEnter(_keep3dLean: boolean): void {
   yawDeg = 0
   rollDeg = 0
+  tiltDeg = 0
   objectLift = 0
-  if (keep3dLean) {
-    if (tiltDeg === 0 && !choseAngle) {
-      tiltDeg = DEFAULT_DEGREES
-      choseAngle = true
-    }
-  } else {
-    tiltDeg = 0
-  }
   applyOrientation()
 }
 
-/** After leaving 屏風: neutral turn/spin; flat wall or standard default 3D lean. */
-export function applyStandardWallExit(exitTo3d: boolean): void {
+/** After leaving 屏風: always flat 2D — no tilt/yaw/roll. */
+export function applyStandardWallExit(_exitTo3d: boolean): void {
   yawDeg = 0
   rollDeg = 0
+  tiltDeg = 0
   objectLift = 0
-  if (exitTo3d) {
-    tiltDeg = DEFAULT_DEGREES
-    choseAngle = true
-  } else {
-    tiltDeg = 0
-  }
   applyOrientation()
   boundViewer?.forceRedraw()
 }
 
-/** Sheet angles driving the wall CSS transform (3D lean and/or flat in-plane spin). */
-export function readWallSheetPose(): { tilt: number; yaw: number; roll: number } | null {
-  const root = tiltRoot()
-  if (!root) return null
-  const wall3d =
-    root.classList.contains('is-wall-tilt') || root.classList.contains('is-wall-tilt-settle')
-  const roll2d = !!document.getElementById('viewer')?.classList.contains('is-wall-roll-2d')
-  if (!wall3d && !roll2d) return null
-  const style = getComputedStyle(root)
-  const tilt = parseFloat(style.getPropertyValue('--wall-tilt'))
-  const yaw = parseFloat(style.getPropertyValue('--wall-yaw'))
-  const roll = parseFloat(style.getPropertyValue('--wall-roll'))
-  const rollVal = Number.isFinite(roll) ? roll : rollDeg
-  if (!wall3d) return { tilt: 0, yaw: 0, roll: rollVal }
-  return {
-    tilt: Number.isFinite(tilt) ? tilt : tiltDeg,
-    yaw: Number.isFinite(yaw) ? yaw : yawDeg,
-    roll: rollVal,
+/** Toolbar 全 — fit home: always flat 2D. */
+export function resetWallOrientationOnHome(): void {
+  if (!boundViewer) return
+  // Always reset to flat 2D.
+  if (rotationEnabled || Math.abs(tiltDeg) > 0.001 || Math.abs(yawDeg) > 0.001 || Math.abs(rollDeg) > 0.001 || objectLift > 0.001) {
+    if (rotationEnabled) {
+      setWallRotationEnabled(false, !prefersReducedMotion())
+    } else {
+      tiltDeg = 0
+      yawDeg = 0
+      rollDeg = 0
+      objectLift = 0
+      applyOrientation()
+      boundViewer.forceRedraw()
+      notifyRotation()
+    }
   }
 }
 
+/** Sheet angles — always flat (rotation disabled). */
+export function readWallSheetPose(): { tilt: number; yaw: number; roll: number } | null {
+  return null
+}
+
 function readSheetPose(): { tilt: number; yaw: number; roll: number } | null {
-  const root = tiltRoot()
-  if (!root) return null
-  const active = root.classList.contains('is-wall-tilt') || root.classList.contains('is-wall-tilt-settle')
-  if (!active) return null
-  return readWallSheetPose()
+  return null
 }
 
 /**
@@ -997,7 +933,7 @@ function localDeltaForScreen(screenDx: number, screenDy: number, at: Pt): Pt {
 }
 
 /** Change in the angle between two fingers, in degrees. Positive spins the sheet. */
-function fingerTwist(
+export function fingerTwist(
   lastA: { x: number; y: number },
   lastB: { x: number; y: number },
   nowA: { x: number; y: number },
@@ -1011,7 +947,7 @@ function fingerTwist(
   return (turn * 180) / Math.PI
 }
 
-function clampFace(deg: number): number {
+export function clampFace(deg: number): number {
   return Math.min(MAX_FACE_DEG, Math.max(-MAX_FACE_DEG, deg))
 }
 
@@ -1020,42 +956,27 @@ function isByobuChrome(): boolean {
 }
 
 /** Pearl uses lateral turn while 折 is on — yaw/tilt, not in-plane roll on the 屏風. */
-function pearlLateralMode(shiftKey: boolean): boolean {
+export function pearlLateralMode(shiftKey: boolean): boolean {
   return shiftKey || (isByobuChrome() && rotationEnabled)
 }
 
 /**
- * Drag right spins the map flat, in its own plane. That spin has no stop, so
- * the map turns across 360° and upside down. Drag down leans it back, and
- * Shift-drag turns it laterally. Lean and the lateral turn stop at ±76.5°, so
- * the back never faces the room. The flat spin also works while the 3D lean is off.
+ * Rotation is permanently disabled — all gesture nudges are no-ops.
+ * The map always stays in its initial upright 2D orientation.
  */
-function nudgeRotation(dx: number, dy: number, lateral = false): void {
-  if (lateral) {
-    if (!rotationEnabled) return
-    yawDeg = clampFace(yawDeg + dx * DEG_PER_PX)
-    tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
-  } else {
-    rollDeg += dx * DEG_PER_PX
-    if (rotationEnabled) tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
-  }
-  applyOrientation()
+export function nudgeRotation(_dx: number, _dy: number, _lateral = false): void {
+  // No-op: rotation disabled.
 }
 
+/** Always flat 2D — pushes 0deg to all CSS custom properties. */
 function applyOrientation(): void {
   const root = tiltRoot()
   if (!root) return
-  root.style.setProperty('--wall-tilt', `${tiltDeg.toFixed(2)}deg`)
-  root.style.setProperty('--wall-yaw', `${yawDeg.toFixed(2)}deg`)
-  root.style.setProperty('--wall-roll', `${rollDeg.toFixed(2)}deg`)
-  syncFlatRoll()
-  const orb = document.getElementById('wall-tilt-orb')
-  if (!orb) return
-  const hx = Math.min(68, Math.max(12, 32 - yawDeg * 0.28))
-  const hy = Math.min(70, Math.max(10, 26 + tiltDeg * 0.22))
-  orb.style.setProperty('--orb-hx', `${hx}%`)
-  orb.style.setProperty('--orb-hy', `${hy}%`)
-  orb.setAttribute('aria-valuetext', `${Math.round(tiltDeg)}° / ${Math.round(yawDeg)}° / ${Math.round(rollDeg)}°`)
+  root.style.setProperty('--wall-tilt', '0deg')
+  root.style.setProperty('--wall-yaw', '0deg')
+  root.style.setProperty('--wall-roll', '0deg')
+  // Remove any lingering roll-2d class.
+  document.getElementById('viewer')?.classList.remove('is-wall-roll-2d')
   scheduleWallChrome()
 }
 
@@ -1091,30 +1012,29 @@ function syncWallOrigin(): void {
   app.style.setProperty('--wall-origin-y', `${c.y.toFixed(1)}px`)
 }
 
-/** Keep the 2D flat spin on its own class so it survives the 3D lean toggling off. */
-function syncFlatRoll(): void {
-  const viewer = document.getElementById('viewer')
-  if (!viewer) return
-  viewer.classList.toggle('is-wall-roll-2d', !rotationEnabled && Math.abs(rollDeg) > 0.001)
+/** Rotation disabled — never apply the 2D flat-roll class. */
+export function syncFlatRoll(): void {
+  document.getElementById('viewer')?.classList.remove('is-wall-roll-2d')
   syncWallOrigin()
 }
 
+/**
+ * Mount the decorative pearl. It is shown in 折 mode, or via the 天旋地轉
+ * setting. It does not tilt or spin the map — tapping it toggles its own
+ * visibility only.
+ */
 function mountTurnOrb(): void {
   const toolbar = document.querySelector<HTMLElement>('#toolbar')
   if (!toolbar || document.getElementById('wall-tilt-orb')) {
     applyOrientation()
+    syncPearlOrbChrome()
     return
   }
 
   const orb = document.createElement('div')
   orb.id = 'wall-tilt-orb'
   orb.className = 'wall-tilt-orb'
-  orb.tabIndex = 0
   orb.setAttribute('role', 'button')
-  orb.setAttribute('aria-pressed', rotationEnabled ? 'true' : 'false')
-  const label = t('toolbar.turn')
-  orb.title = label
-  orb.setAttribute('aria-label', label)
   const halo = document.createElement('span')
   halo.className = 'wall-tilt-orb-halo'
   halo.setAttribute('aria-hidden', 'true')
@@ -1124,64 +1044,18 @@ function mountTurnOrb(): void {
   orb.append(halo, pearl)
   toolbar.appendChild(orb)
 
-  let drag: { id: number; x: number; y: number; moved: boolean } | null = null
-
-  orb.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
-    try {
-      orb.setPointerCapture(event.pointerId)
-    } catch {
-      /* Synthetic pointers have no capture id. */
-    }
-    event.preventDefault()
+  orb.addEventListener('click', () => {
+    setPearlVisible(!pearlToggleOn)
   })
-
-  orb.addEventListener('pointermove', (event) => {
-    if (!drag || event.pointerId !== drag.id) return
-    const dx = event.clientX - drag.x
-    const dy = event.clientY - drag.y
-    if (!drag.moved) {
-      if (Math.hypot(dx, dy) < TAP_PX) return
-      drag.moved = true
-      if (!rotationEnabled && event.shiftKey) return
-      orb.classList.add('is-grabbing')
-      releaseSettle()
-    }
-    if (!rotationEnabled && event.shiftKey) return
-    nudgeRotation(dx, dy, pearlLateralMode(event.shiftKey))
-    drag = { id: drag.id, x: event.clientX, y: event.clientY, moved: true }
-  })
-
-  const endDrag = (event: PointerEvent) => {
-    if (!drag || event.pointerId !== drag.id) return
-    const wasTap = !drag.moved
-    drag = null
-    orb.classList.remove('is-grabbing')
-    if (wasTap) setWallRotationEnabled(!rotationEnabled)
-  }
-  orb.addEventListener('pointerup', endDrag)
-  orb.addEventListener('pointercancel', endDrag)
-
   orb.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
-      setWallRotationEnabled(!rotationEnabled)
+      setPearlVisible(!pearlToggleOn)
       event.preventDefault()
-      return
     }
-    const lateral = pearlLateralMode(event.shiftKey)
-    if (!rotationEnabled && (event.shiftKey || event.key === 'ArrowUp' || event.key === 'ArrowDown')) return
-    const step = event.shiftKey ? 8 : 3
-    const px = step / DEG_PER_PX
-    if (event.key === 'ArrowLeft') nudgeRotation(-px, 0, lateral)
-    else if (event.key === 'ArrowRight') nudgeRotation(px, 0, lateral)
-    else if (event.key === 'ArrowUp') nudgeRotation(0, -px, lateral)
-    else if (event.key === 'ArrowDown') nudgeRotation(0, px, lateral)
-    else return
-    event.preventDefault()
   })
 
   applyOrientation()
+  syncPearlOrbChrome()
 }
 
 /**
@@ -1575,7 +1449,21 @@ function mountProbes(container: HTMLElement): HTMLElement[] {
 }
 
 function clientFromEvent(ev: Event): Pt | null {
+  const atlab = clientPointFromAtlabInput(ev)
+  if (atlab) return atlab
+
   if (typeof TouchEvent !== 'undefined' && ev instanceof TouchEvent) {
+    if (ev.touches.length >= 2) {
+      let x = 0
+      let y = 0
+      for (let i = 0; i < ev.touches.length; i++) {
+        const t = ev.touches.item(i)!
+        x += t.clientX
+        y += t.clientY
+      }
+      const n = ev.touches.length
+      return { x: x / n, y: y / n }
+    }
     const t = ev.changedTouches[0] ?? ev.touches[0]
     return t ? { x: t.clientX, y: t.clientY } : null
   }

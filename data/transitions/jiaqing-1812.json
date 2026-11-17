@@ -48,7 +48,7 @@
       "narrate": "russia",
       "music": {
         "path": "/audio/tours/jiaqing-1812/cues/la-marseillaise.mp3",
-        "volume": 0.21
+        "volume": 0.126
       },
       "images": [
         {
@@ -94,7 +94,7 @@
       "narrate": "england",
       "music": {
         "path": "/audio/tours/jiaqing-1812/cues/star-spangled-banner.mp3",
-        "volume": 0.21
+        "volume": 0.126
       },
       "images": [
         {

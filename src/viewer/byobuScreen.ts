@@ -1,5 +1,5 @@
 import byobuConfig from '../../data/byobu.json'
-import { MAP_ASPECT } from '../config'
+import { MAP_ASPECT, WALL_ROTATION_TOUCH_ENABLED } from '../config'
 import {
   readVisibleMapWallQuad,
   readWallByobuSync,
@@ -786,7 +786,9 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     dragX = e.clientX
     dragY = e.clientY
     if (e.shiftKey || shiftOrbit) {
-      orbitYaw += dx * 0.22
+      if (WALL_ROTATION_TOUCH_ENABLED || e.pointerType !== 'touch') {
+        orbitYaw += dx * 0.22
+      }
       return
     }
     const dpr = Math.min(2, window.devicePixelRatio || 1)

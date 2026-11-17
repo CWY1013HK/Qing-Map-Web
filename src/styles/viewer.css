@@ -10,6 +10,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background: #c5d6e4;
   color: #f2e8d5;
   /* Default UI chrome — Kai. Map labels override to LiShu. */
@@ -120,7 +121,7 @@ body {
 .preview {
   position: absolute;
   inset: 0;
-  display: block;
+  display: none;
   z-index: 1;
   width: 100%;
   height: 100%;
@@ -130,6 +131,17 @@ body {
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+}
+
+/*
+ * Keep the static preview visible only while the OSD viewer is still hidden
+ * or has not finished opening. Once the high-res viewer is ready, force the
+ * preview off so it cannot show through the transparent OSD canvas as a
+ * centered ghost copy in 2D mode.
+ */
+#viewer[hidden] ~ .preview,
+#viewer:not(.is-ready) ~ .preview {
+  display: block;
 }
 
 .viewer[hidden],
@@ -360,8 +372,9 @@ body {
   transform-origin: var(--wall-origin-x, 50%) var(--wall-origin-y, 50%);
 }
 
+/* Pearl: 功 天旋地轉 on (is-wall-tilt) or 折 byobu mode; hidden on the flat default wall. */
 .wall-tilt-orb {
-  display: block;
+  display: none;
   position: absolute;
   left: calc(100% + 1.85rem);
   top: auto;
@@ -411,13 +424,17 @@ body {
 }
 
 /* The pearl covers the middle, so the rings only show past its edge. */
-#app.is-wall-tilt .wall-tilt-orb {
+#app.is-wall-tilt .wall-tilt-orb,
+#app.byobu-mode .wall-tilt-orb {
+  display: block;
   cursor: grab;
   animation: wall-orb-float 3.8s ease-in-out infinite;
 }
 
 #app.is-wall-tilt .wall-tilt-orb-halo::before,
-#app.is-wall-tilt .wall-tilt-orb-halo::after {
+#app.is-wall-tilt .wall-tilt-orb-halo::after,
+#app.byobu-mode .wall-tilt-orb-halo::before,
+#app.byobu-mode .wall-tilt-orb-halo::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -425,18 +442,24 @@ body {
   animation: wall-orb-radiate 2.8s ease-out infinite;
 }
 
-#app.is-wall-tilt .wall-tilt-orb-halo::after {
+#app.is-wall-tilt .wall-tilt-orb-halo::after,
+#app.byobu-mode .wall-tilt-orb-halo::after {
   animation-delay: 1.4s;
 }
 
-#app.is-wall-tilt .wall-tilt-orb-pearl {
+#app.is-wall-tilt .wall-tilt-orb-pearl,
+#app.byobu-mode .wall-tilt-orb-pearl {
   animation: wall-orb-shade 2.6s ease-in-out infinite;
 }
 
 #app.is-wall-tilt .wall-tilt-orb.is-grabbing,
 #app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-pearl,
 #app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::before,
-#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::after {
+#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::after,
+#app.byobu-mode .wall-tilt-orb.is-grabbing,
+#app.byobu-mode .wall-tilt-orb.is-grabbing .wall-tilt-orb-pearl,
+#app.byobu-mode .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::before,
+#app.byobu-mode .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::after {
   animation-play-state: paused;
 }
 
@@ -453,24 +476,45 @@ body {
   outline-offset: 3px;
 }
 
-#app.is-wall-tilt .wall-tilt-orb.is-grabbing,
-#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-pearl,
-#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::before,
-#app.is-wall-tilt .wall-tilt-orb.is-grabbing .wall-tilt-orb-halo::after {
-  animation-play-state: paused;
+/* 天旋地轉 toggle shows the pearl on the flat 2D map, identical to 折 mode.
+   No 3D transform is applied — only the pearl chrome is revealed. */
+#app.show-pearl .wall-tilt-orb {
+  display: block;
+  cursor: pointer;
+  animation: wall-orb-float 3.8s ease-in-out infinite;
 }
 
-.wall-tilt-orb.is-grabbing {
-  cursor: grabbing;
+#app.show-pearl .wall-tilt-orb-halo::before,
+#app.show-pearl .wall-tilt-orb-halo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: wall-orb-radiate 2.8s ease-out infinite;
 }
 
-.wall-tilt-orb:focus-visible {
-  outline: none;
+#app.show-pearl .wall-tilt-orb-halo::after {
+  animation-delay: 1.4s;
 }
 
-.wall-tilt-orb:focus-visible .wall-tilt-orb-pearl {
-  outline: 2px solid var(--chrome-focus);
-  outline-offset: 3px;
+#app.show-pearl .wall-tilt-orb-pearl {
+  animation: wall-orb-shade 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app.show-pearl .wall-tilt-orb,
+  #app.show-pearl .wall-tilt-orb-pearl,
+  #app.show-pearl .wall-tilt-orb-halo::before,
+  #app.show-pearl .wall-tilt-orb-halo::after {
+    animation: none;
+  }
+
+  #app.show-pearl .wall-tilt-orb-pearl {
+    box-shadow:
+      inset 1px 2px 2px rgba(255, 255, 255, 0.75),
+      inset -7px -12px 16px rgba(0, 0, 0, 0.42),
+      0 3px 6px rgba(0, 0, 0, 0.35);
+  }
 }
 
 @keyframes wall-orb-float {
@@ -528,11 +572,16 @@ body {
   #app.is-wall-tilt .wall-tilt-orb,
   #app.is-wall-tilt .wall-tilt-orb-pearl,
   #app.is-wall-tilt .wall-tilt-orb-halo::before,
-  #app.is-wall-tilt .wall-tilt-orb-halo::after {
+  #app.is-wall-tilt .wall-tilt-orb-halo::after,
+  #app.byobu-mode .wall-tilt-orb,
+  #app.byobu-mode .wall-tilt-orb-pearl,
+  #app.byobu-mode .wall-tilt-orb-halo::before,
+  #app.byobu-mode .wall-tilt-orb-halo::after {
     animation: none;
   }
 
-  #app.is-wall-tilt .wall-tilt-orb-pearl {
+  #app.is-wall-tilt .wall-tilt-orb-pearl,
+  #app.byobu-mode .wall-tilt-orb-pearl {
     box-shadow:
       inset 1px 2px 2px rgba(255, 255, 255, 0.75),
       inset -7px -12px 16px rgba(0, 0, 0, 0.42),
@@ -1035,7 +1084,8 @@ body {
 }
 
 #app.focus-mode #btn-focus,
-#app.byobu-mode #btn-byobu {
+#app.byobu-mode #btn-byobu,
+#app.byobu-mode .wall-tilt-orb {
   opacity: 1;
   pointer-events: auto;
   visibility: visible;

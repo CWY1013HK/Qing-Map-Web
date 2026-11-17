@@ -1,10 +1,18 @@
 /* ATLab dual-canvas: Wall ~772 over Floor 2400 (map vertically stretched for angled view) */
 
+html:has(body.atlab-body) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .atlab-body {
   margin: 0;
+  position: fixed;
+  inset: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background: #0b1218;
 }
 

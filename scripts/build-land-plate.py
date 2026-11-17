@@ -30,6 +30,7 @@ OUT_DIR = ROOT / "assets" / "land"
 PUBLIC_DIR = ROOT / "public" / "land"
 BLOCS_PATH = ROOT / "data" / "sea-blocs.json"
 ZHONGGUO_PATH = ROOT / "data" / "overlays" / "zhongguo.json"
+ANNOTATIONS_PATH = ROOT / "data" / "annotations" / "locations.json"
 
 SERVE_SCALE = 0.5
 TITLE_X = 0.948  # solid ground under 大清萬年…
@@ -41,8 +42,35 @@ FORCE_LAND_BOXES: list[tuple[float, float, float, float]] = [
 ]
 
 
+def load_cartouche_boxes() -> list[tuple[float, float, float, float]]:
+    """Force land under every annotation cartouche so animated waves never
+    show through the explanatory text blocks (e.g. Russia, Korea, Japan)."""
+    boxes: list[tuple[float, float, float, float]] = []
+    if not ANNOTATIONS_PATH.is_file():
+        return boxes
+    data = json.loads(ANNOTATIONS_PATH.read_text())
+    for ann in data.get("annotations", []):
+        if "cartouche" not in ann.get("tags", []):
+            continue
+        pt = ann.get("point")
+        if not pt:
+            continue
+        hw = ann.get("hitWidth") or 0
+        hh = ann.get("hitHeight") or 0
+        if hw <= 0 or hh <= 0:
+            continue
+        x, y = float(pt["x"]), float(pt["y"])
+        x0 = max(0.0, x - hw / 2)
+        x1 = min(1.0, x + hw / 2)
+        y0 = max(0.0, y - hh / 2)
+        y1 = min(1.0, y + hh / 2)
+        boxes.append((x0, y0, x1, y1))
+    return boxes
+
+
 def apply_force_land(sea: np.ndarray, h: int, w: int) -> None:
-    for x0, y0, x1, y1 in FORCE_LAND_BOXES:
+    boxes = FORCE_LAND_BOXES + load_cartouche_boxes()
+    for x0, y0, x1, y1 in boxes:
         sea[int(y0 * h) : int(y1 * h), int(x0 * w) : int(x1 * w)] = False
 
 

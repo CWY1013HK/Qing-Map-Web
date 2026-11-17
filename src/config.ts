@@ -43,6 +43,12 @@ export const ATLAB = {
 } as const
 
 /**
+ * Pinch / twist / pearl drag from touch contacts must not change wall tilt or spin.
+ * Exhibition default: off (use 功 天旋地轉 or mouse on the pearl). Set true for dev.
+ */
+export const WALL_ROTATION_TOUCH_ENABLED = false
+
+/**
  * Soundtrack — files in `public/audio/`.
  * Flow: Mist (intro, loops) → Chao Tian Zi on seal → Jing Diao once → Mist ↔ Jing loop.
  */
@@ -51,6 +57,8 @@ export const AUDIO = {
   chaoTianZi: '/audio/chao-tian-zi.mp3',
   jingDiao: '/audio/jing-diao.mp3',
   volume: 0.125,
+  /** Jing Diao plays at 80% of the base volume — softer than Mist / Chao Tian Zi. */
+  jingDiaoVolume: 0.125 * 0.8,
   /** Louder entry hit when the seal is clicked. */
   chaoTianZiVolume: 0.175,
   /** Skip silence so the drum lands during Mist Sheng’s fade-out. */
