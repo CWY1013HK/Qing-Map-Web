@@ -204,7 +204,8 @@ html:has(body.atlab-body) {
 }
 
 .floor-preview {
-  z-index: 3;
+  /* Map imagery: below the viewer, whose OSD overlays must always paint on top. */
+  z-index: 1;
   object-fit: fill;
   object-position: center;
   display: block;
@@ -216,7 +217,10 @@ html:has(body.atlab-body) {
 }
 
 .floor-viewer {
-  z-index: 2;
+  /* Hosts the show/hide overlays (ink, labels, clouds, décor). Sit above the
+     sea underlay and preview so the overlays always overtake the map tiles.
+     The drawer <canvas> itself is pinned to z-index 0 in viewer.css. */
+  z-index: 3;
   background: transparent;
 }
 
@@ -292,8 +296,8 @@ html:has(body.atlab-body) {
   outline-offset: -6px;
 }
 
-/* Reserved for future highlight overlays (above the map, below nothing) */
+/* Reserved for future highlight overlays (above the map and its OSD overlays). */
 .floor-overlays {
-  z-index: 2;
+  z-index: 4;
   pointer-events: none;
 }

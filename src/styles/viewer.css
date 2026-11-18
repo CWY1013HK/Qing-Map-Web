@@ -109,6 +109,16 @@ body {
   background: transparent !important;
 }
 
+/*
+ * The OSD drawer <canvas> is map imagery. Pin it beneath every overlay wrapper
+ * (which carry z-index 1 / 3 / 6 / 8) so tiles can never paint over ink borders,
+ * labels or décor — regardless of drawer type or tile-load order.
+ */
+.viewer .openseadragon-canvas > canvas,
+.floor-viewer .openseadragon-canvas > canvas {
+  z-index: 0 !important;
+}
+
 /* Upright province / décor clones (src/viewer/overlayUpright.ts). */
 .wall-label-layer {
   position: absolute;
