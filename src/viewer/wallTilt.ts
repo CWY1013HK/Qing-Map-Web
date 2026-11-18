@@ -8,21 +8,20 @@ import { t } from '../i18n'
 import { clearWallBillboardChrome } from './wallBillboardReset'
 
 /**
- * Map rotation for the interactive viewer (regular mode and the ATLab wall).
- * Starts on with `?wallTilt=1` (32°) or `?wallTilt=28` (degrees). Otherwise
- * the pearl beside 淨 and 功, or the 功 settings row, turns it on.
- * Optional `?wallPerspective=2400`.
- * The toolbar pearl shows when 功 天旋地轉 or 折 is on; otherwise it stays hidden.
- * A tap on the pearl toggles the 3D lean. Dragging it sideways spins the map
- * flat, in its own plane, with no stop — across 360° and upside down, even
- * while the 3D lean is off. Dragging down leans it back. Shift-drag turns it
- * laterally. Lean and the lateral turn stay inside ±76.5°, so the back never
- * faces the room. A two-finger twist on the map also spins it flat.
- * Everything spins around the geometric centre of the visible map.
+ * 2D is always the initial upright map. Rotation only comes alive inside 折,
+ * where the pearl drives the 屏風 orbit; the 天旋地轉 button outside 折 only
+ * reveals the pearl. Optional `?wallPerspective=2400`.
+ * In 折 a tap on the pearl toggles the pearl, a drag spins the folded screen
+ * laterally (Shift-drag / arrow keys too), clamped inside ±76.5° so the back
+ * never faces the room. Everything spins around the geometric centre.
  * The floor viewer is never tilted.
  */
 
 const DEFAULT_PERSPECTIVE_PX = 2400
+/** Screen pixels of pearl drag that equal one degree of 折 orbit. */
+const DEG_PER_PX = 0.32
+/** Movement under this is a tap (pearl visibility), not a rotation drag. */
+const TAP_PX = 8
 /** 85% of 90° — far enough to feel edge-on, near enough that the sheet stays visible from the sides. */
 const MAX_FACE_DEG = 90 * 0.85
 /** Matches the CSS angle transition on `#app.is-wall-tilt-settle`. */
@@ -97,6 +96,35 @@ export function prepareWallTilt(
 }
 
 export function isWallRotationEnabled(): boolean {
+  return rotationEnabled
+}
+
+/**
+ * 折 rotates unconditionally, whatever the 天旋地轉 / pearl setting was.
+ * The wall sheet itself stays flat — the 屏風 WebGL scene reads these angles
+ * and orbits the folded map. Outside 折 this is a no-op, so default 2D stays
+ * upright.
+ */
+export function setByobuRotationEnabled(on: boolean): boolean {
+  if (!on) {
+    rotationEnabled = false
+    tiltDeg = 0
+    yawDeg = 0
+    rollDeg = 0
+    objectLift = 0
+    objectScale = 1
+    applyOrientation()
+    document.getElementById('viewer')?.classList.remove('is-wall-roll-2d')
+  } else {
+    if (!isByobuChrome()) return false
+    // Hold the entry pose at zero; pearl drags take the orbit from here.
+    rotationEnabled = true
+    tiltDeg = 0
+    yawDeg = 0
+    rollDeg = 0
+  }
+  syncPearlOrbChrome()
+  document.dispatchEvent(new CustomEvent('qing-rotation-change'))
   return rotationEnabled
 }
 
@@ -961,22 +989,38 @@ export function pearlLateralMode(shiftKey: boolean): boolean {
 }
 
 /**
- * Rotation is permanently disabled — all gesture nudges are no-ops.
- * The map always stays in its initial upright 2D orientation.
+ * Pearl drag / arrow keys orbit the folded map in 折. Outside 折 rotation is
+ * off, so the same gestures leave the upright 2D sheet untouched.
  */
-export function nudgeRotation(_dx: number, _dy: number, _lateral = false): void {
-  // No-op: rotation disabled.
+export function nudgeRotation(dx: number, dy: number, lateral = false): void {
+  if (!rotationEnabled) return
+  if (lateral) {
+    yawDeg = clampFace(yawDeg + dx * DEG_PER_PX)
+    tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
+  } else {
+    rollDeg += dx * DEG_PER_PX
+    tiltDeg = clampFace(tiltDeg + dy * DEG_PER_PX)
+  }
+  applyOrientation()
 }
 
-/** Always flat 2D — pushes 0deg to all CSS custom properties. */
+/** Write the live 折 orbit angles; flat 2D writes 0deg for all three. */
 function applyOrientation(): void {
   const root = tiltRoot()
   if (!root) return
-  root.style.setProperty('--wall-tilt', '0deg')
-  root.style.setProperty('--wall-yaw', '0deg')
-  root.style.setProperty('--wall-roll', '0deg')
-  // Remove any lingering roll-2d class.
+  root.style.setProperty('--wall-tilt', `${tiltDeg.toFixed(2)}deg`)
+  root.style.setProperty('--wall-yaw', `${yawDeg.toFixed(2)}deg`)
+  root.style.setProperty('--wall-roll', `${rollDeg.toFixed(2)}deg`)
+  // No flat in-plane spin outside 折 — that was part of the retired 3D pose.
   document.getElementById('viewer')?.classList.remove('is-wall-roll-2d')
+  const orb = document.getElementById('wall-tilt-orb')
+  if (orb) {
+    const hx = Math.min(68, Math.max(12, 32 - yawDeg * 0.28))
+    const hy = Math.min(70, Math.max(10, 26 + tiltDeg * 0.22))
+    orb.style.setProperty('--orb-hx', `${hx}%`)
+    orb.style.setProperty('--orb-hy', `${hy}%`)
+    orb.setAttribute('aria-valuetext', `${Math.round(tiltDeg)}° / ${Math.round(yawDeg)}° / ${Math.round(rollDeg)}°`)
+  }
   scheduleWallChrome()
 }
 
@@ -1019,9 +1063,8 @@ export function syncFlatRoll(): void {
 }
 
 /**
- * Mount the decorative pearl. It is shown in 折 mode, or via the 天旋地轉
- * setting. It does not tilt or spin the map — tapping it toggles its own
- * visibility only.
+ * Mount the pearl. In 折 it orbits the folded map when dragged; outside 折 it
+ * is a pure 天旋地轉 visibility toggle and never tilts the map.
  */
 function mountTurnOrb(): void {
   const toolbar = document.querySelector<HTMLElement>('#toolbar')
@@ -1044,14 +1087,61 @@ function mountTurnOrb(): void {
   orb.append(halo, pearl)
   toolbar.appendChild(orb)
 
-  orb.addEventListener('click', () => {
-    setPearlVisible(!pearlToggleOn)
+  let drag: { id: number; x: number; y: number; moved: boolean } | null = null
+
+  orb.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
+    try {
+      orb.setPointerCapture(event.pointerId)
+    } catch {
+      /* Synthetic pointers have no capture id. */
+    }
+    event.preventDefault()
   })
+
+  orb.addEventListener('pointermove', (event) => {
+    if (!drag || event.pointerId !== drag.id) return
+    const dx = event.clientX - drag.x
+    const dy = event.clientY - drag.y
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < TAP_PX) return
+      drag.moved = true
+      orb.classList.add('is-grabbing')
+      releaseSettle()
+    }
+    if (isByobuChrome() && rotationEnabled) {
+      nudgeRotation(dx, dy, pearlLateralMode(event.shiftKey))
+    }
+    drag = { id: drag.id, x: event.clientX, y: event.clientY, moved: true }
+  })
+
+  const endDrag = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.id) return
+    const wasTap = !drag.moved
+    drag = null
+    orb.classList.remove('is-grabbing')
+    if (wasTap) setPearlVisible(!pearlToggleOn)
+  }
+  orb.addEventListener('pointerup', endDrag)
+  orb.addEventListener('pointercancel', endDrag)
+
   orb.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       setPearlVisible(!pearlToggleOn)
       event.preventDefault()
+      return
     }
+    if (!isByobuChrome() || !rotationEnabled) return
+    const lateral = pearlLateralMode(event.shiftKey)
+    const step = event.shiftKey ? 8 : 3
+    const px = step / DEG_PER_PX
+    if (event.key === 'ArrowLeft') nudgeRotation(-px, 0, lateral)
+    else if (event.key === 'ArrowRight') nudgeRotation(px, 0, lateral)
+    else if (event.key === 'ArrowUp') nudgeRotation(0, -px, lateral)
+    else if (event.key === 'ArrowDown') nudgeRotation(0, px, lateral)
+    else return
+    event.preventDefault()
   })
 
   applyOrientation()

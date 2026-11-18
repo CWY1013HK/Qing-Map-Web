@@ -973,6 +973,20 @@ body {
   opacity: 1;
 }
 
+/*
+ * Deterministic paint order inside the underlay: waves at 0, continent at 1.
+ * Do not rely on z-index:auto plus DOM order — Chromium/Edge can composite a
+ * masked SVG wave layer above a later positioned sibling, which clips land.
+ */
+.sea-underlay {
+  isolation: isolate;
+}
+
+.sea-underlay-waves-svg,
+.sea-underlay-waves-canvas {
+  z-index: 0 !important;
+}
+
 .sea-underlay-waves-svg {
   position: absolute;
   left: 0;
@@ -993,7 +1007,7 @@ body {
   object-fit: fill;
   display: block;
   pointer-events: none;
-  z-index: 1;
+  z-index: 1 !important;
 }
 
 .sea-bloc-debug {

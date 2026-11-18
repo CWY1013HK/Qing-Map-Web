@@ -795,8 +795,11 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     const activeZoom =
       framingZoom + (inspectFramingZoom - framingZoom) * byobuTransitionChannels(timeline).orbit
     const scale = (0.0032 / dpr) * (2 / (activeZoom * userZoom))
-    panX += dx * scale
-    panY -= dy * scale
+    // The folded sheet used to outpace the cursor. Keep panning at 90% while
+    // in 折; the flat 2D viewer has its own independent drag path.
+    const panScale = scale * 0.9
+    panX += dx * panScale
+    panY -= dy * panScale
   }
   const onPointerUp = (e: PointerEvent) => {
     dragging = false

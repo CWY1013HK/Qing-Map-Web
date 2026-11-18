@@ -139,6 +139,7 @@ const FRAG = `
 precision mediump float;
 varying vec2 v_map;
 uniform sampler2D u_tex;
+uniform sampler2D u_land;
 uniform float u_tileFrac;
 uniform float u_patH;
 uniform float u_originX;
@@ -163,6 +164,10 @@ void main() {
   vec3 rgb = texture2D(u_tex, vec2(u, v)).rgb;
   float t = (v_map.y - u_y0) / max(0.0001, u_y1 - u_y0);
   float a = bandFade(clamp(t, 0.0, 1.0), u_fade) * u_opacity;
+  // The land plate is opaque over every continent / island. Kill the wave
+  // inside the wave pass itself so it can never climb over land, whatever the
+  // compositor does with the separate <img> layer above this canvas.
+  a *= 1.0 - texture2D(u_land, v_map).a;
   gl_FragColor = vec4(rgb * a, a);
 }
 `
@@ -306,6 +311,7 @@ export function startFloorSea(
   }
 
   const uTex = gl.getUniformLocation(program, 'u_tex')
+  const uLand = gl.getUniformLocation(program, 'u_land')
   const uTile = gl.getUniformLocation(program, 'u_tileFrac')
   const uPatH = gl.getUniformLocation(program, 'u_patH')
   const uOrigin = gl.getUniformLocation(program, 'u_originX')
@@ -327,6 +333,7 @@ export function startFloorSea(
   }
 
   let quads: WaveQuad[] = []
+  let landTexture: WebGLTexture | null = null
   let driftOrigin = performance.now()
   const preferStill =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -357,6 +364,12 @@ export function startFloorSea(
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
     gl.uniform1i(uTex, 0)
     gl.activeTexture(gl.TEXTURE0)
+    if (landTexture) {
+      gl.activeTexture(gl.TEXTURE1)
+      gl.bindTexture(gl.TEXTURE_2D, landTexture)
+      gl.uniform1i(uLand, 1)
+      gl.activeTexture(gl.TEXTURE0)
+    }
     for (const quad of quads) {
       gl.bindTexture(gl.TEXTURE_2D, quad.texture)
       gl.uniform1f(uTile, quad.tileFrac)
@@ -462,6 +475,21 @@ export function startFloorSea(
     .then(([images]) => {
       if (stopped || svgFallback) return
       const byUrl = new Map(urls.map((url, i) => [url, images[i]!]))
+
+      // Land alpha plate on texture unit 1. The wave shader multiplies by
+      // (1 - land alpha), so scallops can never paint over a continent even if
+      // the compositor puts the separate land <img> below this canvas.
+      const createdLand = gl.createTexture()
+      if (!createdLand) throw new Error('land texture')
+      gl.bindTexture(gl.TEXTURE_2D, createdLand)
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, land)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+      landTexture = createdLand
+
       const verts: number[] = []
       const built: WaveQuad[] = []
 

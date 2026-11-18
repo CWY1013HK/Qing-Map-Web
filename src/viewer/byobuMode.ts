@@ -14,10 +14,9 @@ import { closeAnnotationPopup } from '../popups/panel'
 import byobuConfig from '../../data/byobu.json'
 import {
   applyStandardWallExit,
-  isWallRotationEnabled,
   prepareWallForByobuEnter,
   publishWallOrientation,
-  setWallRotationEnabled,
+  setByobuRotationEnabled,
   wallAngleSettleMs,
 } from './wallTilt'
 import {
@@ -97,7 +96,6 @@ export function mountByobuMode(viewer: Viewer): void {
   let screen: ByobuScreenHandle | null = null
   let savedLabels = true
   let savedOverlays = new Set<string>()
-  let savedRotation = false
 
   const hideAllOverlays = () => {
     const mgr = getOverlayManager()
@@ -123,22 +121,18 @@ export function mountByobuMode(viewer: Viewer): void {
 
         savedLabels = labelStore.isVisible()
         savedOverlays = new Set(overlayStore.getVisible())
-        savedRotation = isWallRotationEnabled()
 
         labelStore.setVisible(false)
         hideAllOverlays()
         if (labelsBtn) labelsBtn.setAttribute('aria-pressed', 'false')
 
-        prepareWallForByobuEnter(savedRotation)
+        // 折 always rotates: hand a flat wall to the WebGL 屏風, then let the
+        // pearl drive its orbit once the fold finishes. 2D stays upright.
+        setByobuRotationEnabled(false)
+        prepareWallForByobuEnter(false)
         viewer.viewport.goHome(true)
         viewer.viewport.applyConstraints(true)
         await waitMs(wallAngleSettleMs())
-        if (!savedRotation && isWallRotationEnabled()) {
-          setWallRotationEnabled(false, true)
-          await waitMs(wallAngleSettleMs())
-        } else if (savedRotation) {
-          setWallRotationEnabled(true, false)
-        }
         viewer.forceRedraw()
 
         ensureRoomBackdrop(app)
@@ -169,9 +163,7 @@ export function mountByobuMode(viewer: Viewer): void {
         ]) {
           app.style.removeProperty(key)
         }
-        if (!savedRotation) {
-          setWallRotationEnabled(true, false)
-        }
+        setByobuRotationEnabled(true)
       } finally {
         entering = false
       }
@@ -188,12 +180,10 @@ export function mountByobuMode(viewer: Viewer): void {
       overlayStore.setVisible(id, savedOverlays.has(id))
     }
 
-    if (!savedRotation) {
-      setWallRotationEnabled(false, false)
-      applyStandardWallExit(false)
-    } else {
-      applyStandardWallExit(true)
-    }
+    // Leaving 折 always returns to the upright 2D wall, even if the pearl
+    // was used to orbit the folded screen.
+    setByobuRotationEnabled(false)
+    applyStandardWallExit(false)
 
     viewer.viewport.goHome(true)
     viewer.viewport.applyConstraints(true)
@@ -220,7 +210,7 @@ export function mountByobuMode(viewer: Viewer): void {
         frame: 1,
       })
       await screen?.animateFold(0, foldTransitionMs())
-      applyStandardWallExit(savedRotation)
+      applyStandardWallExit(false)
       publishWallOrientation()
       screen?.stop()
       screen = null
