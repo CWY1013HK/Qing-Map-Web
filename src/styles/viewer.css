@@ -382,7 +382,7 @@ body {
   transform-origin: var(--wall-origin-x, 50%) var(--wall-origin-y, 50%);
 }
 
-/* Pearl: 功 天旋地轉 on (is-wall-tilt) or 折 byobu mode; hidden on the flat default wall. */
+/* Pearl: 折 mode only; hidden on the flat 2D wall and in focus mode. */
 .wall-tilt-orb {
   display: none;
   position: absolute;
@@ -486,8 +486,7 @@ body {
   outline-offset: 3px;
 }
 
-/* 天旋地轉 toggle shows the pearl on the flat 2D map, identical to 折 mode.
-   No 3D transform is applied — only the pearl chrome is revealed. */
+/* 折-only pearl chrome. The class is set only while in 折, so flat 2D never reveals it. */
 #app.show-pearl .wall-tilt-orb {
   display: block;
   cursor: pointer;

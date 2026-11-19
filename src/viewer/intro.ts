@@ -111,6 +111,29 @@ export function mountIntro(viewer: Viewer): void {
   }
 
   seal.addEventListener('click', begin)
+
+  // ATLab wall is reached from across the room: a deliberate hover or a long
+  // press can launch the same intro. Normal pages stay click-only.
+  if (document.getElementById('atlab')) {
+    let hoverTimer = 0
+    let pressTimer = 0
+    const cancel = () => {
+      window.clearTimeout(hoverTimer)
+      window.clearTimeout(pressTimer)
+    }
+    seal.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return
+      cancel()
+      hoverTimer = window.setTimeout(begin, 650)
+    })
+    seal.addEventListener('pointerleave', cancel)
+    seal.addEventListener('pointerdown', () => {
+      cancel()
+      pressTimer = window.setTimeout(begin, 750)
+    })
+    seal.addEventListener('pointerup', cancel)
+    seal.addEventListener('pointercancel', cancel)
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import { getOverlayManager } from '../overlays/manager'
 import { overlayStore } from '../overlays/store'
 import labelsJson from '../../data/overlays/province-labels.json'
 import { tweenCameras, type LabelPointLookup } from './camera'
+import { preloadCameraPath, preloadCameraTiles } from './tilePreload'
 import { hideTourCaption, isTourCaptionVisible, showTourCaption } from './caption'
 import { drawOverlayFeature } from './draw'
 import { clearTourFrames, showTourFrames } from './frames'
@@ -16,7 +17,7 @@ import {
   playVoiceover,
 } from './narration'
 import { ensureTourDialogueDock } from './tourDialogueDock'
-import type { TourDefinition, TourStep } from './types'
+import type { TourCameraTarget, TourDefinition, TourStep } from './types'
 
 /** Overlay ids the tour may toggle — always restored to the pre-tour snapshot. */
 const TOUR_OVERLAY_IDS = [
@@ -188,8 +189,19 @@ export function getTourPlayer(): TourPlayer {
     tour: TourDefinition,
     step: TourStep,
     signal: AbortSignal,
+    nextCamera?: TourCameraTarget,
   ): Promise<void> => {
     if (signal.aborted) return
+
+    // Load the route to the next view while this stop narrates, not mid-move.
+    const warmAhead = () => {
+      if (!nextCamera || signal.aborted) return
+      try {
+        for (const v of cameraViewers()) preloadCameraPath(v, nextCamera, resolveLabel)
+      } catch {
+        /* best effort */
+      }
+    }
 
     if (step.type === 'overlays') {
       applyOverlays(step)
@@ -202,15 +214,24 @@ export function getTourPlayer(): TourPlayer {
     }
 
     if (step.type === 'camera') {
+      await Promise.all(
+        cameraViewers().map((v) => preloadCameraTiles(v, step, resolveLabel)),
+      )
       await tweenCameras(cameraViewers(), step, resolveLabel, signal)
+      warmAhead()
       return
     }
 
     // stop
     if (step.overlays) applyOverlays(step.overlays)
     if (step.camera) {
-      await tweenCameras(cameraViewers(), step.camera, resolveLabel, signal)
+      const camera = step.camera
+      await Promise.all(
+        cameraViewers().map((v) => preloadCameraTiles(v, camera, resolveLabel)),
+      )
+      await tweenCameras(cameraViewers(), camera, resolveLabel, signal)
     }
+    warmAhead()
     if (signal.aborted) return
 
     const narrDir = tour.narrationDir ?? tour.id
@@ -348,10 +369,28 @@ export function getTourPlayer(): TourPlayer {
       getPlaylist().setDucked(true)
       emit()
 
+      // Map each step to the next camera move so it can be warmed while this
+      // step is still on screen (narration is the free window).
+      const cameraOf = (step: TourStep): TourCameraTarget | null =>
+        step.type === 'camera'
+          ? step
+          : step.type === 'stop'
+            ? (step.camera ?? null)
+            : null
+      const nextCameraByStep = new Map<TourStep, TourCameraTarget>()
+      for (let i = 0; i < tour.steps.length - 1; i++) {
+        const upcoming = tour.steps
+          .slice(i + 1)
+          .find((candidate) => cameraOf(candidate) !== null)
+        if (!upcoming) continue
+        const camera = cameraOf(upcoming)
+        if (camera) nextCameraByStep.set(tour.steps[i]!, camera)
+      }
+
       try {
         for (const step of tour.steps) {
           if (signal.aborted) break
-          await runStep(tour, step, signal)
+          await runStep(tour, step, signal, nextCameraByStep.get(step))
         }
       } finally {
         if (playingId === tour.id) {

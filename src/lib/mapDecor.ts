@@ -262,6 +262,12 @@ export type LaneTracker = {
   s: number
   /** Travel sense along the polyline. */
   pathDir: 1 | -1
+  /**
+   * Arc length of the hub just entered by a transfer, on this lane. The
+   * mid-junction resolver ignores it until the ship has sailed clear,
+   * otherwise a leap into a mid trunk immediately re-fires and flip-flops.
+   */
+  justArrivedS: number | null
 }
 
 export function buildLaneTracker(
@@ -288,6 +294,7 @@ export function buildLaneTracker(
     total,
     s: clamp01(startFrac) * total,
     pathDir: pathDir ?? (Math.random() < 0.5 ? 1 : -1),
+    justArrivedS: null,
   }
 }
 
@@ -327,6 +334,8 @@ type LaneTransfer = {
   laneId: string
   /** Fraction along the target lane [0, 1]. */
   sFrac: number
+  /** Baked travel sense: always carries the ship away from the junction. */
+  pathDir: 1 | -1
 }
 
 /** Spur / cross attachment along a trunk (another lane’s endpoint meets this polyline). */
@@ -341,6 +350,17 @@ const HUB_EPS = 0.01
 
 function endKey(laneId: string, at: LaneEnd): string {
   return `${laneId}:${at}`
+}
+
+/**
+ * Baked travel sense for landing at `sFrac` on a lane. Endpoints push inwards;
+ * a mid-hub launch heads for the longer remaining stretch, so a leap always
+ * continues away from the intersection instead of doubling back to it.
+ */
+function awayFromHubDir(sFrac: number): 1 | -1 {
+  if (sFrac <= 1e-6) return 1
+  if (sFrac >= 1 - 1e-6) return -1
+  return sFrac <= 0.5 ? 1 : -1
 }
 
 /** Closest point on a polyline (vertex or segment projection), as arc-length fraction. */
@@ -393,21 +413,24 @@ function applyTransfer(
   const nextLane = LANE_BY_ID.get(transfer.laneId)
   if (!nextLane) return false
 
-  let pathDir: 1 | -1
-  if (transfer.sFrac <= 1e-6) pathDir = 1
-  else if (transfer.sFrac >= 1 - 1e-6) pathDir = -1
-  else pathDir = Math.random() < 0.5 ? 1 : -1
-
-  const next = buildLaneTracker(nextLane, size, transfer.sFrac, pathDir)
+  // Direction is baked into the graph, not re-rolled here: a ship must never
+  // random-walk back into the junction it just used.
+  const next = buildLaneTracker(nextLane, size, transfer.sFrac, transfer.pathDir)
   tracker.laneId = next.laneId
   tracker.points = next.points
   tracker.cum = next.cum
   tracker.total = next.total
   tracker.s = next.s
   tracker.pathDir = next.pathDir
+  tracker.justArrivedS = next.s
   return true
 }
 
+/**
+ * Build the leap graph. Endpoint-to-endpoint overlaps live only in
+ * `endpointAdj`; `midByLane` holds genuine spur-on-trunk hubs. Keeping the two
+ * apart is what stops a ship from re-hopping at a shared endpoint forever.
+ */
 function buildHubGraph(lanes: readonly SeaLane[], eps: number): {
   endpointAdj: Map<string, LaneTransfer[]>
   midByLane: Map<string, MidJunction[]>
@@ -434,15 +457,27 @@ function buildHubGraph(lanes: readonly SeaLane[], eps: number): {
       const hit = nearestFracOnLane(end.x, end.y, other.points)
       if (hit.d > eps) continue
 
-      fromEnd.push({ laneId: other.id, sFrac: hit.sFrac })
+      fromEnd.push({
+        laneId: other.id,
+        sFrac: hit.sFrac,
+        pathDir: awayFromHubDir(hit.sFrac),
+      })
+
+      // A hit at `other`'s own endpoint is already covered by its endpoint
+      // adjacency. Registering it as a mid hub too makes the mid resolver
+      // re-fire on arrival at the shared point and flip-flop between the two
+      // lanes every frame.
+      if (hit.sFrac <= 1e-6 || hit.sFrac >= 1 - 1e-6) continue
 
       // Reciprocal: ships on `other` at this mid can hop onto this endpoint.
+      const otherDir: 1 | -1 = end.at === 'start' ? 1 : -1
       const list = midRaw.get(other.id) ?? []
       list.push({
         sFrac: hit.sFrac,
         transfer: {
           laneId: end.laneId,
           sFrac: end.at === 'start' ? 0 : 1,
+          pathDir: otherDir,
         },
       })
       midRaw.set(other.id, list)
@@ -490,7 +525,9 @@ const { endpointAdj: ENDPOINT_ADJ, midByLane: MID_BY_LANE } = buildHubGraph(
 
 /**
  * When a ship reaches a lane end: reverse, or jump to a nearly-overlapping
- * point on another route (endpoint or mid-trunk). Equal weight among reverse + transfers.
+ * point on another route (endpoint or mid-trunk). Equal weight among reverse + transfers;
+ * routes stay random, but every transfer carries a baked "away from the junction"
+ * direction so the ship never doubles back to where it leapt from.
  * Mutates `tracker` in place (may replace polyline when transferring).
  */
 export function resolveLaneEndpoint(
@@ -515,6 +552,7 @@ export function resolveLaneEndpoint(
 /**
  * If the ship just crossed a mid-lane hub (spur endpoint meeting this trunk),
  * optionally hop onto that spur. `sBefore` is arc length before this frame’s step.
+ * Hubs just entered via a leap are ignored until the ship has sailed clear.
  * Returns true if a transfer occurred.
  */
 export function resolveLaneMidJunction(
@@ -529,6 +567,14 @@ export function resolveLaneMidJunction(
   const hi = Math.max(sBefore, tracker.s)
   // Tiny pad so slow ships still register thin junctions.
   const pad = Math.max(tracker.total * 1e-4, 0.5)
+
+  if (tracker.justArrivedS !== null) {
+    // A leap lands exactly on the hub, so the crossing test would fire again
+    // next frame and roll a fresh "hop back" — the visible flip-flop. Hold
+    // off until the baked-away direction has carried the ship clear.
+    if (Math.abs(tracker.s - tracker.justArrivedS) <= pad * 2) return false
+    tracker.justArrivedS = null
+  }
 
   for (const j of junctions) {
     const sHub = j.sFrac * tracker.total

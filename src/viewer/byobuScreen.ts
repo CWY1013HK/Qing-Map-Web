@@ -652,10 +652,14 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
   let panX = 0
   let panY = 0
   let userZoom = 1
+  /** All live contacts, so a second finger can pinch instead of being ignored. */
+  const pointers = new Map<number, { x: number; y: number }>()
   let dragX = 0
   let dragY = 0
   let dragging = false
   let shiftOrbit = false
+  let pinchDist = 0
+  let pinchZoom = 1
   let textureReady = false
   let paintedReady = false
   let readyResolved = false
@@ -728,6 +732,8 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     panX = 0
     panY = 0
     userZoom = 1
+    pointers.clear()
+    pinchDist = 0
     orbitYaw = 0
     snapPearlBaseline()
   }
@@ -769,17 +775,49 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     e.preventDefault()
     const factor = Math.exp(-e.deltaY * 0.0012)
     userZoom = clampZoom(userZoom * factor)
+    publishZoom()
+  }
+
+  const publishZoom = () => {
+    document.dispatchEvent(new CustomEvent('qing-byobu-zoom', { detail: { zoom: userZoom } }))
+  }
+
+  const pointerDistance = (): number => {
+    const [a, b] = [...pointers.values()]
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0
   }
 
   const onPointerDown = (e: PointerEvent) => {
-    if (e.button !== 0) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    try {
+      root.setPointerCapture(e.pointerId)
+    } catch {
+      /* capture unavailable */
+    }
+    if (pointers.size >= 2) {
+      dragging = false
+      pinchDist = pointerDistance()
+      pinchZoom = userZoom
+      return
+    }
     dragging = true
     shiftOrbit = e.shiftKey
     dragX = e.clientX
     dragY = e.clientY
-    root.setPointerCapture(e.pointerId)
   }
   const onPointerMove = (e: PointerEvent) => {
+    if (!pointers.has(e.pointerId)) return
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.size >= 2) {
+      // Two-finger spread / pinch zooms the folded sheet, as on the flat map.
+      const distance = pointerDistance()
+      if (pinchDist > 0 && distance > 0) {
+        userZoom = clampZoom(pinchZoom * (distance / pinchDist))
+        publishZoom()
+      }
+      return
+    }
     if (!dragging) return
     const dx = e.clientX - dragX
     const dy = e.clientY - dragY
@@ -795,20 +833,40 @@ export function startByobuScreen(host: HTMLElement, options?: ByobuScreenOptions
     const activeZoom =
       framingZoom + (inspectFramingZoom - framingZoom) * byobuTransitionChannels(timeline).orbit
     const scale = (0.0032 / dpr) * (2 / (activeZoom * userZoom))
-    // The folded sheet used to outpace the cursor. Keep panning at 90% while
-    // in 折; the flat 2D viewer has its own independent drag path.
-    const panScale = scale * 0.9
+    // The folded sheet used to outpace the cursor. Keep panning at 85.5%
+    // (95% of the previous 90% factor) while in 折; the flat 2D viewer has
+    // its own independent drag path.
+    const panScale = scale * 0.855
     panX += dx * panScale
     panY -= dy * panScale
   }
   const onPointerUp = (e: PointerEvent) => {
-    dragging = false
-    shiftOrbit = false
+    pointers.delete(e.pointerId)
     try {
       root.releasePointerCapture(e.pointerId)
     } catch {
       /* released */
     }
+    if (pointers.size >= 2) {
+      pinchDist = pointerDistance()
+      pinchZoom = userZoom
+      dragging = false
+      return
+    }
+    pinchDist = 0
+    if (pointers.size === 1) {
+      // Lifting one finger hands control back to the survivor without a jump.
+      const [rest] = [...pointers.values()]
+      if (rest) {
+        dragX = rest.x
+        dragY = rest.y
+      }
+      dragging = true
+      shiftOrbit = false
+      return
+    }
+    dragging = false
+    shiftOrbit = false
   }
 
   root.addEventListener('wheel', onWheel, { passive: false })

@@ -37,6 +37,9 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
 
   mountI18n()
 
+  // Exhibition window: no native right-click menu anywhere in the app.
+  document.addEventListener('contextmenu', (e) => e.preventDefault())
+
   const previewEl = document.querySelector<HTMLImageElement>('#preview')
   const viewerRoot = document.querySelector<HTMLElement>('#viewer')
   const statusEl = document.querySelector<HTMLElement>('#status')
@@ -96,6 +99,8 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
 
   prepareWallTilt()
 
+  const inAtlab = Boolean(document.getElementById('atlab'))
+
   const viewer = OpenSeadragon({
     element: viewerEl,
     prefixUrl: '/osd-images/',
@@ -118,7 +123,8 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     imageLoaderLimit: 8,
     constrainDuringPan: true,
     visibilityRatio: 1,
-    minZoomImageRatio: 1,
+    // ATLab wheel may ease out to the letterboxed wall; normal mode stays filled.
+    minZoomImageRatio: inAtlab ? 0.5 : 1,
     /** Cap overzoom so level-15 tiles are not over-fetched. */
     maxZoomPixelRatio: 1.5,
     /** Prefer true pixel density — fewer oversampled high-LOD tiles. */
@@ -127,6 +133,8 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     maxImageCacheCount: 100,
     gestureSettingsMouse: {
       clickToZoom: false,
+      // ATLab: wheel is zoom-only; the page itself never scrolls.
+      ...(inAtlab ? { scrollToZoom: true } : {}),
     },
   })
 
@@ -155,9 +163,12 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
 
   function lockMinZoomToHome(): void {
     const homeZoom = viewer.viewport.getHomeZoom()
-    ;(viewer as unknown as { minZoomLevel: number }).minZoomLevel = homeZoom
-    if (viewer.viewport.getZoom() < homeZoom) {
-      viewer.viewport.zoomTo(homeZoom, undefined, true)
+    // ATLab keeps the wall fitted by default but lets the wheel zoom back out
+    // a little; the normal viewer stays clamped at home.
+    const minZoom = inAtlab ? homeZoom * 0.55 : homeZoom
+    ;(viewer as unknown as { minZoomLevel: number }).minZoomLevel = minZoom
+    if (viewer.viewport.getZoom() < minZoom) {
+      viewer.viewport.zoomTo(minZoom, undefined, true)
     }
   }
 
@@ -207,9 +218,10 @@ export function bootInteractiveViewer(opts: BootInteractiveOptions = {}): OpenSe
     lockMinZoomToHome()
     if (withIntro) {
       mountIntro(viewer)
-      window.addEventListener('qing-map-intro-done', () => stackHighResOnUnderlay(), {
-        once: true,
-      })
+      window.addEventListener('qing-map-intro-done', () => {
+        lockMinZoomToHome()
+        stackHighResOnUnderlay()
+      }, { once: true })
     } else {
       stackHighResOnUnderlay()
       getPlaylist().startAmbientLoop()

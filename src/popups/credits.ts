@@ -150,7 +150,10 @@ function applyCreditsCopy(): void {
 
 function syncRotateButton(): void {
   if (!rotateBtn) return
-  rotateBtn.hidden = false
+  // ATLab has no 2D pearl and 折 drives its own orbit, so the toggle is dead
+  // there. Hide it in settings on that page instead of showing a no-op.
+  rotateBtn.hidden = document.body.classList.contains('atlab-body')
+  if (rotateBtn.hidden) return
   const on = isPearlVisible()
   rotateBtn.setAttribute('aria-pressed', on ? 'true' : 'false')
   rotateBtn.title = on ? t('credits.rotateHide') : t('credits.rotateShow')

@@ -9,8 +9,8 @@ import { clearWallBillboardChrome } from './wallBillboardReset'
 
 /**
  * 2D is always the initial upright map. Rotation only comes alive inside 折,
- * where the pearl drives the 屏風 orbit; the 天旋地轉 button outside 折 only
- * reveals the pearl. Optional `?wallPerspective=2400`.
+ * where the pearl drives the 屏風 orbit. The pearl is hidden in 2D regardless
+ * of the 天旋地轉 setting. Optional `?wallPerspective=2400`.
  * In 折 a tap on the pearl toggles the pearl, a drag spins the folded screen
  * laterally (Shift-drag / arrow keys too), clamped inside ±76.5° so the back
  * never faces the room. Everything spins around the geometric centre.
@@ -75,8 +75,8 @@ let baseVisibility = 1
 let passZoomTo: OpenSeadragon.Viewport['zoomTo'] | null = null
 let settleTimer = 0
 /**
- * Decorative pearl visibility, independent of map rotation. In 折 mode the
- * pearl always shows; outside it, the 天旋地轉 setting toggles it.
+ * Decorative pearl state. The pearl is visible only in 折; the 天旋地轉
+ * setting is kept as a preference but can no longer reveal it in flat 2D.
  */
 let pearlToggleOn = false
 
@@ -133,7 +133,7 @@ export function isPearlVisible(): boolean {
   return pearlToggleOn
 }
 
-/** 天旋地轉 toggle: show or hide the decorative pearl. Never tilts the map. */
+/** 天旋地轉 preference for the pearl. It only has any effect inside 折; 2D stays hidden. Never tilts the map. */
 export function setPearlVisible(on: boolean): void {
   pearlToggleOn = !!on
   syncPearlOrbChrome()
@@ -547,11 +547,11 @@ export function syncPearlOrbChrome(): void {
   if (!app) return
   const inByobu = app.classList.contains('byobu-mode') ?? false
   const inFocus = app.classList.contains('focus-mode') ?? false
-  const show = (pearlToggleOn || inByobu) && !inFocus
-  // The class reveals the pearl without applying any 3D transform to the map.
-  app.classList.toggle('show-pearl', pearlToggleOn)
+  const show = inByobu && !inFocus
+  // The pearl is 折-only: the class never reveals it on the flat 2D wall.
+  app.classList.toggle('show-pearl', show)
   if (!orb) return
-  orb.setAttribute('aria-pressed', pearlToggleOn ? 'true' : 'false')
+  orb.setAttribute('aria-pressed', show ? 'true' : 'false')
   orb.tabIndex = show ? 0 : -1
   orb.setAttribute('aria-hidden', show ? 'false' : 'true')
   const label = pearlToggleOn ? t('credits.rotateHide') : t('credits.rotateShow')
@@ -1064,7 +1064,7 @@ export function syncFlatRoll(): void {
 
 /**
  * Mount the pearl. In 折 it orbits the folded map when dragged; outside 折 it
- * is a pure 天旋地轉 visibility toggle and never tilts the map.
+ * stays hidden, whatever the 天旋地轉 preference was.
  */
 function mountTurnOrb(): void {
   const toolbar = document.querySelector<HTMLElement>('#toolbar')

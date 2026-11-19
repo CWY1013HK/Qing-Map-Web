@@ -66,8 +66,40 @@ function buildSealButton(tour: TourDefinition): HTMLButtonElement {
   img.draggable = false
   btn.appendChild(img)
 
-  btn.addEventListener('click', () => {
+  const launch = () => {
+    // Hover / long-press and the follow-up click must not toggle the tour off.
+    if (getTourPlayer().isPlaying()) return
     void getTourPlayer().play(tour)
-  })
+  }
+
+  if (document.getElementById('atlab')) {
+    // ATLab wall: hover or long-press launches too; elsewhere click only.
+    let hoverTimer = 0
+    let pressTimer = 0
+    const cancel = () => {
+      window.clearTimeout(hoverTimer)
+      window.clearTimeout(pressTimer)
+    }
+    btn.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return
+      cancel()
+      hoverTimer = window.setTimeout(launch, 650)
+    })
+    btn.addEventListener('pointerleave', cancel)
+    btn.addEventListener('pointerdown', () => {
+      cancel()
+      pressTimer = window.setTimeout(launch, 750)
+    })
+    btn.addEventListener('pointerup', cancel)
+    btn.addEventListener('pointercancel', cancel)
+    btn.addEventListener('click', () => {
+      cancel()
+      launch()
+    })
+  } else {
+    btn.addEventListener('click', () => {
+      void getTourPlayer().play(tour)
+    })
+  }
   return btn
 }

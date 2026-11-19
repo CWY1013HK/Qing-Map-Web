@@ -83,6 +83,15 @@ function nestedScrollable(target: EventTarget | null): boolean {
 function bindAtlabPageScrollLock(): void {
   const guard = (e: Event) => {
     if (nestedScrollable(e.target)) return
+    if (
+      e.type === 'wheel' &&
+      e.target instanceof Element &&
+      e.target.closest('#viewer')
+    ) {
+      // The wall viewer owns its wheel (OpenSeadragon scrollToZoom).
+      // Only page scrolling stays locked here.
+      return
+    }
     e.preventDefault()
   }
   document.addEventListener('touchmove', guard, { passive: false, capture: true })
